@@ -6,10 +6,10 @@
 # Internal utility functions, not exposed in the public API.
 #
 
-# For convenience, give our utility functions full access to the public API
-from pandas_text import *
-
+import numpy as np
 from typing import *
+
+# Internal imports
 
 
 def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"]) -> str:
