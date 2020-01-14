@@ -12,21 +12,23 @@ from typing import *
 from spacy.tokenizer import Tokenizer
 from spacy.lang.en import English
 
-from pandas_text import CharSpanArray, TokenSpanArray
+# Internal imports
+from pandas_text.char_span import CharSpanArray
+from pandas_text.token_span import TokenSpanArray
 
 
 def make_tokens(target_text: str,
-                tokenizer: spacy.tokenizer.Tokenizer) -> CharSpanArray:
+                tokenizer: spacy.tokenizer.Tokenizer) -> pd.Series:
     """
     :param target_text: Text to tokenize
     :param tokenizer: Preconfigured tokenizer object
-    :return: The tokens (and underlying text) as a `CharSpanArray` that can
-        serve as a Pandas series or as the tokens object for a `TokenSpanArray`
+    :return: The tokens (and underlying text) as a Pandas Series wrapped around
+        a `CharSpanArray` value.
     """
     spacy_doc = tokenizer(target_text)
     tok_begins = np.array([t.idx for t in spacy_doc])
     tok_ends = np.array([t.idx + len(t) for t in spacy_doc])
-    return CharSpanArray(target_text, tok_begins, tok_ends)
+    return pd.Series(CharSpanArray(target_text, tok_begins, tok_ends))
 
 
 def load_dict(file_name: str, tokenizer: spacy.tokenizer.Tokenizer):
@@ -35,7 +37,13 @@ def load_dict(file_name: str, tokenizer: spacy.tokenizer.Tokenizer):
 
     Tokenizes and normalizes the dictionary entries.
 
-    Returns a `pd.DataFrame` with the normalized entries.
+    :param file_name: Path to dictionary file
+
+    :param tokenizer: Preconfigured tokenizer object for tokenizing
+    dictionary entries.  **Must be the same configuration as the tokenizer
+    used on the target text!**
+
+    :return: a `pd.DataFrame` with the normalized entries.
     """
     with open(file_name, "r") as f:
         lines = [l.strip() for l in f.readlines() if len(l) > 0 and l[0] != "#"]
@@ -61,27 +69,37 @@ def load_dict(file_name: str, tokenizer: spacy.tokenizer.Tokenizer):
     return pd.DataFrame(cols_dict)
 
 
-def extract_dict(tokens: pd.DataFrame, dictionary: pd.DataFrame,
+def extract_dict(tokens: Union[CharSpanArray, pd.Series],
+                 dictionary: pd.DataFrame,
                  target_col_name: str = "matches"):
     """
     Identify all matches of a dictionary on a sequence of tokens.
 
     Args:
-        tokens: Dataframe of token information. Must have the the fields `token_id`,
-                `text`, and `char_offsets`.
-        dictionary: The dictionary to match, encoded as a `pd.DataFrame`.
+        tokens: `CharSpanArray` of token information, optionally wrapped in a
+                `pd.Series`.
+        dictionary: The dictionary to match, encoded as a `pd.DataFrame` in the
+            format returned by `load_dict()`
         target_col_name: (optional) name of column of matching spans in returned
                 Dataframe
 
     Returns a single-column dataframe of token ID spans of dictionary matches
     """
-    # Generate and cache normalized tokens if not present
-    if "normalized_text" not in tokens:
-        tokens["normalized_text"] = tokens["text"].str.lower()
+    # Box tokens into a series if necessary
+    if isinstance(tokens, CharSpanArray):
+        if not isinstance(tokens.value, CharSpanArray):
+            raise TypeError("tokens argument must be either a CharSpanArray "
+                            "or a pd.Series consisting of a CharSpanArray")
+        tokens = tokens.value
 
-    # Match first token to find potential matches
-    matches = pd.merge(dictionary,
-                       tokens[["token_id", "normalized_text"]],
+    # Wrap the important parts of the tokens series in a temporary dataframe.
+    toks_tmp = pd.DataFrame({
+        "token_id": tokens.index,
+        "normalized_text": tokens.values.normalized_covered_text
+    })
+
+    # Start by matching the first token.
+    matches = pd.merge(dictionary, toks_tmp,
                        left_on="toks_0", right_on="normalized_text")
     matches.rename(columns={"token_id": "begin_token_id"}, inplace=True)
     matches_col_names = list(matches.columns)  # We'll need this later
@@ -109,8 +127,7 @@ def extract_dict(tokens: pd.DataFrame, dictionary: pd.DataFrame,
         potential_matches.drop("normalized_text", axis=1, inplace=True)
         potential_matches["next_token_id"] = potential_matches[
                                                  "begin_token_id"] + match_len
-        potential_matches = pd.merge(potential_matches,
-                                     tokens[["token_id", "normalized_text"]],
+        potential_matches = pd.merge(potential_matches, toks_tmp,
                                      left_on="next_token_id",
                                      right_on="token_id")
         # print("Filtered potential matches:\n{}".format(potential_matches))

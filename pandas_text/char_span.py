@@ -9,9 +9,11 @@
 import pandas as pd
 import numpy as np
 from memoized_property import memoized_property
+from typing import *
 
 # Internal imports
 import pandas_text.util as util
+
 
 class CharSpan:
     """
@@ -86,10 +88,37 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         self._begins = begins
         self._ends = ends
 
-    ##############################
-    # Mandatory fields/methods
+    @classmethod
+    def _concat_same_type(
+        cls, to_concat: Sequence[pd.api.extensions.ExtensionArray]
+    ) -> pd.api.extensions.ExtensionArray:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        text = {a.target_text for a in to_concat}
+        if len(text) != 1:
+            raise ValueError("CharSpans must all be over the same target text")
+        text = text.pop()
+
+        begins = np.concatenate([a.begin for a in to_concat])
+        ends = np.concatenate([a.end for a in to_concat])
+        return CharSpanArray(text, begins, ends)
+
+    def isna(self) -> np.array:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        # No na's allowed at the moment.
+        return np.repeat(False, len(self))
+
     @property
     def dtype(self) -> pd.api.extensions.ExtensionDtype:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
         return CharSpanType()
 
     def __len__(self) -> int:
@@ -104,11 +133,9 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             return CharSpan(self._text, int(self._begins[item]),
                             int(self._ends[item]))
         else:
-            raise ValueError(
-                "Indexing by item type '{}' not supported".format(type(item)))
-
-    #########################################
-    # Special fields/methods for span columns
+            # item not an int --> assume it's a numpy-compatible index
+            return CharSpanArray(self.target_text,
+                                 self.begin[item], self.end[item])
 
     @property
     def target_text(self) -> str:
@@ -137,7 +164,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
     @property
     def covered_text(self) -> np.ndarray:
         """
-        Returns an array of the substrings of `target_text` corresponding to
+        :return: an array of the substrings of `target_text` corresponding to
         the spans in this array.
         """
         # TODO: Vectorized version of this
@@ -145,6 +172,14 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         return np.array([
             text[s[0]:s[1]] for s in self.as_tuples()
         ])
+
+    @memoized_property
+    def normalized_covered_text(self) -> np.ndarray:
+        """
+        :return: A normalized version of the covered text of the spans in this
+          array. Currently "normalized" means "lowercase".
+        """
+        return np.char.lower(self.covered_text)
 
     def as_frame(self) -> pd.DataFrame:
         """
@@ -162,5 +197,3 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         HTML pretty-printing of a series of spans for Jupyter notebooks.
         """
         return util.pretty_print_html(self)
-
-
