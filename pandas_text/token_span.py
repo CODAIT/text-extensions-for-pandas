@@ -9,6 +9,7 @@
 import pandas as pd
 import numpy as np
 from memoized_property import memoized_property
+from typing import *
 
 # Internal imports
 import pandas_text.util as util
@@ -84,8 +85,6 @@ class TokenSpanArray(pd.api.extensions.ExtensionArray):
         self._begin_tokens = begin_tokens
         self._end_tokens = end_tokens
 
-    ##############################
-    # Mandatory fields/methods
     @property
     def dtype(self) -> pd.api.extensions.ExtensionDtype:
         return TokenSpanType()
@@ -102,11 +101,92 @@ class TokenSpanArray(pd.api.extensions.ExtensionArray):
             return TokenSpan(self._tokens, int(self._begin_tokens[item]),
                              int(self._end_tokens[item]))
         else:
-            raise ValueError(
-                "Indexing by item type '{}' not supported".format(type(item)))
+            # item not an int --> assume it's a numpy-compatible index
+            return TokenSpanArray(self._tokens,
+                                  self.begin_token[item],
+                                  self.end_token[item])
 
-    #########################################
-    # Special fields/methods for span columns
+    @classmethod
+    def _concat_same_type(
+        cls, to_concat: Sequence[pd.api.extensions.ExtensionArray]
+    ) -> pd.api.extensions.ExtensionArray:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        if len(to_concat) == 0:
+            raise ValueError("Can't concatenate zero TokenSpanArrays")
+        # Require exact object equality of the tokens for now.
+        tokens = to_concat[0].tokens
+        for c in to_concat:
+            if c.tokens != tokens:
+                raise ValueError("Can only concatenate spans that are over "
+                                 "the same set of tokens")
+        begin_tokens = np.concatenate([a.begin_token for a in to_concat])
+        end_tokens = np.concatenate([a.end_token for a in to_concat])
+        return TokenSpanArray(tokens, begin_tokens, end_tokens)
+
+    def isna(self) -> np.array:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        # No na's allowed at the moment.
+        return np.repeat(False, len(self))
+
+    def copy(self) -> "TokenSpanArray":
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        ret = TokenSpanArray(
+            self.tokens,
+            self.begin_token.copy(),
+            self.end_token.copy()
+        )
+        # TODO: Copy cached properties too
+        return ret
+
+    def take(
+        self, indices: Sequence[int], allow_fill: bool = False,
+        fill_value: Any = None
+    ) -> "TokenSpanArray":
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        if allow_fill:
+            # From API docs: "[If allow_fill == True, then] negative values in
+            # `indices` indicate missing values. These values are set to
+            # `fill_value`.  Any other negative values raise a ``ValueError``."
+
+            # As a temporary measure, handle the case where the allow_fill
+            # parameter is true but all indices are >= 0. pd.merge() exercises
+            # this case.
+            # TODO: Implement filling properly
+            if np.all(np.array(indices) >= 0):
+                # No negative indices, so the fact that we haven't actually
+                # implemented fill values doesn't matter.
+                return TokenSpanArray(
+                    self.tokens, np.take(self.begin_token, indices),
+                    np.take(self.end_token, indices)
+                )
+            else:
+                raise ValueError("allow_fill mode not implemented "
+                                 "(indices {})".format(indices))
+        else:
+            # allow_fill == False
+            # From API docs: "[If allow_fill == False, then] negative values in
+            # `indices` indicate positional indices from the right (the
+            # default). This is similar to :func:`numpy.take`.
+            return TokenSpanArray(
+                self.tokens, np.take(self.begin_token, indices),
+                np.take(self.end_token, indices)
+            )
+
+    @property
+    def tokens(self) -> CharSpanArray:
+        return self._tokens
 
     @property
     def target_text(self) -> str:
@@ -129,7 +209,7 @@ class TokenSpanArray(pd.api.extensions.ExtensionArray):
         :return: the *character* offsets of the span ends.
         """
         # Start out with the end of the last token in each span.
-        ret = self._tokens.end[self.end_token]
+        ret = self._tokens.end[self.end_token - 1]
         # Replace end offset with begin offset wherever the length in tokens
         # is zero.
         mask = (self.end_token == self.begin_token)

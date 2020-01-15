@@ -19,10 +19,6 @@ def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"]) -> str:
     Args:
         column: Span column (either character or token spans)
     """
-    # span_lines = [
-    #    "<div>{}</div>".format(e) for e in self
-    # ]
-    # spans_html = "\n".join(span_lines)
 
     # Generate a dataframe of atomic types to pretty-print the spans
     spans_html = column.as_frame().to_html()
@@ -39,11 +35,12 @@ def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"]) -> str:
     text_pieces = []
     for i in range(len(text)):
         if mask[i] and (i == 0 or not mask[i - 1]):
-            # Starting a bold region
-            text_pieces.append("<b>")
+            # Starting a highlighted region
+            text_pieces.append(
+                """<span style="background-color:yellow">""")
         elif not (mask[i]) and i > 0 and mask[i - 1]:
             # End of a bold region
-            text_pieces.append("</b>")
+            text_pieces.append("</span>")
         if text[i] == "\n":
             text_pieces.append("<br>")
         text_pieces.append(text[i])
@@ -53,11 +50,11 @@ def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"]) -> str:
     return """
     <div id="spanArray">
         <div id="spans" 
-         style="background-color:lightblue; float:left; padding:10px;">
+         style="background-color:#F0F0F0; border: 1px solid #E0E0E0; float:left; padding:10px;">
             {}
         </div>
         <div id="text"
-         style="float:right; background-color:lightgreen; width: 60%;">
+         style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 60%;">
             <div style="float:center; padding:10px">
                 <p style="font-family:monospace">
                     {}
