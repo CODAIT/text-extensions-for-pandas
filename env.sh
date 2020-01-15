@@ -23,7 +23,8 @@ then
 fi
 if [ -e "${CONDA_HOME}/etc/profile.d/conda.sh" ]
 then
-    . ${CONDA_HOME}/etc/profile.d/conda.sh
+    # shellcheck disable=SC1090
+    . "${CONDA_HOME}/etc/profile.d/conda.sh"
 else
     echo "Error: CONDA_HOME (${CONDA_HOME}) does not appear to be set up."
     exit
@@ -50,16 +51,19 @@ conda install -y \
 
 ################################################################################
 # Second-best way to install packages: conda-forge
-conda install -y -c conda-forge spacy
+conda install -y -c conda-forge \
+    spacy \
+    pyarrow \
+    fastparquet
 
 ################################################################################
-# Third-tier way to install packages: pip
+# Third-best way to install packages: pip
 pip install memoized-property
 
 ################################################################################
 # Least-preferred install method: Custom
 
-# Spacy language models for English
+# spaCy language models for English
 python -m spacy download en_core_web_sm
 
 

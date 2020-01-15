@@ -16,6 +16,13 @@ from spacy.lang.en import English
 from pandas_text.char_span import CharSpanArray
 from pandas_text.token_span import TokenSpanArray
 
+# Set to True to use sparse storage for tokens 2-n of n-token dictionary
+# entries. First token is always stored dense, of course.
+# Currently set to False to avoid spurious Pandas API warnings about conversion
+# from sparse to dense.
+# TODO: Turn this back on when Pandas fixes the issue with the warning.
+_SPARSE_DICT_ENTRIES = False
+
 
 def make_tokens(target_text: str,
                 tokenizer: spacy.tokenizer.Tokenizer) -> pd.Series:
@@ -63,7 +70,8 @@ def load_dict(file_name: str, tokenizer: spacy.tokenizer.Tokenizer):
                      tokenized_entries]
         cols_dict["toks_{}".format(i)] = (
             # Sparse storage for tokens 2 and onward
-            toks_list if i == 0 else pd.SparseArray(toks_list)
+            toks_list if i == 0 or not _SPARSE_DICT_ENTRIES
+            else pd.SparseArray(toks_list)
         )
 
     return pd.DataFrame(cols_dict)
@@ -75,22 +83,20 @@ def extract_dict(tokens: Union[CharSpanArray, pd.Series],
     """
     Identify all matches of a dictionary on a sequence of tokens.
 
-    Args:
-        tokens: `CharSpanArray` of token information, optionally wrapped in a
-                `pd.Series`.
-        dictionary: The dictionary to match, encoded as a `pd.DataFrame` in the
-            format returned by `load_dict()`
-        target_col_name: (optional) name of column of matching spans in returned
-                Dataframe
+    :param tokens: `CharSpanArray` of token information, optionally wrapped in a
+    `pd.Series`.
 
-    Returns a single-column dataframe of token ID spans of dictionary matches
+    :param dictionary: The dictionary to match, encoded as a `pd.DataFrame` in
+    the format returned by `load_dict()`
+
+    :param target_col_name: (optional) name of column of matching spans in the
+    returned DataFrame
+
+    :return: a single-column DataFrame of token ID spans of dictionary matches
     """
-    # Box tokens into a series if necessary
+    # Box tokens into a pd.Series if not already boxed.
     if isinstance(tokens, CharSpanArray):
-        if not isinstance(tokens.value, CharSpanArray):
-            raise TypeError("tokens argument must be either a CharSpanArray "
-                            "or a pd.Series consisting of a CharSpanArray")
-        tokens = tokens.value
+        tokens = pd.Series(tokens)
 
     # Wrap the important parts of the tokens series in a temporary dataframe.
     toks_tmp = pd.DataFrame({
@@ -106,7 +112,8 @@ def extract_dict(tokens: Union[CharSpanArray, pd.Series],
 
     # Check against remaining elements of matching dictionary entries and
     # accumulate the full set of matches as a list of IntervalIndexes
-    all_matches = []
+    begins_list = []
+    ends_list = []
     max_entry_len = len(dictionary.columns)
     for match_len in range(1, max_entry_len):
         # print("Match len: {}".format(match_len))
@@ -116,9 +123,8 @@ def extract_dict(tokens: Union[CharSpanArray, pd.Series],
         # print("Completed matches:\n{}".format(matches[match_locs]))
         match_begins = matches[match_locs]["begin_token_id"].to_numpy()
         match_ends = match_begins + match_len
-        cur_spans = pd.IntervalIndex.from_arrays(match_begins, match_ends,
-                                                 closed="left")
-        all_matches.append(cur_spans)
+        begins_list.append(match_begins)
+        ends_list.append(match_ends)
 
         # For the remaining partial matches against longer dictionary entries,
         # check the next token by merging with the tokens dataframe.
@@ -136,14 +142,15 @@ def extract_dict(tokens: Union[CharSpanArray, pd.Series],
                 "toks_{}".format(match_len)]]
         # The result of the join has some extra columns that we don't need.
         matches = potential_matches[matches_col_names]
-    all_matches_as_df = [pd.DataFrame({target_col_name: m}) for m in
-                         all_matches]
-    return pd.concat(all_matches_as_df)
+    # Gather together all the sets of matches and wrap in a dataframe.
+    begins = np.concatenate(begins_list)
+    ends = np.concatenate(ends_list)
+    return pd.DataFrame({target_col_name: TokenSpanArray(tokens.values,
+                                                         begins, ends)})
 
 
 def extract_regex_tok(
-        token_offsets: pd.Series,
-        target_str: str,
+        tokens: Union[CharSpanArray, pd.Series],
         compiled_regex: regex.Regex,
         min_len=1,
         max_len=1):
@@ -151,43 +158,38 @@ def extract_regex_tok(
     Identify all (possibly overlapping) matches of a regular expression
     that start and end on token boundaries.
 
-    Arguments:
-        token_offsets: Series of spans that mark the locations of tokens
-                       in the document
-        target_str: Text of the document
-        compiled_regex: Regular expression to evaluate.
-        min_len: Minimum match length in tokens
-        max_len: Maximum match length (inclusive) in tokens
+    :param tokens: `CharSpanArray` of token information, optionally wrapped in a
+    `pd.Series`.
+    :param compiled_regex: Regular expression to evaluate.
+    :param min_len: Minimum match length in tokens
+    :param max_len: Maximum match length (inclusive) in tokens
+
+    :returns: A single-column DataFrame containing a span for each match of the
+    regex.
     """
-    token_begins = pd.arrays.IntervalArray(token_offsets).left
-    token_ends = pd.arrays.IntervalArray(token_offsets).right
-    num_tokens = token_begins.size
+    if isinstance(tokens, CharSpanArray):
+        tokens = pd.Series(tokens)
+
+    num_tokens = len(tokens.values)
+    matches_regex_f = np.vectorize(lambda s: compiled_regex.fullmatch(s)
+                                             is not None)
 
     # The built-in regex functionality of Pandas/Python does not have
     # an optimized single-pass RegexTok, so generate all the places
     # where there might be a match and run them through regex.fullmatch().
-    # Note that this is inefficient if max_len is large.
-    # TODO: Either directly implement token-based matching in C++ or
-    # fall back on a scalable Python implementation
+    # Note that this approach is asymptotically inefficient if max_len is large.
+    # TODO: Performance tuning for both small and large max_len
     matches_list = []
     for cur_len in range(min_len, max_len + 1):
         window_begin_toks = np.arange(0, num_tokens - cur_len + 1)
         window_end_toks = window_begin_toks + cur_len
-        window_tok_intervals = pd.Series(pd.arrays.IntervalArray.from_arrays(
-            window_begin_toks, window_end_toks, closed="left"))
 
-        # Compute window boundaries in characters directly from the tokens
-        window_begin_chars = token_begins[:num_tokens - cur_len + 1]
-        window_end_chars = token_ends[cur_len - 1:]
-        window_char_intervals = pd.Series(pd.arrays.IntervalArray.from_arrays(
-            window_begin_chars, window_end_chars, closed="left"))
-        matching_windows = window_char_intervals.apply(
-            lambda x: compiled_regex.fullmatch(target_str, x.left,
-                                               x.right) is not None)
-        matches_list.append(window_tok_intervals[matching_windows])
-
-    return pd.DataFrame(
-        {"matches": pd.concat(matches_list)})
+        window_tok_spans = TokenSpanArray(tokens.values, window_begin_toks,
+                                          window_end_toks)
+        matches_list.append(pd.Series(
+            window_tok_spans[matches_regex_f(window_tok_spans.covered_text)]
+        ))
+    return pd.DataFrame({"matches": pd.concat(matches_list)})
 
 
 def adjacent_join(first_series: pd.Series,
@@ -200,45 +202,71 @@ def adjacent_join(first_series: pd.Series,
     Compute the join of two series of spans, where a pair of spans is
     considered to match if they are adjacent to each other in the text.
 
-    Args:
-        first_series: Spans that appear earlier. Offsets in tokens, not
-                      characters.
-        second_series: Spans that come after. Offsets in tokens.
-        first_name: Name to give the column in the returned dataframe that
-                    is derived from `first_series`.
-        second_name: Column name for spans from `second_series` in the
-                     returned dataframe.
-        min_gap: Minimum number of spans allowed between matching pairs of
-                 spans, inclusive.
-        max_gap: Maximum number of spans allowed between matching pairs of
-                 spans, inclusive.
+    :param first_series: Spans that appear earlier. dtype must be TokenSpan.
 
-    Returns a new `pd.DataFrame` containing all pairs of spans that match
-    the join predicate. Columns of the dataframe will be named according
+    :param second_series: Spans that come after. dtype must be TokenSpan.
+
+    :param first_name: Name to give the column in the returned dataframe that
+    is derived from `first_series`.
+
+    :param second_name: Column name for spans from `second_series` in the
+    returned DataFrame.
+
+    :param min_gap: Minimum number of spans allowed between matching pairs of
+    spans, inclusive.
+
+    :param max_gap: Maximum number of spans allowed between matching pairs of
+    spans, inclusive.
+
+    :returns: a new `pd.DataFrame` containing all pairs of spans that match
+    the join predicate. Columns of the DataFrame will be named according
     to the `first_name` and `second_name` arguments.
     """
     # For now we always make the first series the outer.
     # TODO: Make the larger series the outer and adjust the join logic
     # below accordingly.
-    outer = pd.DataFrame()
-    outer["outer_span"] = first_series
-    outer["outer_end"] = pd.IntervalIndex(first_series).right
+    outer = pd.DataFrame({
+            "outer_span": first_series,
+            "outer_end": first_series.values.end_token
+    })
 
     # Inner series gets replicated for every possible offset so we can use
     # Pandas' high-performance equijoin
-    inner_chunks = []
-    for gap in range(min_gap, max_gap + 1):
-        chunk = pd.DataFrame()
-        chunk["inner_span"] = second_series
-        # Join predicate: outer.end == inner.begin + gap
-        chunk["outer_end"] = pd.arrays.IntervalArray(second_series).left + gap
-        inner_chunks.append(chunk)
-    inner = pd.concat(inner_chunks)
+    inner_span_list = [second_series] * (max_gap - min_gap + 1)
+    outer_end_list = [
+        # Join predicate: outer_span = inner_span.begin + gap
+        second_series.values.begin_token + gap
+        for gap in range(min_gap, max_gap + 1)
+    ]
+    inner = pd.DataFrame({
+        "inner_span": pd.concat(inner_span_list),
+        "outer_end": np.concatenate(outer_end_list)
+    })
     joined = outer.merge(inner)
 
-    # Now we have a dataframe with the schema
+    # Now we have a DataFrame with the schema
     # [outer_span, outer_end, inner_span]
-    ret = pd.DataFrame()
-    ret[first_name] = joined["outer_span"]
-    ret[second_name] = joined["inner_span"]
-    return ret
+    return pd.DataFrame({
+        first_name: joined["outer_span"],
+        second_name: joined["inner_span"]
+    })
+
+
+def combine_spans(series1: pd.Series, series2: pd.Series):
+    """
+    :param series1: A series backed by a TokenSpanArray
+    :param series2: A series backed by a TokenSpanArray
+    :return: A new series (also backed by a TokenSpanArray) of spans
+        containing shortest span that completely covers both input spans.
+    """
+    spans1 = series1.values
+    spans2 = series2.values
+    if not isinstance(spans1, TokenSpanArray) or not isinstance(spans2,
+                                                               TokenSpanArray):
+        raise ValueError("This function is only implemented for TokenSpanArrays")
+    # TODO: Raise an error if any span in series1 comes after the corresponding
+    #  span in series2
+    # TODO: Raise an error if series1.tokens != series2.tokens
+    return pd.Series(TokenSpanArray(
+        spans1.tokens, spans1.begin_token, spans2.end_token
+    ))

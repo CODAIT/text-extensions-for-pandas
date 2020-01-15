@@ -113,6 +113,34 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         # No na's allowed at the moment.
         return np.repeat(False, len(self))
 
+    def copy(self) -> "CharSpanArray":
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        ret = CharSpanArray(
+            self.target_text,
+            self.begin.copy(),
+            self.end.copy()
+        )
+        # TODO: Copy cached properties too
+        return ret
+
+    def take(
+        self, indices: Sequence[int], allow_fill: bool = False,
+        fill_value: Any = None
+    ) -> "CharSpanArray":
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        # TODO: Implement allow_fill
+        if allow_fill:
+            raise ValueError("allow_fill mode not implemented")
+        return CharSpanArray(
+            self.target_text, self.begin[indices], self.end[indices]
+        )
+
     @property
     def dtype(self) -> pd.api.extensions.ExtensionDtype:
         """
