@@ -134,12 +134,21 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        # TODO: Implement allow_fill
+        # TODO: When TokenSpanArray.take() implements allow_fill properly, copy
+        #  that implementation here.
         if allow_fill:
-            raise ValueError("allow_fill mode not implemented")
-        return CharSpanArray(
-            self.target_text, self.begin[indices], self.end[indices]
-        )
+            if np.all(np.array(indices) >= 0):
+                return CharSpanArray(self.target_text,
+                                     np.take(self.begin, indices),
+                                     np.take(self.end, indices))
+            else:
+                raise ValueError("allow_fill mode not implemented "
+                                 "(indices {})".format(indices))
+        else:
+            return CharSpanArray(self.target_text,
+                                 np.take(self.begin, indices),
+                                 np.take(self.end, indices))
+
 
     @property
     def dtype(self) -> pd.api.extensions.ExtensionDtype:

@@ -29,7 +29,9 @@ class TokenSpan(CharSpan):
         """
         :param tokens: Tokenization information about the document, including
         the target text.
-        :param begin_token: Begin offset (inclusive) within the tokenized text
+
+        :param begin_token: Begin offset (inclusive) within the tokenized text,
+
         :param end_token: End offset; exclusive, one past the last token
         """
         begin_char_off = tokens.begin[begin_token]
@@ -41,7 +43,12 @@ class TokenSpan(CharSpan):
         self._end_token = end_token
 
     def __repr__(self) -> str:
-        return "[{}, {}): '{}'".format(self.begin, self.end, self.covered_text)
+        # return "[{}, {})/[{}, {}): '{}'".format(self.begin_token,
+        #                                         self.end_token,
+        #                                         self.begin, self.end,
+        #                                         self.covered_text)
+        return "[{}, {}): '{}'".format(self.begin_token, self.end_token,
+                                       self.covered_text)
 
     @property
     def begin_token(self):
@@ -79,8 +86,30 @@ class TokenSpanArray(pd.api.extensions.ExtensionArray):
     `begin_token` and `end_token` are token offsets into the target text.
     """
 
+    @staticmethod
+    def from_char_offsets(tokens: CharSpanArray) -> "TokenSpanArray":
+        """
+        Convenience factory method for wrapping the character-level spans of a
+        series of tokens into single-token token-based spans.
+
+        :param tokens: character-based offsets of the tokens
+
+        :return: A TokenSpanArray containing single-token spans for each of the
+        tokens in `tokens`.
+        """
+        begin_tokens = np.arange(len(tokens))
+        return TokenSpanArray(tokens, begin_tokens, begin_tokens + 1)
+
     def __init__(self, tokens: CharSpanArray,
-                 begin_tokens: np.ndarray, end_tokens: np.ndarray):
+                 begin_tokens: np.ndarray = None,
+                 end_tokens: np.ndarray = None):
+        """
+        :param tokens: Character-level span information about the underlying
+        tokens.
+
+        :param begin_tokens: Array of begin offsets measured in tokens
+        :param end_tokens: Array of end offsets measured in tokens
+        """
         self._tokens = tokens
         self._begin_tokens = begin_tokens
         self._end_tokens = end_tokens
