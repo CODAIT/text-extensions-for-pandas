@@ -38,6 +38,40 @@ def make_tokens(target_text: str,
     return pd.Series(CharSpanArray(target_text, tok_begins, tok_ends))
 
 
+def make_tokens_and_features(
+        target_text: str,
+        language_model: spacy.language.Language) -> pd.DataFrame:
+    """
+    :param target_text: Text to tokenize
+    :param tokens
+    :param language_model: Preconfigured spaCy language model object
+    :return: The tokens of the text plus additional linguistic features that the
+    language model generates, represented as a `pd.DataFrame`.
+    """
+    spacy_doc = language_model(target_text)
+    # TODO: Performance tuning of the translation code that follows
+
+    # Represent the character spans of the tokens
+    tok_begins = np.array([t.idx for t in spacy_doc])
+    tok_ends = np.array([t.idx + len(t) for t in spacy_doc])
+    tokens_series = pd.Series(CharSpanArray(target_text, tok_begins, tok_ends))
+
+    # Also build token-based spans to make it easier to compose
+    token_spans = TokenSpanArray.from_char_offsets(tokens_series.values)
+
+    return pd.DataFrame({
+        "char_span": tokens_series,
+        "token_span": token_spans,
+        "lemma": [t.lemma_ for t in spacy_doc],
+        "pos": pd.Categorical([t.pos_ for t in spacy_doc]),
+        "tag": pd.Categorical([t.tag_ for t in spacy_doc]),
+        "dep": pd.Categorical([t.dep_ for t in spacy_doc]),
+        "shape": pd.Categorical([t.shape_ for t in spacy_doc]),
+        "is_alpha": np.array([t.is_alpha for t in spacy_doc]),
+        "is_stop": np.array([t.is_stop for t in spacy_doc]),
+    })
+
+
 def load_dict(file_name: str, tokenizer: spacy.tokenizer.Tokenizer):
     """
     Load a SystemT-format dictionary file. File format is one entry per line.
@@ -79,7 +113,7 @@ def load_dict(file_name: str, tokenizer: spacy.tokenizer.Tokenizer):
 
 def extract_dict(tokens: Union[CharSpanArray, pd.Series],
                  dictionary: pd.DataFrame,
-                 target_col_name: str = "matches"):
+                 output_col_name: str = "match"):
     """
     Identify all matches of a dictionary on a sequence of tokens.
 
@@ -89,7 +123,7 @@ def extract_dict(tokens: Union[CharSpanArray, pd.Series],
     :param dictionary: The dictionary to match, encoded as a `pd.DataFrame` in
     the format returned by `load_dict()`
 
-    :param target_col_name: (optional) name of column of matching spans in the
+    :param output_col_name: (optional) name of column of matching spans in the
     returned DataFrame
 
     :return: a single-column DataFrame of token ID spans of dictionary matches
@@ -145,7 +179,7 @@ def extract_dict(tokens: Union[CharSpanArray, pd.Series],
     # Gather together all the sets of matches and wrap in a dataframe.
     begins = np.concatenate(begins_list)
     ends = np.concatenate(ends_list)
-    return pd.DataFrame({target_col_name: TokenSpanArray(tokens.values,
+    return pd.DataFrame({output_col_name: TokenSpanArray(tokens.values,
                                                          begins, ends)})
 
 
@@ -153,16 +187,23 @@ def extract_regex_tok(
         tokens: Union[CharSpanArray, pd.Series],
         compiled_regex: regex.Regex,
         min_len=1,
-        max_len=1):
+        max_len=1,
+        output_col_name: str = "match"):
     """
     Identify all (possibly overlapping) matches of a regular expression
     that start and end on token boundaries.
 
     :param tokens: `CharSpanArray` of token information, optionally wrapped in a
     `pd.Series`.
+
     :param compiled_regex: Regular expression to evaluate.
+
     :param min_len: Minimum match length in tokens
+
     :param max_len: Maximum match length (inclusive) in tokens
+
+    :param output_col_name: (optional) name of column of matching spans in the
+    returned DataFrame
 
     :returns: A single-column DataFrame containing a span for each match of the
     regex.
@@ -189,7 +230,7 @@ def extract_regex_tok(
         matches_list.append(pd.Series(
             window_tok_spans[matches_regex_f(window_tok_spans.covered_text)]
         ))
-    return pd.DataFrame({"matches": pd.concat(matches_list)})
+    return pd.DataFrame({output_col_name: pd.concat(matches_list)})
 
 
 def adjacent_join(first_series: pd.Series,
