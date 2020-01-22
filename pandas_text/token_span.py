@@ -50,6 +50,21 @@ class TokenSpan(CharSpan):
         return "[{}, {}): '{}'".format(self.begin_token, self.end_token,
                                        self.covered_text)
 
+    def __eq__(self, other):
+        return (
+            isinstance(other, TokenSpan)
+            and self.tokens == other.tokens
+            and self.begin_token == other.begin_token
+            and self.end_token == other.end_token
+        )
+
+    def __hash__(self):
+        return hash((self.tokens, self.begin_token, self.end_token))
+
+    @property
+    def tokens(self):
+        return self._tokens
+
     @property
     def begin_token(self):
         return self._begin_token
@@ -135,6 +150,37 @@ class TokenSpanArray(pd.api.extensions.ExtensionArray):
                                   self.begin_token[item],
                                   self.end_token[item])
 
+    def __eq__(self, other):
+        """
+        Pandas-style array/series comparison function.
+
+        :param other: Second operand of a Pandas "==" comparison with the series
+        that wraps this TokenSpanArray.
+
+        :return: Returns a boolean mask indicating which rows match `other`.
+        """
+        if isinstance(other, TokenSpan):
+            mask = np.full(len(self), True, dtype=np.bool)
+            mask[self.tokens != other.tokens] = False
+            mask[self.begin_token != other.begin_token] = False
+            mask[self.end_token != other.end_token] = False
+            return mask
+        elif isinstance(other, TokenSpanArray):
+            if len(self) != len(other):
+                raise ValueError("Can't compare arrays of differing lengths "
+                                 "{} and {}".format(len(self), len(other)))
+            if self.tokens != other.tokens:
+                return False  # Pandas will broadcast this to an array
+            return np.logical_and(
+                self.begin_token == self.begin_token,
+                self.end_token == self.end_token
+            )
+        else:
+            # TODO: Return False here once we're sure that this
+            #  function is catching all the comparisons that really matter.
+            raise ValueError("Don't know how to compare objects of type "
+                             "'{}' and '{}'".format(type(self), type(other)))
+
     @classmethod
     def _concat_same_type(
         cls, to_concat: Sequence[pd.api.extensions.ExtensionArray]
@@ -153,6 +199,26 @@ class TokenSpanArray(pd.api.extensions.ExtensionArray):
                                  "the same set of tokens")
         begin_tokens = np.concatenate([a.begin_token for a in to_concat])
         end_tokens = np.concatenate([a.end_token for a in to_concat])
+        return TokenSpanArray(tokens, begin_tokens, end_tokens)
+
+    @classmethod
+    def _from_sequence(cls, scalars, dtype=None, copy=False):
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        num_spans = len(scalars)
+        # Currently we expect to receive lists of TokenSpan. Convert to arrays
+        # of ints.
+        begin_tokens = np.zeros(num_spans, dtype=np.int)
+        end_tokens = np.zeros(num_spans, dtype=np.int)
+        tokens = scalars[0].tokens
+        for i in range(len(scalars)):
+            if scalars[i].tokens != tokens:
+                raise ValueError("Can't mix spans on different sets of tokens "
+                                 "{} and {}".format(tokens, scalars[i].tokens))
+            begin_tokens[i] = scalars[i].begin_token
+            end_tokens[i] = scalars[i].end_token
         return TokenSpanArray(tokens, begin_tokens, end_tokens)
 
     def isna(self) -> np.array:
