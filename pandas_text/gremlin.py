@@ -125,7 +125,8 @@ class GraphTraversal:
                 "Can only call out() when the last element in the path is a "
                 "vertex. Last element type is {}".format(
                     self._path_col_types[-1]))
-            # Column of path is a list of vertices. Join with edges table.
+
+        # Column of path is a list of vertices. Join with edges table.
         p = self.paths
         new_paths = (
             p
@@ -141,8 +142,30 @@ class GraphTraversal:
         # TODO: Duplicate rows
 
     def in_(self):
-        # TODO: Implement
-        raise NotImplementedError()
+        """
+        :returns: A GraphTraversal that adds the destination of any edges into
+        the current traversal's last element.
+        """
+        if self._path_col_types[-1] != "v":
+            raise ValueError(
+                "Can only call in() when the last element in the path is a "
+                "vertex. Last element type is {}".format(
+                    self._path_col_types[-1]))
+
+        # For some reason the merge logic in out() gets hung up in some Pandas
+        # internals if we attempt to reproduce the same method here. So instead
+        # we generate a temporary table to merge with.
+        p = self.paths
+        merge_tmp = pd.DataFrame({"to": p[p.columns[-1]]})
+        new_paths = (
+            merge_tmp.merge(self.edges)
+            .drop("to", axis="columns")
+            .rename(columns={
+                "from": len(p.columns)}))  # "from" field ==> Last element
+
+        new_path_col_types = self._path_col_types + ["v"]
+        return GraphTraversal(self.vertices, self.edges, new_paths,
+                              new_path_col_types, self._aliases)
 
     def select(self, *args):
         """
@@ -192,7 +215,7 @@ class SelectGraphTraversal(GraphTraversal):
         Overload the superclass's implementation to generate the results of 
         the `select`. 
         """
-        return self.toDataFrame().todict("records")
+        return self.toDataFrame().to_dict("records")
 
     def toDataFrame(self):
         """
