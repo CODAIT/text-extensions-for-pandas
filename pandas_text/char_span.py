@@ -18,8 +18,15 @@ import pandas_text.util as util
 class CharSpan:
     """
     Python object representation of a single span with character offsets; that
-    is, a single row of a `CharSpanArray`
+    is, a single row of a `CharSpanArray`.
+
+    An offset of `CharSpan.NULL_TOKEN_VALUE` (currently -1) indicates
+    "not a span" in the sense that NaN is "not a number".
     """
+
+    # Begin/end value that indicates "not a span" in the sense that NaN is
+    # "not a number".
+    NULL_OFFSET_VALUE = -1
 
     def __init__(self, text: str, begin: int, end: int):
         """
@@ -28,6 +35,12 @@ class CharSpan:
             begin: Begin offset (inclusive) within `text`
             end: End offset (exclusive, one past the last char) within `text`
         """
+        if CharSpan.NULL_OFFSET_VALUE == begin:
+            if CharSpan.NULL_OFFSET_VALUE != end:
+                raise ValueError("Begin offset with special 'null' value {} "
+                                 "must be paired with an end offset of {}",
+                                 CharSpan.NULL_TOKEN_VALUE,
+                                 CharSpan.NULL_TOKEN_VALUE)
         self._text = text
         self._begin = begin
         self._end = end
@@ -53,7 +66,10 @@ class CharSpan:
         Returns the substring of `self.target_text` that this `CharSpan`
         represents.
         """
-        return self.target_text[self.begin:self.end]
+        if CharSpan.NULL_OFFSET_VALUE == self._begin:
+            return None
+        else:
+            return self.target_text[self.begin:self.end]
 
 
 @pd.api.extensions.register_extension_dtype
@@ -134,21 +150,31 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        # TODO: When TokenSpanArray.take() implements allow_fill properly, copy
-        #  that implementation here.
         if allow_fill:
-            if np.all(np.array(indices) >= 0):
-                return CharSpanArray(self.target_text,
-                                     np.take(self.begin, indices),
-                                     np.take(self.end, indices))
-            else:
-                raise ValueError("allow_fill mode not implemented "
-                                 "(indices {})".format(indices))
-        else:
-            return CharSpanArray(self.target_text,
-                                 np.take(self.begin, indices),
-                                 np.take(self.end, indices))
+            # From API docs: "[If allow_fill == True, then] negative values in
+            # `indices` indicate missing values. These values are set to
+            # `fill_value`.  Any other negative values raise a ``ValueError``."
+            if fill_value is None or np.math.isnan(fill_value):
+                # Replace with a "nan span"
+                fill_value = CharSpan(
+                    self.target_text,
+                    CharSpan.NULL_OFFSET_VALUE,
+                    CharSpan.NULL_OFFSET_VALUE)
+            elif not isinstance(fill_value, CharSpan):
+                raise ValueError("Fill value must be Null, nan, or a CharSpan "
+                                 "(was {})".format(fill_value))
 
+        # Pandas' internal implementation of take() does most of the heavy
+        # lifting.
+        begins = pd.api.extensions.take(
+            self.begin, indices, allow_fill=allow_fill,
+            fill_value=fill_value.begin
+        )
+        ends = pd.api.extensions.take(
+            self.end, indices, allow_fill=allow_fill,
+            fill_value=fill_value.end
+        )
+        return CharSpanArray(self.target_text, begins, ends)
 
     @property
     def dtype(self) -> pd.api.extensions.ExtensionDtype:

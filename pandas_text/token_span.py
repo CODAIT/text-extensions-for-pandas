@@ -23,7 +23,13 @@ class TokenSpan(CharSpan):
 
     This class is also a subclass of `CharSpan` and can return character-level
     information.
+
+    An offset of `TokenSpan.NULL_TOKEN_VALUE` (currently -1) indicates
+    "not a span" in the sense that NaN is "not a number".
     """
+    # Begin/end value that indicates "not a span" in the sense that NaN is
+    # "not a number".
+    NULL_TOKEN_VALUE = CharSpan.NULL_OFFSET_VALUE
 
     def __init__(self, tokens: CharSpanArray, begin_token: int, end_token: int):
         """
@@ -34,21 +40,28 @@ class TokenSpan(CharSpan):
 
         :param end_token: End offset; exclusive, one past the last token
         """
-        begin_char_off = tokens.begin[begin_token]
-        end_char_off = (begin_char_off if begin_token == end_token
-                        else tokens.end[end_token - 1])
+        if TokenSpan.NULL_TOKEN_VALUE == begin_token:
+            if TokenSpan.NULL_TOKEN_VALUE != end_token:
+                raise ValueError("Begin offset with special 'null' value {} "
+                                 "must be paired with an end offset of {}",
+                                 TokenSpan.NULL_TOKEN_VALUE,
+                                 TokenSpan.NULL_TOKEN_VALUE)
+            begin_char_off = end_char_off = CharSpan.NULL_OFFSET_VALUE
+        else:
+            begin_char_off = tokens.begin[begin_token]
+            end_char_off = (begin_char_off if begin_token == end_token
+                            else tokens.end[end_token - 1])
         super().__init__(tokens.target_text, begin_char_off, end_char_off)
         self._tokens = tokens
         self._begin_token = begin_token
         self._end_token = end_token
 
     def __repr__(self) -> str:
-        # return "[{}, {})/[{}, {}): '{}'".format(self.begin_token,
-        #                                         self.end_token,
-        #                                         self.begin, self.end,
-        #                                         self.covered_text)
-        return "[{}, {}): '{}'".format(self.begin_token, self.end_token,
-                                       self.covered_text)
+        if TokenSpan.NULL_TOKEN_VALUE == self._begin_token:
+            return "Nil"
+        else:
+            return "[{}, {}): '{}'".format(self.begin_token, self.end_token,
+                                           self.covered_text)
 
     def __eq__(self, other):
         return (
@@ -99,6 +112,18 @@ class TokenSpanArray(pd.api.extensions.ExtensionArray):
 
     Spans are represented as `[begin_token, end_token)` intervals, where
     `begin_token` and `end_token` are token offsets into the target text.
+
+    Null values are encoded with begin and end offsets of
+    `TokenSpan.NULL_TOKEN_VALUE`.
+
+    Fields:
+    * `self._tokens`: Reference to the target string's tokens as a
+        `CharSpanArray`. For now, references to different `CharSpanArray`
+        objects are treated as different even if the arrays have the same
+        contents.
+    * `self._begin_tokens`: Numpy array of integer offsets in tokens. An offset
+       of TokenSpan.NULL_TOKEN_VALUE here indicates a null value.
+    * `self._end_tokens`: Numpy array of end offsets (1 + last token in span).
     """
 
     @staticmethod
@@ -254,30 +279,26 @@ class TokenSpanArray(pd.api.extensions.ExtensionArray):
             # From API docs: "[If allow_fill == True, then] negative values in
             # `indices` indicate missing values. These values are set to
             # `fill_value`.  Any other negative values raise a ``ValueError``."
+            if fill_value is None or np.math.isnan(fill_value):
+                # Replace with a "nan span"
+                fill_value = TokenSpan(self.tokens,
+                                       TokenSpan.NULL_TOKEN_VALUE,
+                                       TokenSpan.NULL_TOKEN_VALUE)
+            elif not isinstance(fill_value, TokenSpan):
+                raise ValueError("Fill value must be Null, nan, or a TokenSpan "
+                                 "(was {})".format(fill_value))
 
-            # As a temporary measure, handle the case where the allow_fill
-            # parameter is true but all indices are >= 0. pd.merge() exercises
-            # this case.
-            # TODO: Implement filling properly
-            if np.all(np.array(indices) >= 0):
-                # No negative indices, so the fact that we haven't actually
-                # implemented fill values doesn't matter.
-                return TokenSpanArray(
-                    self.tokens, np.take(self.begin_token, indices),
-                    np.take(self.end_token, indices)
-                )
-            else:
-                raise ValueError("allow_fill mode not implemented "
-                                 "(indices {})".format(indices))
-        else:
-            # allow_fill == False
-            # From API docs: "[If allow_fill == False, then] negative values in
-            # `indices` indicate positional indices from the right (the
-            # default). This is similar to :func:`numpy.take`.
-            return TokenSpanArray(
-                self.tokens, np.take(self.begin_token, indices),
-                np.take(self.end_token, indices)
-            )
+        # Pandas' internal implementation of take() does most of the heavy
+        # lifting.
+        begins = pd.api.extensions.take(
+            self.begin_token, indices, allow_fill=allow_fill,
+            fill_value=fill_value.begin_token
+        )
+        ends = pd.api.extensions.take(
+            self.end_token, indices, allow_fill=allow_fill,
+            fill_value=fill_value.end_token
+        )
+        return TokenSpanArray(self.tokens, begins, ends)
 
     @property
     def tokens(self) -> CharSpanArray:
@@ -292,11 +313,28 @@ class TokenSpanArray(pd.api.extensions.ExtensionArray):
         return self._tokens.target_text
 
     @memoized_property
+    def nulls_mask(self) -> np.ndarray:
+        """
+        :return: A boolean mask indicating which rows are nulls
+        """
+        return self.begin_token == TokenSpan.NULL_TOKEN_VALUE
+
+    @memoized_property
+    def have_nulls(self) -> np.ndarray:
+        """
+        :return: True if this column contains one or more nulls
+        """
+        return not np.any(self.nulls_mask)
+
+    @memoized_property
     def begin(self) -> np.ndarray:
         """
         :return: the *character* offsets of the span begins.
         """
-        return self._tokens.begin[self.begin_token]
+        result = self._tokens.begin[self.begin_token]
+        # Correct for null values
+        result[self.nulls_mask] = TokenSpan.NULL_TOKEN_VALUE
+        return result
 
     @memoized_property
     def end(self) -> np.ndarray:
@@ -304,12 +342,14 @@ class TokenSpanArray(pd.api.extensions.ExtensionArray):
         :return: the *character* offsets of the span ends.
         """
         # Start out with the end of the last token in each span.
-        ret = self._tokens.end[self.end_token - 1]
+        result = self._tokens.end[self.end_token - 1]
         # Replace end offset with begin offset wherever the length in tokens
         # is zero.
         mask = (self.end_token == self.begin_token)
-        ret[mask] = self.begin[mask]
-        return ret
+        result[mask] = self.begin[mask]
+        # Correct for null values
+        result[self.nulls_mask] = TokenSpan.NULL_TOKEN_VALUE
+        return result
 
     @property
     def begin_token(self) -> np.ndarray:
@@ -343,9 +383,12 @@ class TokenSpanArray(pd.api.extensions.ExtensionArray):
         """
         # TODO: Vectorized version of this
         text = self.target_text
-        return np.array([
+        result = np.array([
             text[s[0]:s[1]] for s in self.as_tuples()
         ])
+        # Correct for null values
+        result[self.nulls_mask] = None
+        return result
 
     def as_frame(self) -> pd.DataFrame:
         """
