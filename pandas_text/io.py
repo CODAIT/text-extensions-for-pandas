@@ -6,6 +6,8 @@
 
 import numpy as np
 import pandas as pd
+import textwrap
+import json
 
 import spacy
 import spacy.tokens.doc
@@ -37,9 +39,9 @@ def make_tokens(target_text: str,
     return pd.Series(CharSpanArray(target_text, tok_begins, tok_ends))
 
 
-def make_tokens_and_features(
-        target_text: str,
-        language_model: spacy.language.Language) -> pd.DataFrame:
+def make_tokens_and_features(target_text: str,
+                             language_model: spacy.language.Language
+                             ) -> pd.DataFrame:
     """
     :param target_text: Text to analyze
     :param language_model: Preconfigured spaCy language model object
@@ -186,6 +188,41 @@ def token_features_to_tree(token_features: pd.DataFrame,
     }
 
 
+def render_parse_tree(token_features: pd.DataFrame,
+                      text_col: str = "token_span",
+                      tag_col: str = "tag",
+                      label_col: str = "dep"):
+    """
+    Display a DataFrame in the format returned by `make_tokens_and_features()`
+    using displaCy's dependency tree renderer.
+
+    :param token_features: A subset of a token features DataFrame in the format
+    returned by `make_tokens_and_features()`. Must at a minimum contain the
+    `head_token_num` column and an integer index that corresponds to the ints
+    in the `head_token_num` column.
+
+    :param text_col: Name of the column in `token_features` from which the
+    'covered text' label for each node of the parse tree should be extracted,
+    or `None` to leave those labels blank.
+
+    :param tag_col: Name of the column in `token_features` from which the
+    'tag' label for each node of the parse tree should be extracted; or `None`
+    to leave those labels blank.
+
+    :param label_col: Name of the column in `token_features` from which the
+    label for each edge of the parse tree should be extracted; or `None`
+    to leave those labels blank.
+
+    :returns: Native Python type representation of the parse tree in a format
+    suitable to pass to `displacy.render(manual=True ...)`
+    See https://spacy.io/usage/visualizers for the specification of this format.
+    """
+    return spacy.displacy.render(token_features_to_tree(token_features,
+                                                        text_col, tag_col,
+                                                        label_col),
+                                 manual=True)
+
+
 def token_features_to_gremlin(token_features: pd.DataFrame):
     """
     :param token_features: A subset of a token features DataFrame in the format
@@ -194,7 +231,43 @@ def token_features_to_gremlin(token_features: pd.DataFrame):
     :return: A string of Gremlin commands that you can paste into the Gremlin
     console to generate a graph that models the contents of `token_features`.
     """
-    
+
+    def _quote_str(value):
+        return json.dumps(str(value))
+
+    # Nodes:
+    # For each token, generate addV("token").property("key","value")...as(id)
+    node_lines = []
+    colnames = token_features.columns
+    for row in token_features.itertuples(index=True):
+        # First element in tuple is index value
+        index_val = row[0]
+        props_list = [".property({}, {})".format(
+            _quote_str(colnames[i]), _quote_str(row[i + 1]))
+            for i in range(len(colnames))]
+        props_str = "".join(props_list)
+        node_lines.append("""addV("token"){}.as({})""".format(
+            props_str, _quote_str(index_val)))
+
+    # Edges:
+    # For each token, generate addE("head").from(token_id).to(head_id)
+    edge_lines = []
+    for index, value in token_features["head_token_num"].items():
+        edge_lines.append("""addE("head").from({}).to({})""".format(
+            _quote_str(index), _quote_str(value)))
+
+    # Combine insertions into a single Gremlin statement
+    result = """
+    g = TinkerGraph.open().traversal()
+    g.
+    {}.
+    {}.
+    iterate()
+    """.format(
+        ".\n    ".join(node_lines),
+        ".\n    ".join(edge_lines), )
+    return textwrap.dedent(result)
+
 
 def load_dict(file_name: str, tokenizer: spacy.tokenizer.Tokenizer):
     """
@@ -234,5 +307,3 @@ def load_dict(file_name: str, tokenizer: spacy.tokenizer.Tokenizer):
         )
 
     return pd.DataFrame(cols_dict)
-
-
