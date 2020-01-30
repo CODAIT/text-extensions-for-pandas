@@ -5,8 +5,8 @@
 #
 # Code for running Gremlin queries against parse trees stored as DataFrames.
 #
-from typing import List
 
+import numpy as np
 import pandas as pd
 from typing import *
 
@@ -84,20 +84,27 @@ class GraphTraversal:
         :param key: Key to look for in the properties of the most recent
         vertex or edge
 
-        :param value: Expected value the indicated field in each vertex
+        :param value: Expected value the indicated field in each vertex.
+        Can be either a literal value (expected value of a field) or a
 
         :returns: A GraphTraversal that filters out paths whose last element
         does not contain the indicated value in the indicated field.
         """
         if len(self.paths.columns) == 0:
             raise ValueError("Cannot call has() on an empty path.")
-        # Join back with vertices table
+        if not isinstance(value, ColumnPredicate):
+            # Not a predicate ==> assume literal value
+            pred = Within(value)
+        else:
+            pred = value
+        # Join current path back with vertices table
         vertices_to_check = self.vertices.loc[
             self.paths[self.paths.columns[-1]]]
         if key not in vertices_to_check.columns:
+            # Column not present ==> empty result
             filtered_paths = self.paths.iloc[0:0]
         else:
-            mask = (vertices_to_check[key] == value).values
+            mask = pred.apply(vertices_to_check[key])
             filtered_paths = self.paths[mask]
         return GraphTraversal(self.vertices, self.edges, filtered_paths,
                               self._path_col_types, self._aliases)
@@ -118,7 +125,7 @@ class GraphTraversal:
     def out(self):
         """
         :returns: A GraphTraversal that adds the destination of any edges out
-        of the current traversal's last element.
+        of the current traversal's last elemehasnt.
         """
         if self._path_col_types[-1] != "v":
             raise ValueError(
@@ -139,8 +146,6 @@ class GraphTraversal:
         return GraphTraversal(self.vertices, self.edges, new_paths,
                               new_path_col_types, self._aliases)
 
-        # TODO: Duplicate rows
-
     def in_(self):
         """
         :returns: A GraphTraversal that adds the destination of any edges into
@@ -148,21 +153,21 @@ class GraphTraversal:
         """
         if self._path_col_types[-1] != "v":
             raise ValueError(
-                "Can only call in() when the last element in the path is a "
+                "Can only call out() when the last element in the path is a "
                 "vertex. Last element type is {}".format(
                     self._path_col_types[-1]))
 
-        # For some reason the merge logic in out() gets hung up in some Pandas
-        # internals if we attempt to reproduce the same method here. So instead
-        # we generate a temporary table to merge with.
+        # Column of path is a list of vertices. Join with edges table.
         p = self.paths
-        merge_tmp = pd.DataFrame({"to": p[p.columns[-1]]})
+        merge_tmp = p.copy()
+        # Pandas doesn't like integer join keys for merge
+        merge_tmp["join_key"] = merge_tmp[merge_tmp.columns[-1]]
         new_paths = (
-            merge_tmp.merge(self.edges)
-            .drop("to", axis="columns")
-            .rename(columns={
-                "from": len(p.columns)}))  # "from" field ==> Last element
-
+            merge_tmp
+            .merge(self.edges, left_on="join_key", right_on="to")
+            .drop(["to", "join_key"], axis="columns")
+            .rename(columns={"from": len(p.columns)})
+        )
         new_path_col_types = self._path_col_types + ["v"]
         return GraphTraversal(self.vertices, self.edges, new_paths,
                               new_path_col_types, self._aliases)
@@ -180,6 +185,65 @@ class GraphTraversal:
         return SelectGraphTraversal(self.vertices, self.edges, self.paths,
                                     self._path_col_types, self._aliases,
                                     list(args))
+
+
+class DoubleUnderscore:
+    """
+    Standin for Gremlin's `__` (two underscore characters) operation, which
+    means "anonymous traversal starting at the end of the current travesal"
+    """
+    pass
+
+
+# Alias to allow "pt.__" in Gremlin expressions
+__ = DoubleUnderscore()
+
+
+class ColumnPredicate:
+    """
+    Base class for Boolean predicates applied to fields of vertices of the
+    graph.
+    """
+    def apply(self, values: pd.Series) -> np.ndarray:
+        """
+        :param values: Vertex fields on which to apply the predicate
+        :return: A numpy Boolean mask containing `True` in each
+        """
+        raise NotImplementedError("Subclasses must implement this method.")
+
+
+class Within(ColumnPredicate):
+    """
+    Implementation of the Gremlin `within()` predicate
+    """
+    def __init__(self, *args: Any):
+        """
+        :param args: 1 or more arguments to the predicate as Python varargs.
+        Currently the class passes these objects through to Pandas' comparison
+        functions, but future versions may perform some additional validation
+        here.
+        """
+        self._args = args
+
+    def apply(self, vertices: pd.DataFrame) -> np.ndarray:
+        return vertices.isin(self._args).values
+
+
+class Without(ColumnPredicate):
+    """
+    Implementation of the Gremlin `without()` predicate
+    """
+    def __init__(self, *args: Any):
+        """
+        :param args: 1 or more arguments to the predicate as Python varargs.
+        Currently the class passes these objects through to Pandas' comparison
+        functions, but future versions may perform some additional validation
+        here.
+        """
+        self._args = args
+
+    def apply(self, vertices: pd.DataFrame) -> np.ndarray:
+        return (~vertices.isin(self._args)).values
 
 
 class SelectGraphTraversal(GraphTraversal):
