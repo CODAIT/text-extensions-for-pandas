@@ -14,3 +14,6 @@ from pandas_text.gremlin import *
 from pandas_text.io import *
 from pandas_text.span import *
 from pandas_text.token_span import *
+
+# Bring special Gremlin symbols up to the top-level scope
+from pandas_text.gremlin import __
