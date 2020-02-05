@@ -48,6 +48,17 @@ class CharSpan:
     def __repr__(self) -> str:
         return "[{}, {}): '{}'".format(self.begin, self.end, self.covered_text)
 
+    def __lt__(self, other):
+        """
+        span1 < span2 if span1.end <= span2.begin
+        """
+        if isinstance(other, CharSpan):
+            return self.end <= other.begin
+        else:
+            raise ValueError("Less-than relationship not defined for {} and {} "
+                             "of types {} and {}"
+                             "".format(self, other, type(self), type(other)))
+
     @property
     def begin(self):
         return self._begin
@@ -199,6 +210,23 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             # item not an int --> assume it's a numpy-compatible index
             return CharSpanArray(self.target_text,
                                  self.begin[item], self.end[item])
+
+    def __lt__(self, other):
+        """
+        Pandas-style array/series comparison function.
+
+        :param other: Second operand of a Pandas "<" comparison with the series
+        that wraps this TokenSpanArray.
+
+        :return: Returns a boolean mask indicating which rows are less than
+         `other`. span1 < span2 if span1.end <= span2.begin.
+        """
+        if isinstance(other, (CharSpanArray, CharSpan)):
+            return self.end <= other.begin
+        else:
+            raise ValueError("'<' relationship not defined for {} and {} "
+                             "of types {} and {}"
+                             "".format(self, other, type(self), type(other)))
 
     @property
     def target_text(self) -> str:

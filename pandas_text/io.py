@@ -223,50 +223,7 @@ def render_parse_tree(token_features: pd.DataFrame,
                                  manual=True)
 
 
-def token_features_to_gremlin(token_features: pd.DataFrame):
-    """
-    :param token_features: A subset of a token features DataFrame in the format
-    returned by `make_tokens_and_features()`.
 
-    :return: A string of Gremlin commands that you can paste into the Gremlin
-    console to generate a graph that models the contents of `token_features`.
-    """
-
-    def _quote_str(value):
-        return json.dumps(str(value))
-
-    # Nodes:
-    # For each token, generate addV("token").property("key","value")...as(id)
-    node_lines = []
-    colnames = token_features.columns
-    for row in token_features.itertuples(index=True):
-        # First element in tuple is index value
-        index_val = row[0]
-        props_list = [".property({}, {})".format(
-            _quote_str(colnames[i]), _quote_str(row[i + 1]))
-            for i in range(len(colnames))]
-        props_str = "".join(props_list)
-        node_lines.append("""addV("token"){}.as({})""".format(
-            props_str, _quote_str(index_val)))
-
-    # Edges:
-    # For each token, generate addE("head").from(token_id).to(head_id)
-    edge_lines = []
-    for index, value in token_features["head_token_num"].items():
-        edge_lines.append("""addE("head").from({}).to({})""".format(
-            _quote_str(index), _quote_str(value)))
-
-    # Combine insertions into a single Gremlin statement
-    result = """
-    g = TinkerGraph.open().traversal()
-    g.
-    {}.
-    {}.
-    iterate()
-    """.format(
-        ".\n    ".join(node_lines),
-        ".\n    ".join(edge_lines), )
-    return textwrap.dedent(result)
 
 
 def load_dict(file_name: str, tokenizer: spacy.tokenizer.Tokenizer):
