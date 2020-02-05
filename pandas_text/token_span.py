@@ -71,6 +71,16 @@ class TokenSpan(CharSpan):
             and self.end_token == other.end_token
         )
 
+    def __lt__(self, other):
+        """
+        span1 < span2 if span1.end <= span2.begin
+        """
+        if isinstance(other, TokenSpan):
+            # Use token offsets when available
+            return self.end_token <= other.begin_token
+        else:
+            return CharSpan.__lt__(self, other)
+
     def __hash__(self):
         return hash((self.tokens, self.begin_token, self.end_token))
 
@@ -105,7 +115,7 @@ class TokenSpanType(CharSpanType):
         return "CharSpan"
 
 
-class TokenSpanArray(pd.api.extensions.ExtensionArray):
+class TokenSpanArray(CharSpanArray):
     """
     A Pandas `ExtensionArray` that represents a column of token-based spans
     over a single target text.
@@ -205,6 +215,26 @@ class TokenSpanArray(pd.api.extensions.ExtensionArray):
             #  function is catching all the comparisons that really matter.
             raise ValueError("Don't know how to compare objects of type "
                              "'{}' and '{}'".format(type(self), type(other)))
+
+    def __lt__(self, other):
+        """
+        Pandas-style array/series comparison function.
+
+        :param other: Second operand of a Pandas "<" comparison with the series
+        that wraps this TokenSpanArray.
+
+        :return: Returns a boolean mask indicating which rows are less than
+         `other`. span1 < span2 if span1.end <= span2.begin.
+        """
+        if isinstance(other, (TokenSpanArray, TokenSpan)):
+            # Use token offsets when available
+            return self.end_token <= other.begin_token
+        elif isinstance(other, (CharSpanArray, CharSpan)):
+            return self.end <= other.begin
+        else:
+            raise ValueError("'<' relationship not defined for {} and {} "
+                             "of types {} and {}"
+                             "".format(self, other, type(self), type(other)))
 
     @classmethod
     def _concat_same_type(

@@ -1,4 +1,4 @@
-# pandas-text
+# Text Extensions for Pandas
 Experimental NLP support for Pandas dataframes.
 
 ## Contents of This Directory
