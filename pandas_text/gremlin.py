@@ -7,12 +7,15 @@
 #
 from abc import ABC
 
+import itertools
 import json
 import numpy as np
 import pandas as pd
 import sys
 import textwrap
 from typing import *
+
+from pandas_text import TokenSpan, CharSpan
 
 
 class GraphTraversal:
@@ -77,13 +80,35 @@ class GraphTraversal:
         return self._path_col_types
 
     @property
-    def aliases(self):
+    def aliases(self) -> Dict[str, int]:
         """
         :return: The current set of aliases for path elements, as a map
         from alias name to integer index.
         """
         self._check_computed()
         return self._aliases
+
+    def alias_to_vertices(self, alias: str) -> pd.DataFrame:
+        """
+        Convenience method that uses the aliases table to extract the vertices
+        returned by a step. Also makes sure they are actually vertices.
+
+        :param alias: Key to this traversal's aliases table. Must point to a
+        vertex step.
+
+        :return: The vertices that comprise the output of the step, formatted
+        as a `pd.DataFrame`.
+        """
+        self._check_computed()
+        step_num = self.aliases[alias]
+        if step_num is None:
+            raise ValueError("Alias '{}' not found (valid aliases are {})"
+                             "".format(alias, self.aliases.keys()))
+        if self.path_col_types[step_num] != "v":
+            raise ValueError("Alias '{}' points to a step of type '{}'; should "
+                             "be 'v' (for 'vertex')"
+                             "".format(alias, self.path_col_types[step_num]))
+        return self.vertices.loc[self.paths[self.paths.columns[step_num]]]
 
     def last_step(self) -> pd.Series:
         """
@@ -197,21 +222,29 @@ class GraphTraversal:
                 "alias from the traversal.")
         return SelectTraversal(self, selected_aliases=args, by_list=[])
 
-    def where(self, subquery: "GraphTraversal"):
+    def where(self, target: Union["GraphTraversal", "VertexPredicate"]):
         """
         The Gremlin `where` step. Performs existential quantification
         roughly equivalent to `WHERE EXISTS (subquery)` in SQL. Usually the
         subquery is correlated and uses the `__` alias for "last step of the
         parent traversal"
 
-        :param subquery: A Gremlin graph traversal, possibly referencing one or
-        more parts of the parent traversal via aliases or the special `__`
-        built-in alias for "output of the parent step".
+        :param target: One of:
+        * A Gremlin graph traversal, possibly referencing one or
+          more parts of the parent traversal via aliases or the special `__`
+          built-in alias for "output of the parent step".
+        * A filtering predicate to be applied to the paths that enter this step.
 
         :return: Traversal that returns all input paths for which `subquery`
         produces one or more paths.
         """
-        return WhereTraversal(self, subquery)
+        if isinstance(target, GraphTraversal):
+            return WhereSubqueryTraversal(self, target)
+        elif isinstance(target, VertexPredicate):
+            return WherePredicateTraversal(self, target)
+        else:
+            raise ValueError("Unexpected type '{}' of argument to where"
+                             "".format(type(target)))
 
     def repeat(self, loop_body: "GraphTraversal"):
         """
@@ -460,12 +493,11 @@ class HasTraversal(UnaryTraversal):
         else:
             # Not a predicate ==> Transform to "vertex[key] == value"
             self._pred = Within(value)
-        self._pred.target_col = key
+        self._pred.modulate(iter(itertools.repeat(key)))
 
     def compute_impl(self) -> None:
         if len(self.parent.paths.columns) == 0:
             raise ValueError("Cannot call has() on an empty path.")
-        # Join current path back with vertices table
         vertices_to_check = self.parent.last_vertices()
         if self._pred.target_col not in vertices_to_check.columns:
             # Column not present ==> empty result
@@ -687,8 +719,52 @@ def find_double_underscore(last_step: GraphTraversal) -> Tuple[bool,
     return found_double_underscore, step_after_cur_step
 
 
-class WhereTraversal(UnaryTraversal):
-    """A Gremlin `where` step."""
+class WherePredicateTraversal(UnaryTraversal):
+    """
+    A Gremlin `where` step whose argument is a predicate over the input paths.
+
+    Additional arguments to the predicate, such as field names, may appear `by`
+    modulators that come after this step.
+    """
+    def __init__(self, parent: GraphTraversal, pred: "VertexPredicate"):
+        UnaryTraversal.__init__(self, parent)
+        self._pred = pred
+        self._by_args = []
+
+    def by(self, arg: str):
+        """
+        `by` modulator for passing in additional arguments to the `where`
+        step's predicate.
+
+        :param arg: Argument to add to the `where` step. Gremlin allows single
+                    strings, lists of strings, and subqueries that return lists
+                    of strings, but only single strings are currently supported
+                    here.
+
+        :return: this step, modified in place to have the additional argument.
+        """
+        if not isinstance(arg, str):
+            raise ValueError("The by() modulator to where() currently only "
+                             "supports a single string argument. "
+                             "Got '{}' of type '{}'."
+                             "".format(arg, type(arg)))
+        self._by_args.append(arg)
+        return self
+
+    def compute_impl(self) -> None:
+        # Additional string arguments to the predicate tree come via modulators,
+        # so we have to apply them here.
+        if len(self._by_args) > 0:
+            self._pred.modulate(iter(itertools.cycle(self._by_args)))
+        self._pred.bind_aliases(self.parent)
+        vertices_to_check = self.parent.last_vertices()
+        mask = self._pred(vertices_to_check)
+        filtered_paths = self.parent.paths[mask]
+        self._set_attrs(paths=filtered_paths)
+
+
+class WhereSubqueryTraversal(UnaryTraversal):
+    """A Gremlin `where` step whose argument is a graph traversal."""
     def __init__(self, parent: GraphTraversal, subquery: GraphTraversal):
         UnaryTraversal.__init__(self, parent)
         self._subquery = subquery
@@ -947,6 +1023,9 @@ class VertexPredicate:
     Base class for Boolean predicates applied to individual vertices of the
     graph.
     """
+    def __init__(self, *children: "VertexPredicate"):
+        self._children = children
+
     def __call__(self, vertices: pd.DataFrame) -> np.ndarray:
         """
         :param vertices: DataFrame of vertices on which to apply the predicate
@@ -955,6 +1034,50 @@ class VertexPredicate:
         """
         raise NotImplementedError("Subclasses must implement this method.")
 
+    def bind_aliases(self, parent: GraphTraversal) -> None:
+        """
+        Bind any aliases to other parts of the current path to the appropriate
+        vertices of the current path.
+        :param parent: Tail node node in the current path. Must already be
+        computed.
+        """
+        self.bind_aliases_self(parent)
+        for c in self._children:
+            c.bind_aliases(parent)
+
+    def bind_aliases_self(self, parent: GraphTraversal) -> None:
+        """
+        Subclasses that reference other nodes of the current path should
+        override this method.
+
+        :param parent: Tail node node in the current path. Must already be
+        computed.
+        """
+        pass
+
+    def modulate(self, modulator: Iterator[str]) -> None:
+        """
+        Apply one or more modulators to this predicate.
+
+        :param modulator: Infinite iterator backed by a circular buffer of
+        string-valued modulators to apply round-robin style to the expression
+        tree rooted at this node.
+        """
+        self.modulate_self(modulator)
+        for c in self._children:
+            c.modulate(modulator)
+
+    def modulate_self(self, modulator: Iterator[str]) -> None:
+        """
+        Subclasses that consume an element of the modulators stream should
+        override this method.
+
+        :param modulator: Infinite iterator backed by a circular buffer of
+        string-valued modulators to apply round-robin style to the expression
+        tree rooted at this node.
+        """
+        pass
+
 
 class ColumnPredicate(VertexPredicate, ABC):
     """
@@ -962,26 +1085,18 @@ class ColumnPredicate(VertexPredicate, ABC):
     need that column to be bound late, as in a `has` step.
     """
     def __init__(self):
+        VertexPredicate.__init__(self)
         self._target_col = None
+
+    def modulate_self(self, modulator: Iterator[str]) -> None:
+        self._target_col = next(modulator)
 
     @property
     def target_col(self) -> str:
         """
-        :returns: Name of the column on whih this predicate will be applied.
+        :returns: Name of the column on which this predicate will be applied.
         """
         return self._target_col
-
-    @target_col.setter
-    def target_col(self, target_col):
-        self._target_col = target_col
-        self._propagate_target_col()
-
-    def _propagate_target_col(self) -> None:
-        """
-        Subclasses that represent nested expressions should override this method
-        to pass down the value of `self._target_col` any subexpressions.
-        """
-        pass
 
 
 class TruePredicate(ColumnPredicate):
@@ -1004,6 +1119,7 @@ class Within(ColumnPredicate):
     """
     Implementation of the Gremlin `within()` predicate
     """
+
     def __init__(self, *args: Any):
         """
         :param args: 1 or more arguments to the predicate as Python varargs.
@@ -1012,6 +1128,7 @@ class Within(ColumnPredicate):
         here.
         :param field
         """
+        ColumnPredicate.__init__(self)
         self._args = args
 
     def __call__(self, vertices: pd.DataFrame) -> np.ndarray:
@@ -1029,10 +1146,78 @@ class Without(ColumnPredicate):
         functions, but future versions may perform some additional validation
         here.
         """
+        ColumnPredicate.__init__(self)
         self._args = args
 
     def __call__(self, vertices: pd.DataFrame) -> np.ndarray:
         return (~vertices[self.target_col].isin(self._args)).values
+
+
+class BinaryPredicate(VertexPredicate, ABC):
+    """
+    Abstract base class for Gremlin binary predicates.
+    """
+    def __init__(self, other: str):
+        """
+        :param other: Name of the second vertex to compare against.
+        """
+        VertexPredicate.__init__(self)
+        self._other_alias = other
+        self._other_vertices = None  # Type: pd.DataFrame
+        self._left_col = None  # Type: str
+        self._right_col = None  # Type: str
+
+    def bind_aliases_self(self, parent: GraphTraversal) -> None:
+        self._other_vertices = parent.alias_to_vertices(self._other_alias)
+
+    def modulate_self(self, modulator: Iterator[str]) -> None:
+        self._left_col = next(modulator)
+        self._right_col = next(modulator)
+
+    @property
+    def other_vertices(self) -> pd.DataFrame:
+        """
+        :return: The current set of vertices in the second argument of this
+        predicate.
+        """
+        if self._other_vertices is None:
+            raise ValueError("Attempted to get other_vertices property before "
+                             "calling bind_aliases_self on {}".format(self))
+        return self._other_vertices
+
+
+class LessThanPredicate(BinaryPredicate):
+    """
+    Implementation of the Gremlin `lt()` predicate.
+    """
+    def __init__(self, other: str):
+        """
+        :param other: Name of the second vertex to compare against
+        """
+        BinaryPredicate.__init__(self, other)
+
+    def __call__(self, vertices: pd.DataFrame) -> np.ndarray:
+        # The inputs are views on the vertices tables, so we need to reset the
+        # Pandas indexes to prevent the lt operation below from matching pairs
+        # of rows by (unused) index
+        left_series = vertices[self._left_col].reset_index(drop=True)
+        right_series = self.other_vertices[self._right_col].reset_index(
+            drop=True)
+        result_series = left_series.lt(right_series)
+        return result_series.values
+
+
+# Syntactic sugar to keep pep8 happy about class names
+def within(*args):
+    return Within(args)
+
+
+def without(*args):
+    return Without(args)
+
+
+def lt(other):
+    return LessThanPredicate(other)
 
 
 def token_features_to_traversal(token_features: pd.DataFrame,
@@ -1065,13 +1250,17 @@ def token_features_to_traversal(token_features: pd.DataFrame,
 
 
 def token_features_to_gremlin(token_features: pd.DataFrame,
-                              drop_self_links=True):
+                              drop_self_links=True,
+                              include_begin_and_end=False):
     """
     :param token_features: A subset of a token features DataFrame in the format
     returned by `make_tokens_and_features()`.
 
     :param drop_self_links: If `True`, remove links from nodes to themselves
     to simplify query logic.
+
+    :param include_begin_and_end: If `True`, break out the begin and end
+    attributes of spans as separate fields.
 
     :return: A string of Gremlin commands that you can paste into the Gremlin
     console to generate a graph that models the contents of `token_features`.
@@ -1086,12 +1275,27 @@ def token_features_to_gremlin(token_features: pd.DataFrame,
     for row in token_features.itertuples(index=True):
         # First element in tuple is index value
         index_val = row[0]
-        props_list = [".property({}, {})".format(
-            _quote_str(colnames[i]), _quote_str(row[i + 1]))
-            for i in range(len(colnames))]
+        props_list = []
+        for i in range(len(colnames)):
+            cell = row[i + 1]
+            props_list.append(
+                ".property({}, {})".format(
+                    _quote_str(colnames[i]), _quote_str(cell))
+            )
+            if include_begin_and_end and isinstance(cell, CharSpan):
+                for attr in ("begin", "end", "begin_token", "end_token"):
+                    if attr in dir(cell):
+                        props_list.append(
+                            ".property({}, {})".format(
+                                _quote_str("{}.{}".format(colnames[i],
+                                                          attr)),
+                                _quote_str(getattr(cell, attr)))
+                        )
         props_str = "".join(props_list)
         node_lines.append("""addV("token"){}.as({})""".format(
             props_str, _quote_str(index_val)))
+
+
 
     # Edges:
     # For each token, generate addE("head").from(token_id).to(head_id)

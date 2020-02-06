@@ -65,17 +65,29 @@ def make_tokens_and_features(target_text: str,
     # returned DataFrame.
     idx_to_id = {spacy_doc[i].idx: i for i in range(len(spacy_doc))}
 
+    # pd.Categorical() is currently broken if any extension types are present.
+    # Here's a temporary workaround:
+    def categorical_hack(values):
+        # The following lets us construct Categorical columns, but things fall
+        # apart as soon as we try to run DataFrame.groupby()
+        # values_arr = np.array(values, dtype=np.str)
+        # categories = np.unique(values_arr)
+        # dtype = pd.CategoricalDtype(categories)
+        # return pd.Categorical(values, dtype=dtype)
+        return np.array(values)
+    # TODO: Replace references to categorical_hack with pd.Categorical when the
+    #  bug is fixed.
+
     return pd.DataFrame({
         "token_num": range(len(tok_begins)),
         "char_span": tokens_series,
         "token_span": token_spans,
         "lemma": [t.lemma_ for t in spacy_doc],
-        "pos": pd.Categorical([t.pos_ for t in spacy_doc]),
-        "tag": pd.Categorical([t.tag_ for t in spacy_doc]),
-        "dep": pd.Categorical([t.dep_ for t in spacy_doc]),
-        "head_token_num": pd.Categorical([idx_to_id[t.head.idx]
-                                          for t in spacy_doc]),
-        "shape": pd.Categorical([t.shape_ for t in spacy_doc]),
+        "pos": categorical_hack([str(t.pos_) for t in spacy_doc]),
+        "tag": categorical_hack([str(t.tag_) for t in spacy_doc]),
+        "dep": categorical_hack([str(t.dep_) for t in spacy_doc]),
+        "head_token_num": np.array([idx_to_id[t.head.idx] for t in spacy_doc]),
+        "shape": categorical_hack([t.shape_ for t in spacy_doc]),
         "is_alpha": np.array([t.is_alpha for t in spacy_doc]),
         "is_stop": np.array([t.is_stop for t in spacy_doc]),
         "sentence": _make_sentences_series(spacy_doc, tokens_array)
