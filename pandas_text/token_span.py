@@ -114,6 +114,14 @@ class TokenSpanType(CharSpanType):
         """:return: A string representation of the dtype."""
         return "CharSpan"
 
+    @classmethod
+    def construct_array_type(cls):
+        """
+        See docstring in `ExtensionDType` class in `pandas/core/dtypes/base.py`
+        for information about this method.
+        """
+        return TokenSpanArray
+
 
 class TokenSpanArray(CharSpanArray):
     """
@@ -216,26 +224,6 @@ class TokenSpanArray(CharSpanArray):
             raise ValueError("Don't know how to compare objects of type "
                              "'{}' and '{}'".format(type(self), type(other)))
 
-    def __lt__(self, other):
-        """
-        Pandas-style array/series comparison function.
-
-        :param other: Second operand of a Pandas "<" comparison with the series
-        that wraps this TokenSpanArray.
-
-        :return: Returns a boolean mask indicating which rows are less than
-         `other`. span1 < span2 if span1.end <= span2.begin.
-        """
-        if isinstance(other, (TokenSpanArray, TokenSpan)):
-            # Use token offsets when available
-            return self.end_token <= other.begin_token
-        elif isinstance(other, (CharSpanArray, CharSpan)):
-            return self.end <= other.begin
-        else:
-            raise ValueError("'<' relationship not defined for {} and {} "
-                             "of types {} and {}"
-                             "".format(self, other, type(self), type(other)))
-
     @classmethod
     def _concat_same_type(
         cls, to_concat: Sequence[pd.api.extensions.ExtensionArray]
@@ -255,6 +243,19 @@ class TokenSpanArray(CharSpanArray):
         begin_tokens = np.concatenate([a.begin_token for a in to_concat])
         end_tokens = np.concatenate([a.end_token for a in to_concat])
         return TokenSpanArray(tokens, begin_tokens, end_tokens)
+
+    @classmethod
+    def _from_factorized(cls, values, original):
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        # Because we don't currently override the factorize() class method, the
+        # "values" input to _from_factorized is a ndarray of TokenSpan objects.
+        # TODO: Faster implementation of factorize/_from_factorized
+        begin_tokens = np.array([v.begin_token for v in values], dtype=np.int)
+        end_tokens = np.array([v.end_token for v in values], dtype=np.int)
+        return TokenSpanArray(original.tokens, begin_tokens, end_tokens)
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
@@ -305,18 +306,17 @@ class TokenSpanArray(CharSpanArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        if allow_fill:
-            # From API docs: "[If allow_fill == True, then] negative values in
-            # `indices` indicate missing values. These values are set to
-            # `fill_value`.  Any other negative values raise a ``ValueError``."
-            if fill_value is None or np.math.isnan(fill_value):
-                # Replace with a "nan span"
-                fill_value = TokenSpan(self.tokens,
-                                       TokenSpan.NULL_TOKEN_VALUE,
-                                       TokenSpan.NULL_TOKEN_VALUE)
-            elif not isinstance(fill_value, TokenSpan):
-                raise ValueError("Fill value must be Null, nan, or a TokenSpan "
-                                 "(was {})".format(fill_value))
+        # From API docs: "[If allow_fill == True, then] negative values in
+        # `indices` indicate missing values. These values are set to
+        # `fill_value`.  Any other negative values raise a ``ValueError``."
+        if fill_value is None or np.math.isnan(fill_value):
+            # Replace with a "nan span"
+            fill_value = TokenSpan(self.tokens,
+                                   TokenSpan.NULL_TOKEN_VALUE,
+                                   TokenSpan.NULL_TOKEN_VALUE)
+        elif not isinstance(fill_value, TokenSpan):
+            raise ValueError("Fill value must be Null, nan, or a TokenSpan "
+                             "(was {})".format(fill_value))
 
         # Pandas' internal implementation of take() does most of the heavy
         # lifting.
@@ -329,6 +329,26 @@ class TokenSpanArray(CharSpanArray):
             fill_value=fill_value.end_token
         )
         return TokenSpanArray(self.tokens, begins, ends)
+
+    def __lt__(self, other) -> np.ndarray:
+        """
+        Pandas/Numpy-style array/series comparison function.
+
+        :param other: Second operand of a Pandas "<" comparison with the series
+        that wraps this TokenSpanArray.
+
+        :return: Returns a boolean mask indicating which rows are less than
+         `other`. span1 < span2 if span1.end <= span2.begin.
+        """
+        if isinstance(other, (TokenSpanArray, TokenSpan)):
+            # Use token offsets when available.
+            return self.end_token <= other.begin_token
+        elif isinstance(other, (CharSpanArray, CharSpan)):
+            return self.end <= other.begin
+        else:
+            raise ValueError("'<' relationship not defined for {} and {} "
+                             "of types {} and {}"
+                             "".format(self, other, type(self), type(other)))
 
     @property
     def tokens(self) -> CharSpanArray:

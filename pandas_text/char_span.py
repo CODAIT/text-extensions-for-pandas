@@ -9,6 +9,7 @@
 import pandas as pd
 import numpy as np
 from memoized_property import memoized_property
+import re
 from typing import *
 
 # Internal imports
@@ -99,6 +100,28 @@ class CharSpanType(pd.api.extensions.ExtensionDtype):
     def name(self) -> str:
         """A string representation of the dtype."""
         return "CharSpan"
+
+    @classmethod
+    def construct_from_string(cls, string: str):
+        """
+        See docstring in `ExtensionDType` class in `pandas/core/dtypes/base.py`
+        for information about this method.
+        """
+        # Upstream code uses exceptions as part of its normal control flow and
+        # will pass this method bogus class names.
+        if string == cls.__name__:
+            return cls()
+        else:
+            raise TypeError(
+                f"Cannot construct a '{cls.__name__}' from '{string}'")
+
+    @classmethod
+    def construct_array_type(cls):
+        """
+        See docstring in `ExtensionDType` class in `pandas/core/dtypes/base.py`
+        for information about this method.
+        """
+        return CharSpanArray
 
 
 class CharSpanArray(pd.api.extensions.ExtensionArray):
