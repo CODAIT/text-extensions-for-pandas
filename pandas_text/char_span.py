@@ -40,8 +40,8 @@ class CharSpan:
             if CharSpan.NULL_OFFSET_VALUE != end:
                 raise ValueError("Begin offset with special 'null' value {} "
                                  "must be paired with an end offset of {}",
-                                 CharSpan.NULL_TOKEN_VALUE,
-                                 CharSpan.NULL_TOKEN_VALUE)
+                                 CharSpan.NULL_OFFSET_VALUE,
+                                 CharSpan.NULL_OFFSET_VALUE)
         self._text = text
         self._begin = begin
         self._end = end

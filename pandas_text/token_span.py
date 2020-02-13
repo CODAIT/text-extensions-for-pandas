@@ -179,6 +179,24 @@ class TokenSpanArray(CharSpanArray):
     def __len__(self) -> int:
         return len(self._begin_tokens)
 
+    @classmethod
+    def make_array(cls, o) -> "TokenSpanArray":
+        """
+        Make a `TokenSpanArray` object out of any of several types of input.
+
+        :param o: a TokenSpanArray object represented as a `pd.Series`, a list
+        of `TokenSpan` objects, or maybe just an actual `TokenSpanArray` object.
+
+        :return: TokenSpanArray version of `o`, which may be a pointer to `o` or
+        one of its fields.
+        """
+        if isinstance(o, TokenSpanArray):
+            return o
+        elif isinstance(o, pd.Series):
+            return cls.make_array(o.values)
+        elif isinstance(o, Iterable):
+            return cls._from_sequence(o)
+
     def __getitem__(self, item) -> TokenSpan:
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
@@ -263,18 +281,24 @@ class TokenSpanArray(CharSpanArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        num_spans = len(scalars)
-        # Currently we expect to receive lists of TokenSpan. Convert to arrays
-        # of ints.
-        begin_tokens = np.zeros(num_spans, dtype=np.int)
-        end_tokens = np.zeros(num_spans, dtype=np.int)
-        tokens = scalars[0].tokens
-        for i in range(len(scalars)):
-            if scalars[i].tokens != tokens:
-                raise ValueError("Can't mix spans on different sets of tokens "
-                                 "{} and {}".format(tokens, scalars[i].tokens))
-            begin_tokens[i] = scalars[i].begin_token
-            end_tokens[i] = scalars[i].end_token
+        tokens = None
+        begin_tokens = np.full(len(scalars), TokenSpan.NULL_TOKEN_VALUE, np.int)
+        end_tokens = np.full(len(scalars), TokenSpan.NULL_TOKEN_VALUE, np.int)
+        i = 0
+        for s in scalars:
+            if not isinstance(s, TokenSpan):
+                raise ValueError(f"Can only convert a sequence of TokenSpan "
+                                 f"objects to a TokenSpanArray. Found an "
+                                 f"object of type {type(s)}")
+            if tokens is None:
+                tokens = s.tokens
+            if s.tokens != tokens:
+                raise ValueError(f"Mixing different token sets is not currently "
+                                 f"supported. Received two token sets:\n"
+                                 f"{tokens}\nand\n{s.tokens}")
+            begin_tokens[i] = s.begin_token
+            end_tokens[i] = s.end_token
+            i += 1
         return TokenSpanArray(tokens, begin_tokens, end_tokens)
 
     def isna(self) -> np.array:

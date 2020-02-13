@@ -2,7 +2,7 @@
 # algebra.py
 #
 # Span manipulation functions from pandas_text
-
+import functools
 
 import pandas as pd
 import numpy as np
@@ -205,15 +205,77 @@ def combine_spans(series1: pd.Series, series2: pd.Series):
     :return: A new series (also backed by a TokenSpanArray) of spans
         containing shortest span that completely covers both input spans.
     """
-    spans1 = series1.values
-    spans2 = series2.values
-    if not isinstance(spans1, TokenSpanArray) or not isinstance(spans2,
-                                                                TokenSpanArray):
-        raise ValueError(
-            "This function is only implemented for TokenSpanArrays")
+    spans1 = TokenSpanArray.make_array(series1)
+    spans2 = TokenSpanArray.make_array(series2)
     # TODO: Raise an error if any span in series1 comes after the corresponding
     #  span in series2
     # TODO: Raise an error if series1.tokens != series2.tokens
     return pd.Series(TokenSpanArray(
         spans1.tokens, spans1.begin_token, spans2.end_token
     ))
+
+
+def combine_agg(arg):
+    """
+    Aggregation function that takes in a set of spans and returns the smallest
+    single span that covers all of the input spans.
+
+    To use as a Pandas aggregate:
+    ```python
+    my_dataframe.groupby([<columns>]).aggregate({<column>: pt.combine})
+    ```
+
+    To apply directly to a series of a span type:
+    ```python
+    pt.combine(my_series)
+    pt.combine(my_series.values)
+
+    :param arg: A DataFrame, Series, or Iterable of `CharSpan` or `TokenSpan`
+    objects.
+    ```
+    """
+    # Massage the input into begin and end Numpy arrays and optional tokens
+    if isinstance(arg, pd.Series):
+        if isinstance(arg.dtype, TokenSpanType):
+            spans = arg.values
+            return TokenSpan(spans.tokens, np.min(spans.begin_token),
+                             np.max(spans.end_token))
+        elif isinstance(arg.dtype, CharSpanType):
+            spans = arg.values
+            return CharSpan(spans.target_text, np.min(spans.begin),
+                            np.max(spans.end))
+        else:
+            raise ValueError(f"Unexpected series dtype {arg.dtype}")
+    elif isinstance(arg, pd.DataFrame):
+        raise NotImplementedError("DataFrame input not yet implemented")
+    elif isinstance(arg, Iterable):
+        raise NotImplementedError("Iterable input not yet implemented")
+    else:
+        raise ValueError(f"Unexpected input type {type(arg)}")
+
+
+def lemmatize(spans: Union[pd.Series, TokenSpanArray, Iterable[TokenSpan]],
+              token_features: pd.DataFrame,
+              lemma_col_name: str = "lemma") -> List[str]:
+    """
+    Convert spans to their normal form using lemma information in a token
+    features table.
+
+    :param spans: Spans to be normalized. Each may represent zero or more
+    tokens.
+
+    :param token_features: Dataframe of token metadata. Index must be aligned
+    with the token indices in `spans`.
+
+    :return: A list containing normalized versions of the tokens
+    in `spans`, with each token separated by single space character.
+    """
+    spans = TokenSpanArray.make_array(spans)
+    ret = []  # Type: List[str]
+    # TODO: Vectorize this loop
+    for i in range(len(spans)):
+        lemmas = token_features[lemma_col_name][
+            spans.begin_token[i]:spans.end_token[i]
+        ]
+        ret.append(" ".join(lemmas))
+    return ret
