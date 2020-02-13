@@ -168,3 +168,50 @@ AssertionError: (<class '__main__.DummyType'>, <class 'property'>)
 ```
 
 Note: Remove the workaround in `make_tokens_and_features()` when this bug is fixed.
+
+## Pandas series type for Numpy record arrays
+
+At the moment, Pandas won't let you set a column of a DataFrame to a numpy record array.
+```python
+>>> repr(rec)
+"array([([3, 4): 'maker', 'NOUN', 'maker', [0, 1): 'The', [0, 1): 'The'),\n       ([3, 4): 'maker', 'NOUN', 'maker', [1, 2): 'luxury', [0, 1): 'The'),\n       ([3, 4): 'maker', 'NOUN', 'maker', [2, 3): 'auto', [0, 1): 'The')],\n      dtype=(numpy.record, [('head', 'O'), ('headPOS', 'O'), ('headNF', 'O'), ('child', 'O'), ('determiner', 'O')]))"
+>>> df = pd.DataFrame()
+>>> df["col"] = rec
+---------------------------------------------------------------------------
+[...]
+~/opt/miniconda3/envs/pd/lib/python3.7/site-packages/pandas/core/frame.py in _ensure_valid_index(self, value)
+   3052             except (ValueError, NotImplementedError, TypeError):
+   3053                 raise ValueError(
+-> 3054                     "Cannot set a frame with no defined index "
+   3055                     "and a value that cannot be converted to a "
+   3056                     "Series"
+
+ValueError: Cannot set a frame with no defined index and a value that cannot be converted to a Series
+```
+
+Pandas *will* allow you to insert a record array with `pd.DataFrame.insert()`, but that behavior is probably a bug:
+```python
+>>> df = pd.DataFrame()
+>>> df[0] = [1, 2, 3]
+>>> df.insert(loc=1, column=1, value=rec)
+>>> repr(df)
+---------------------------------------------------------------------------
+TypeError                                 Traceback (most recent call last)
+[...]
+~/opt/miniconda3/envs/pd/lib/python3.7/site-packages/pandas/core/dtypes/missing.py in _isna_ndarraylike(obj)
+    260         result = values.view("i8") == iNaT
+    261     else:
+--> 262         result = np.isnan(values)
+    263 
+    264     # box
+
+TypeError: ufunc 'isnan' not supported for the input types, and the inputs could not be safely coerced to any supported types according to the casting rule ''safe''
+```
+
+Pandas really ought to have series type that wraps Numpy record arrays and allows access via a custom namespace; something like:
+```python
+>>> df = pd.DataFrame()
+>>> df["col"] = pd.RecordArray(rec)
+>>> df["col"].field["head"]
+array([[3, 4): 'maker', [3, 4): 'maker', [3, 4): 'maker'], dtype=object)
+```

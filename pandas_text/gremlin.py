@@ -31,7 +31,7 @@ class GraphTraversal:
         self._vertices = None
         self._edges = None
         self._paths = None
-        self._path_col_types = None
+        self._step_types = None
         self._aliases = None
         self._is_computed = False
 
@@ -63,21 +63,23 @@ class GraphTraversal:
     def paths(self):
         """
         :return: DataFrame of paths that this traversal represents. Each
-        row represents a path.
+        row represents a path; each column represents as step.
         """
         self._check_computed()
         return self._paths
 
     @property
-    def path_col_types(self):
+    def step_types(self):
         """
         :return: Array of additional information about the columns
-        of `paths`. Each value may be None (raw Pandas type), "v" (vertex
-        reference), "e" (edge reference), or "a" (artifical unique key for
-        internal use)
+        of `paths`. Each value may be one of:
+         * None (raw Pandas type)
+         * "v" (vertex reference)
+         * "e" (edge reference)
+         * "a" (artificial unique key for internal use)
         """
         self._check_computed()
-        return self._path_col_types
+        return self._step_types
 
     @property
     def aliases(self) -> Dict[str, int]:
@@ -87,6 +89,27 @@ class GraphTraversal:
         """
         self._check_computed()
         return self._aliases
+
+    def alias_to_step(self, alias: str) -> Tuple[int, pd.Series]:
+        """
+        Convenience method that uses the aliases table to extract a reference
+        to the vertices or edges returned by a step.
+
+        :param alias: Key to this traversal's aliases table. Must point to a
+        vertex step.
+
+        :return: A tuple consisting of:
+            * The step number that the alias points to
+            * The vertices or edges that comprise the output of the step,
+              as a `pd.Series`
+        """
+        self._check_computed()
+        step_num = self.aliases[alias]
+        if step_num is None:
+            raise ValueError("Alias '{}' not found (valid aliases are {})"
+                             "".format(alias, self.aliases.keys()))
+        step_series = self.paths[self.paths.columns[step_num]]
+        return step_num, step_series
 
     def alias_to_vertices(self, alias: str) -> pd.DataFrame:
         """
@@ -100,15 +123,12 @@ class GraphTraversal:
         as a `pd.DataFrame`.
         """
         self._check_computed()
-        step_num = self.aliases[alias]
-        if step_num is None:
-            raise ValueError("Alias '{}' not found (valid aliases are {})"
-                             "".format(alias, self.aliases.keys()))
-        if self.path_col_types[step_num] != "v":
+        step_num, step_series = self.alias_to_step(alias)
+        if self.step_types[step_num] != "v":
             raise ValueError("Alias '{}' points to a step of type '{}'; should "
                              "be 'v' (for 'vertex')"
-                             "".format(alias, self.path_col_types[step_num]))
-        return self.vertices.loc[self.paths[self.paths.columns[step_num]]]
+                             "".format(alias, self.step_types[step_num]))
+        return self.vertices.loc[step_series]
 
     def last_step(self) -> pd.Series:
         """
@@ -150,7 +170,7 @@ class GraphTraversal:
         :returns the rightmost element of the traversal as a Python list
         """
         self.compute()
-        col_type = self._path_col_types[-1]
+        col_type = self._step_types[-1]
         last_elems = self.paths[self.paths.columns[-1]].tolist()
         if col_type == "v":
             return ["v[{}]".format(elem) for elem in last_elems]
@@ -174,7 +194,7 @@ class GraphTraversal:
         """
         return VTraversal(self)
 
-    def has(self, key: str, value: Any):
+    def has(self, key: str, value: Any) -> "GraphTraversal":
         """
         :param key: Key to look for in the properties of the most recent
         vertex or edge
@@ -187,7 +207,7 @@ class GraphTraversal:
         """
         return HasTraversal(self, key, value)
 
-    def as_(self, *names: str):
+    def as_(self, *names: str) -> "GraphTraversal":
         """
         :param names: Alias[es] for the current element in the traversal
 
@@ -196,21 +216,21 @@ class GraphTraversal:
         """
         return AsTraversal(self, names)
 
-    def out(self):
+    def out(self) -> "GraphTraversal":
         """
         :returns: A GraphTraversal that adds the destination of any edges out
         of the current traversal's last elemehasnt.
         """
         return OutTraversal(self)
 
-    def in_(self):
+    def in_(self) -> "GraphTraversal":
         """
         :returns: A GraphTraversal that adds the destination of any edges into
         the current traversal's last element.
         """
         return InTraversal(self)
 
-    def select(self, *args):
+    def select(self, *args) -> "GraphTraversal":
         """
         :param args: List of 1 or more strings to select
 
@@ -220,9 +240,10 @@ class GraphTraversal:
             raise ValueError(
                 "No arguments passed to select(). Must select at least 1 "
                 "alias from the traversal.")
-        return SelectTraversal(self, selected_aliases=args, by_list=[])
+        return SelectTraversal(self, selected_aliases=args)
 
-    def where(self, target: Union["GraphTraversal", "VertexPredicate"]):
+    def where(self, target: Union["GraphTraversal",
+                                  "VertexPredicate"]) -> "GraphTraversal":
         """
         The Gremlin `where` step. Performs existential quantification
         roughly equivalent to `WHERE EXISTS (subquery)` in SQL. Usually the
@@ -246,7 +267,7 @@ class GraphTraversal:
             raise ValueError("Unexpected type '{}' of argument to where"
                              "".format(type(target)))
 
-    def repeat(self, loop_body: "GraphTraversal"):
+    def repeat(self, loop_body: "GraphTraversal") -> "GraphTraversal":
         """
         `repeat` step: Repeat `loop_body` until the predicate in the associated
         `until` modulator filters
@@ -271,7 +292,7 @@ class GraphTraversal:
         """
         return RepeatTraversal(self, loop_body)
 
-    def emit(self, emit_pred: "VertexPredicate" = None):
+    def emit(self, emit_pred: "VertexPredicate" = None) -> "GraphTraversal":
         """
         `emit` modulator: Tells what vertices to emit from a `repeat` step.
 
@@ -287,7 +308,7 @@ class GraphTraversal:
             emit_pred = TruePredicate()
         return RepeatTraversal(self, emit_pred=emit_pred)
 
-    def until(self, until_pred: "VertexPredicate"):
+    def until(self, until_pred: "VertexPredicate") -> "GraphTraversal":
         """
         `until` modulator: Tells when to stop a `repeat` step.
 
@@ -302,6 +323,47 @@ class GraphTraversal:
         """
         return RepeatTraversal(self, until_pred=until_pred)
 
+    def constant(self, value: Any,
+                 step_type: str = None) -> "GraphTraversal":
+        """
+        `constant` step. Adds the indicated constant value to each path in the
+        parent traversal.
+
+        :param value: Value to append. Can be `None`.
+        :param step_type: Optional scalar step type string. See
+        `GraphTraversal.step_types` for possible values.
+
+        :returns: A GraphTraversal that adds the indicated `constant` step to
+        the parent traversal.
+        """
+        return ConstantTraversal(self, value, step_type)
+
+    def coalesce(self, *subqueries: "GraphTraversal") -> "GraphTraversal":
+        """
+        A Gremlin `coalesce` step. For each path emitted by the parent
+         traversal, executes the traversals in `subqueries` in order until
+         it finds one that returns at least one result.
+
+        :param subqueries: Sub-traversals to run, in the order that they should
+         be tried.
+
+        :return: A GraphTraversal that adds the indicated `coalesce` step to
+        the parent traversal.
+        """
+        return CoalesceTraversal(self, subqueries)
+
+    def values(self, field_name: str) -> "GraphTraversal":
+        """
+        A Gremlin `values` step. Expects the last element of the current path to
+         be a vertex/edge reference. Adds to the end of each path the
+         values of the indicated field, or removes the current path if the
+         field either is not present or contains `None`/nil.
+
+        :param field_name: Name of the field to retrieve
+        :return: A GraphTraversal that adds the indicated `values` step to
+        the parent traversal.
+        """
+        return ValuesTraversal(self, field_name)
 
 
 class BootstrapTraversal(GraphTraversal):
@@ -337,12 +399,12 @@ class BootstrapTraversal(GraphTraversal):
 
     def compute_impl(self) -> None:
         self._paths = pd.DataFrame(),
-        self._path_col_types = [],
+        self._step_types = [],
         self._aliases = {}
 
     def uncompute(self):
         self._paths = None
-        self._path_col_types = None
+        self._step_types = None
         self._is_computed = False
 
 
@@ -371,7 +433,7 @@ class UnaryTraversal(GraphTraversal, ABC):
         self._vertices = None
         self._edges = None
         self._paths = None
-        self._path_col_types = None
+        self._step_types = None
         self._aliases = None
         self._is_computed = False
         if self.parent._is_computed:
@@ -394,7 +456,7 @@ class UnaryTraversal(GraphTraversal, ABC):
         self._parent = new_parent
 
     def _set_attrs(self, paths: pd.DataFrame = None,
-                   path_col_types: List[str] = None,
+                   step_types: List[str] = None,
                    aliases: Dict[str, int] = None):
         """
         Single place for setting computed attributes of subclasses.
@@ -402,16 +464,44 @@ class UnaryTraversal(GraphTraversal, ABC):
 
         Anything set to None gets replaced with the equivalent attribute of
         `self.parent`.
+
+        This method also takes care of ensuring that the column names of `paths`
+        are a contiguous range of numbers.
         """
-        self._paths = paths if paths is not None else self.parent.paths
-        self._path_col_types = (path_col_types if path_col_types is not None
-                                else self.parent.path_col_types)
+        if paths is None:
+            self._paths = self.parent.paths
+        else:
+            # Ensure that the column names are a contiguous range of ints
+            paths.columns = list(range(len(paths.columns)))
+            self._paths = paths
+        self._step_types = (step_types if step_types is not None
+                            else self.parent.step_types)
         self._aliases = aliases if aliases is not None else self.parent.aliases
 
         # Edges and vertices are immutable, but the parent's accessors to
         # them may not be valid until after its' compute method is called.
         self._vertices = self.parent.vertices
         self._edges = self.parent.edges
+
+    def _parent_path_plus_elements(self, next_elements: Any) -> pd.DataFrame:
+        """
+        :param next_elements: Object containing new elements to tack onto the
+        parent path. Must be of a type that Pandas knows how to convert to a
+        `pd.Series`.
+
+        :return: A copy of `self.parent.paths` with `next_elements` appended
+        to the end.
+        """
+        new_paths = self.parent.paths.copy()
+        # We don't use the index of the paths dataframe, but gaps can make
+        # Pandas operations fail. So always reset indexes.
+        new_paths = new_paths.reset_index(drop=True)
+        if isinstance(next_elements, pd.Series):
+            next_elements = next_elements.reset_index(drop=True)
+        new_path_position = len(new_paths.columns)
+        new_paths.insert(loc=new_path_position, column=new_path_position,
+                         value=next_elements)  # Modifies new_paths in place
+        return new_paths
 
 
 class PrecomputedTraversal(BootstrapTraversal):
@@ -421,7 +511,7 @@ class PrecomputedTraversal(BootstrapTraversal):
     Also used for bootstrapping a new traversal.
     """
     def __init__(self, vertices: pd.DataFrame, edges: pd.DataFrame,
-                 paths: pd.DataFrame, path_col_types: List[str],
+                 paths: pd.DataFrame, step_types: List[str],
                  aliases: Dict[str, int]):
         """
         **DO NOT CALL THIS CONSTRUCTOR DIRECTLY.** Use factory methods.
@@ -434,16 +524,17 @@ class PrecomputedTraversal(BootstrapTraversal):
         :param paths: DataFrame of paths that this traversal represents. Each
         row represents a path.
 
-        :param path_col_types: Array of additional information about the columns
+        :param step_types: Array of additional information about the columns
         of `paths`. Each value may be None (raw Pandas type), "v" (vertex
-        reference), or "e" (edge reference)
+        reference), "e" (edge reference), or "r" (record with one or more named
+        fields)
 
         :param aliases: The current set of aliases for path elements, as a map
         from alias name to integer index.
         """
         BootstrapTraversal.__init__(self, vertices, edges)
         self._paths = paths
-        self._path_col_types = path_col_types
+        self._step_types = step_types
         self._aliases = aliases
         self._is_computed = True
 
@@ -464,9 +555,11 @@ class PrecomputedTraversal(BootstrapTraversal):
         """
         t.compute()
         ret = PrecomputedTraversal(t.vertices, t.edges, t.paths,
-                                   t.path_col_types, t.aliases)
-        ret.compute()
+                                   t.step_types, t.aliases)
+        if compute:
+            ret.compute()
         return ret
+
 
 class VTraversal(UnaryTraversal):
     """Result of calling GraphTraversal.V()"""
@@ -481,7 +574,33 @@ class VTraversal(UnaryTraversal):
             raise NotImplementedError("Computing V() on a non-empty traversal "
                                       "not implemented")
         self._set_attrs(paths=pd.DataFrame({0: self.parent.vertices.index}),
-                        path_col_types=["v"], aliases={})
+                        step_types=["v"], aliases={})
+
+
+class ConstantTraversal(UnaryTraversal):
+    """A Gremlin `constant` step, with some additional information about output
+    type that isn't present in the reference implementation of Gremlin."""
+    def __init__(self, parent: GraphTraversal, value: Any, step_type: str):
+        """
+        :param parent: Traversal that produces inputs to this one
+
+        :param value: Constant value that is appended to all paths on the input
+        of this traversal.
+
+        :param step_type: Element type string that is appended to the
+        `step_types` output of this step. See `step_types` for more
+        information.
+        """
+        UnaryTraversal.__init__(self, parent)
+        # TODO: Validate that value and step_type are compatible and raise
+        #  an error here instead of downstream if there is a problem.
+        self._value = value
+        self._step_type = step_type
+
+    def compute_impl(self) -> None:
+        self._set_attrs(paths=self._parent_path_plus_elements(self._value),
+                        step_types=(self.parent.step_types
+                                    + [self._step_type]))
 
 
 class HasTraversal(UnaryTraversal):
@@ -531,11 +650,11 @@ class OutTraversal(UnaryTraversal):
         UnaryTraversal.__init__(self, parent)
 
     def compute_impl(self) -> None:
-        if self.parent.path_col_types[-1] != "v":
+        if self.parent.step_types[-1] != "v":
             raise ValueError(
                 "Can only call out() when the last element in the path is a "
                 "vertex. Last element type is {}".format(
-                    self.parent.path_col_types[-1]))
+                    self.parent.step_types[-1]))
 
         # Column of path is a list of vertices. Join with edges table.
         p = self.parent.paths
@@ -547,7 +666,7 @@ class OutTraversal(UnaryTraversal):
             .rename(columns={
                 "to": len(p.columns)}))  # "to" field ==> Last element
         self._set_attrs(paths=new_paths,
-                        path_col_types=self.parent.path_col_types + ["v"])
+                        step_types=self.parent.step_types + ["v"])
 
 
 class InTraversal(UnaryTraversal):
@@ -556,11 +675,11 @@ class InTraversal(UnaryTraversal):
         UnaryTraversal.__init__(self, parent)
 
     def compute_impl(self) -> None:
-        if self.parent.path_col_types[-1] != "v":
+        if self.parent.step_types[-1] != "v":
             raise ValueError(
                 "Can only call in_() when the last element in the path is a "
                 "vertex. Last element type is {}".format(
-                    self.parent.path_col_types[-1]))
+                    self.parent.step_types[-1]))
         # Last column of path is a list of vertices. Join with edges table.
         merge_tmp = self.parent.paths.copy()
         # pd.merge() doesn't like integer series names for join keys
@@ -572,7 +691,7 @@ class InTraversal(UnaryTraversal):
             .rename(columns={"from": len(self.parent.paths.columns)})
         )
         self._set_attrs(paths=new_paths,
-                        path_col_types=self.parent.path_col_types + ["v"])
+                        step_types=self.parent.step_types + ["v"])
 
 
 class SelectTraversal(UnaryTraversal):
@@ -584,31 +703,127 @@ class SelectTraversal(UnaryTraversal):
     as well as code for formatting the output of `select()` as a DataFrame.
     """
 
-    def __init__(self, parent: GraphTraversal, selected_aliases: Tuple[str],
-                 by_list: List[str]):
+    def __init__(self, parent: GraphTraversal, selected_aliases: Tuple[str]):
         """
         :param parent: Previous element of the traversal
         :param selected_aliases: List of aliases mentioned as direct arguments
             to `select()`
-        :param by_list: List of field names passed to this `select` so far
-        through `by` elements.
         """
         UnaryTraversal.__init__(self, parent)
+        if 0 == len(selected_aliases):
+            raise ValueError("Must select at least one alias")
         self._selected_aliases = selected_aliases
-        self._by_list = by_list
+        # List to be populated by self.by()
+        self._by_list = []  # Type: List[str]
+        # DataFrame or Series representation of the last element of self.paths
+        self._paths_tail = None  # Type: Union[pd.DataFrame, pd.Series]
+
+    @property
+    def paths(self):
+        """
+        We override this method of the superclass so that we can defer
+        constructing the DataFrame of paths when this step is the last step.
+
+        :return: DataFrame of paths that this traversal represents. Each
+        row represents a path; each column represents as step.
+        """
+        self._check_computed()
+        # We cache the result of this method in self._paths.
+        if self._paths is None:
+            if isinstance(self._paths_tail, pd.DataFrame):
+                # Last element is a record.
+                # We would like to use a Numpy recarray here, i.e.:
+                # last_step = self._paths_tail.to_records(index=False)
+                # ...but Pandas does not currently support them as column types.
+                # For now, convert each row to a Python dictionary object.
+                df = self._paths_tail
+                last_step = [{df.columns[i]: t[i]
+                              for i in range(len(df.columns))}
+                             for t in df.itertuples(index=False)]
+            elif isinstance(self._paths_tail, pd.Series):
+                last_step = self._paths_tail.values
+            else:
+                raise ValueError(f"Unexpected type {type(self._paths_tail)}")
+            self._paths = self._parent_path_plus_elements(last_step)
+        return self._paths
 
     def compute_impl(self) -> None:
-        # This step only formats the results of previous steps, so no
-        # computation beyond the base class's calling of self.parent.compute()
-        # is necessary.
-        self._set_attrs()
+        if len(self._by_list) == 0:
+            # No by() modulator ==> Return vertices
+            if len(self._selected_aliases) > 1:
+                # TODO: Figure out what are the semantics of select(a, b)
+                #  without a by() modulator.
+                raise NotImplementedError("Multi-alias select without by not "
+                                          "implemented")
+            _, self._paths_tail = self.parent.alias_to_step(
+                self._selected_aliases[0])
+            col_type = "v"
+        else:
+            # by() modulator present ==> Return a column of records
+            df_contents = {}
+            for i in range(len(self._selected_aliases)):
+                alias = self._selected_aliases[i]
+                # The Gremlin select statement rotates through the by list if
+                # there are more aliases than elements of the by list.
+                by = self._by_list[i % len(self._by_list)]
+                selected_index = self.parent.aliases[alias]
+                if selected_index >= len(self.parent.step_types):
+                    raise ValueError(f"Internal error: {alias} points to index "
+                                     f"{selected_index}, which is out of range."
+                                     f" Aliases table: {self.parent.aliases}\n"
+                                     f"Paths table: {self.parent.paths}")
+                step_type = self.parent.step_types[selected_index]
+                elem = self.parent.paths[selected_index]
+                if "v" == step_type:
+                    # Vertex element.
+                    if by is None:
+                        # TODO: Implement this case
+                        raise NotImplementedError(
+                            "select of entire vertex not implemented")
+                    else:
+                        if by not in self.parent.vertices.columns:
+                            raise ValueError(
+                                "Column '{}' not present in vertices of '{}'"
+                                "".format(by, alias))
+                        df_contents[alias] = self.parent.vertices[by].loc[
+                            elem].values
+                elif step_type is None:
+                    if by is not None:
+                        # Gremlin requires empty by() for select on scalar step
+                        raise ValueError(f"Attempted to apply non-empty by "
+                                         f"modulator '{by}' to '{alias}' (step "
+                                         f"{selected_index}), which produces "
+                                         f"scalar-valued outputs.")
+                    df_contents[alias] = elem
+                else:
+                    raise NotImplementedError(
+                        f"select not implemented for step type '{step_type}'")
 
-    def by(self, field_name: str):
+            self._paths_tail = pd.DataFrame(df_contents)
+            col_type = "r"  # Record
+        self._set_attrs(
+            step_types=self.parent.step_types + [col_type]
+        )
+        # self._set_attrs() will set self._paths to self.parent.paths
+        self._paths = None
+
+    def by(self, field_name: str = None) -> "SelectTraversal":
         """
+        `by` modulator to `select()`, for adding a lit of arguments. If the
+        number selected aliases exceeds the number of `by` modulators, the
+        `select` step will cycle through the list from the beginning.
+
+        Modifies this object in place.
+
         :field_name: Next argument in the list of field name arguments to select
+         or `None` to select the step's entire output (vertex number or
+         literal)
+
+        :returns: A pointer to this object (after modification) to enable
+        operation chaining.
         """
-        return SelectTraversal(self, self._selected_aliases,
-                               self._by_list + [field_name])
+        self._by_list.append(field_name)
+        return self
 
     def toList(self):
         """
@@ -624,34 +839,15 @@ class SelectTraversal(UnaryTraversal):
         and values will be drawn from the vertex/edge columns named in the
         `by` element.
         """
-        # Schema of a Gremlin select is: (key1, value1), (key2, value2), ...
-        # where key1, key2, ... are the aliases and value1, value2, ... are the
-        # extracted field values.
-        if 0 == len(self._by_list):
-            # TODO: Implement this branch
-            raise NotImplementedError("select without by not yet implemented")
         self.compute()
-        df_contents = {}
-        for i in range(len(self._selected_aliases)):
-            alias = self._selected_aliases[i]
-            # The Gremlin select statement rotates through the by list if there
-            # are more aliases than elements of the by list.
-            by = self._by_list[i % len(self._by_list)]
-            selected_index = self.aliases[alias]  # index into traversal
-            col_type = self.path_col_types[selected_index]
-            elem = self.paths[selected_index]
-            if "v" == col_type:
-                # Vertex element.
-                if by not in self.parent.vertices.columns:
-                    raise ValueError(
-                        "Column '{}' not present in vertices of '{}'"
-                        "".format(by, alias))
-                df_contents[alias] = self.parent.vertices[by].loc[elem].values
-            else:
-                # TODO: Implement this branch
-                raise NotImplementedError(
-                    "select on non-vertex element not implemented")
-        return pd.DataFrame(df_contents)
+        last_elem_type = self.step_types[-1]
+        if "v" == last_elem_type:
+            # Turn the list of vertex IDs into a DataFrame of vertices
+            return self.vertices.loc[self._paths_tail.values]
+        elif "r" == last_elem_type:
+            return self._paths_tail
+        else:
+            raise ValueError(f"Unexpected last element type '{last_elem_type}'")
 
 
 class DoubleUnderscore(GraphTraversal):
@@ -793,13 +989,16 @@ class WhereSubqueryTraversal(UnaryTraversal):
             paths_with_leading_col = self.parent.paths.copy()
             paths_with_leading_col.insert(0, "artificial_leading_column",
                                           self.parent.paths.index)
-            col_types_with_leading_col = ["a"] + self.parent.path_col_types
+            col_types_with_leading_col = ["a"] + self.parent.step_types
+            aliases_with_leading_col = {
+                k: v + 1 for k, v in self.parent.aliases.items()
+            }
             double_underscore_replacement = (
                 PrecomputedTraversal(vertices=self.parent.vertices,
                                      edges=self.parent.edges,
                                      paths=paths_with_leading_col,
-                                     path_col_types=col_types_with_leading_col,
-                                     aliases=self.parent.aliases))
+                                     step_types=col_types_with_leading_col,
+                                     aliases=aliases_with_leading_col))
 
             step_after_double_underscore.parent = double_underscore_replacement
 
@@ -931,11 +1130,11 @@ class RepeatTraversal(UnaryTraversal):
         # emit_pred tells which rows to retain
         mask = self._emit_pred(t.last_step())
         full_paths = t.paths[mask]
-        next_emit_type = t.path_col_types[-1]
+        next_emit_type = t.step_types[-1]
         if emit_type is not None and emit_type != next_emit_type:
-            raise ValueError("Different iterations of repeat() would emit "
-                             "different types: {} and {}"
-                             "".format(emit_type, next_emit_type))
+            raise ValueError(f"Different iterations of repeat() would emit "
+                             f"different types: {emit_type} and "
+                             f"{next_emit_type}")
         # Retain the path elements provided by the parent, plus the last
         # element of each path.
         num_parent_steps = len(self.parent.paths.columns)
@@ -1009,13 +1208,135 @@ class RepeatTraversal(UnaryTraversal):
 
             # Output all the paths that passed the emit predicate
             new_paths = pd.concat(emit_list)
-            new_path_col_types = (
-                self.parent.path_col_types
-                + [prev_iter_output.path_col_types[-1]])
+            new_step_types = (
+                self.parent.step_types
+                + [prev_iter_output.step_types[-1]])
             # TODO: Raise NotImplementedError if different iterations emitted
             #  different types
-            self._set_attrs(paths=prev_iter_output.paths,
-                            path_col_types=new_path_col_types)
+            self._set_attrs(paths=new_paths,
+                            step_types=new_step_types)
+
+
+class CoalesceTraversal(UnaryTraversal):
+    """
+    A Gremlin `coalesce` step. Runs one or more traversals and returns the
+    results of the first one that emits at least one result.
+    """
+    def __init__(self, parent: GraphTraversal,
+                 subqueries: Sequence[GraphTraversal]):
+        """
+        :param parent: Input to the `coalesce` step
+        :param subqueries: Sub-traversals to run in this step.
+        """
+        UnaryTraversal.__init__(self, parent)
+        for s in subqueries:
+            found_double_underscore, _ = find_double_underscore(s)
+            if not found_double_underscore:
+                raise NotImplementedError("coalesce without __ not implemented")
+        self._subqueries = subqueries
+
+    def compute_impl(self) -> None:
+        # Add an artificial leading column so that we can tell duplicate paths
+        # apart and emit the right number of duplicates on the output of this
+        # step
+        paths_with_leading_col = self.parent.paths.copy()
+        paths_with_leading_col.insert(0, "artificial_leading_column",
+                                      self.parent.paths.index)
+        col_types_with_leading_col = ["a"] + self.parent.step_types
+        aliases_with_leading_col = {
+            k: v + 1 for k, v in self.parent.aliases.items()
+        }
+
+        # Loop until we run out of subqueries or input paths
+        paths_list = []  # Type: List[pd.DataFrame]
+        next_step_types = []  # Type: List[str]
+        subquery_index = 0
+        while (subquery_index < len(self._subqueries)
+               and len(paths_with_leading_col.index) > 0):
+            # TODO: The logic here is similar to WhereSubqueryTraversal. Break
+            #  out the common code into a new common superclass.
+            subquery = self._subqueries[subquery_index]
+            _, step_after_double_underscore = find_double_underscore(subquery)
+            double_underscore_replacement = (
+                PrecomputedTraversal(vertices=self.parent.vertices,
+                                     edges=self.parent.edges,
+                                     paths=paths_with_leading_col,
+                                     step_types=col_types_with_leading_col,
+                                     aliases=aliases_with_leading_col))
+            step_after_double_underscore.parent = double_underscore_replacement
+            subquery.compute()
+            subquery_paths = subquery.paths
+            parent_path_len = len(self.parent.paths.columns)
+            if len(subquery_paths.columns) == parent_path_len + 1:
+                # Subquery didn't add any elements, just filtered parent paths.
+                # Strip off the artificial leading column.
+                paths_list.append(subquery_paths[1:])
+                next_step_types.append("empty")  # Special flag for our own use
+            else:
+                # Subquery added at least one element to the paths.
+                # Keep the parts of the path that came from the parent, plus the
+                # last element that came from the subquery.
+                columns_to_keep = subquery_paths.columns[
+                    list(range(1, parent_path_len + 1)) + [-1]]
+                paths = subquery_paths[columns_to_keep]
+                # Clean up column names
+                paths.columns = list(range(len(paths.columns)))
+                paths_list.append(paths)
+                next_step_types.append(subquery.step_types[-1])
+
+            # Remove input paths that produced outputs on this iteration
+            remaining_leading_col_values = subquery_paths[0].unique()
+            paths_with_leading_col = paths_with_leading_col[
+                ~paths_with_leading_col["artificial_leading_column"]
+                .isin(remaining_leading_col_values)]
+
+            # Reset the subquery so that this step can be recomputed later.
+            subquery.uncompute()
+            step_after_double_underscore.parent = __
+            subquery_index += 1
+
+        for i in range(1, len(next_step_types)):
+            if next_step_types[i] != next_step_types[0]:
+                raise ValueError(f"Traversals 0 and {i} passed to coalesce "
+                                 f"produce mismatched output element types "
+                                 f"'{next_step_types[0]}' and "
+                                 f"'{next_step_types[i]}'")
+        new_step_types = self.parent.step_types.copy()
+        if next_step_types[0] != "empty":
+            new_step_types.append(next_step_types[0])
+        new_paths = pd.concat(paths_list)
+        self._set_attrs(paths=new_paths, step_types=new_step_types)
+
+
+class ValuesTraversal(UnaryTraversal):
+    """Gremlin `values` step, currently limited to a single field with a single
+     value. Interprets `None`/nan as "no value in this field".
+     """
+    def __init__(self, parent: GraphTraversal, field_name: str):
+        UnaryTraversal.__init__(self, parent)
+        self._field_name = field_name
+
+    def compute_impl(self) -> None:
+        last_step_type = self.parent.step_types[-1]
+        if "v" != last_step_type:
+            raise NotImplementedError(f"values step over non-vertex element"
+                                      f"not implemented (element type "
+                                      f"{last_step_type})")
+        if self._field_name not in self.parent.vertices.columns:
+            # Invalid name --> empty result, to match Gremlin semantics
+            new_paths = self.parent.paths.iloc[0:0, :].copy()
+            length = len(new_paths.columns)
+            new_paths.insert(length, length, [])
+            self._set_attrs(paths=new_paths,
+                            step_types=self.parent.step_types + ["o"])
+            return
+        vertex_indexes = self.parent.paths[self.parent.paths.columns[-1]]
+        field_values = (self.parent.vertices[self._field_name]
+                        .loc[vertex_indexes])
+        # TODO: Use a more descriptive step type than "raw Pandas type"
+        step_type = None
+        self._set_attrs(paths=self._parent_path_plus_elements(field_values),
+                        step_types=self.parent.step_types + [step_type])
 
 
 class VertexPredicate:
@@ -1181,8 +1502,8 @@ class BinaryPredicate(VertexPredicate, ABC):
         predicate.
         """
         if self._other_vertices is None:
-            raise ValueError("Attempted to get other_vertices property before "
-                             "calling bind_aliases_self on {}".format(self))
+            raise ValueError(f"Attempted to get other_vertices property before "
+                             f"calling bind_aliases_self on {self}")
         return self._other_vertices
 
 
@@ -1244,9 +1565,9 @@ def token_features_to_traversal(token_features: pd.DataFrame,
     if drop_self_links:
         edges = edges[edges["from"] != edges["to"]]
     paths = pd.DataFrame()
-    path_col_types = []
+    step_types = []
     aliases = {}
-    return PrecomputedTraversal(vertices, edges, paths, path_col_types, aliases)
+    return PrecomputedTraversal(vertices, edges, paths, step_types, aliases)
 
 
 def token_features_to_gremlin(token_features: pd.DataFrame,
