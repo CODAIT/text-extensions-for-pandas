@@ -216,19 +216,25 @@ class GraphTraversal:
         """
         return AsTraversal(self, names)
 
-    def out(self) -> "GraphTraversal":
+    def out(self, *edge_types: str) -> "GraphTraversal":
         """
+        :param edge_types: 0 or more names of types of edges.
+         Zero types means "all edge types".
+
         :returns: A GraphTraversal that adds the destination of any edges out
         of the current traversal's last elemehasnt.
         """
-        return OutTraversal(self)
+        return OutTraversal(self, edge_types)
 
-    def in_(self) -> "GraphTraversal":
+    def in_(self, *edge_types: str) -> "GraphTraversal":
         """
+        :param edge_types: 0 or more names of types of edges.
+         Zero types means "all edge types".
+
         :returns: A GraphTraversal that adds the destination of any edges into
         the current traversal's last element.
         """
-        return InTraversal(self)
+        return InTraversal(self, edge_types)
 
     def select(self, *args) -> "GraphTraversal":
         """
@@ -646,8 +652,9 @@ class OutTraversal(UnaryTraversal):
     """Result of calling GraphTraversal.out()"""
     # TODO: This class ought to be combined with InTraversal, but currently
     #  they are separate as a workaround for some puzzling behavior of pd.merge
-    def __init__(self, parent: GraphTraversal):
+    def __init__(self, parent: GraphTraversal, edge_types: Tuple[str]):
         UnaryTraversal.__init__(self, parent)
+        self._edge_types = edge_types
 
     def compute_impl(self) -> None:
         if self.parent.step_types[-1] != "v":
@@ -656,11 +663,16 @@ class OutTraversal(UnaryTraversal):
                 "vertex. Last element type is {}".format(
                     self.parent.step_types[-1]))
 
-        # Column of path is a list of vertices. Join with edges table.
+        # Last column of path is a list of vertices. Join with edges table.
         p = self.parent.paths
+        edges = self.parent.edges
+        # Filter down to requested edge types if present
+        if len(self._edge_types) > 0:
+            edges = edges[edges["type"].isin(self._edge_types)]
+        edges = edges[["from", "to"]]  # "type" col has served its purpose
         new_paths = (
             p
-            .merge(self.parent.edges, left_on=p.columns[-1], right_on="from")
+            .merge(edges, left_on=p.columns[-1], right_on="from")
             .drop("from",
                   axis="columns")  # merge keeps both sides of equijoin
             .rename(columns={
@@ -671,8 +683,9 @@ class OutTraversal(UnaryTraversal):
 
 class InTraversal(UnaryTraversal):
     """Result of calling GraphTraversal.in_()"""
-    def __init__(self, parent: GraphTraversal):
+    def __init__(self, parent: GraphTraversal, edge_types: Tuple[str]):
         UnaryTraversal.__init__(self, parent)
+        self._edge_types = edge_types
 
     def compute_impl(self) -> None:
         if self.parent.step_types[-1] != "v":
@@ -682,11 +695,16 @@ class InTraversal(UnaryTraversal):
                     self.parent.step_types[-1]))
         # Last column of path is a list of vertices. Join with edges table.
         merge_tmp = self.parent.paths.copy()
+        edges = self.parent.edges
+        # Filter down to requested edge types if present
+        if len(self._edge_types) > 0:
+            edges = edges[edges["type"].isin(self._edge_types)]
+        edges = edges[["from", "to"]]  # "type" col has served its purpose
         # pd.merge() doesn't like integer series names for join keys
         merge_tmp["join_key"] = merge_tmp[merge_tmp.columns[-1]]
         new_paths = (
             merge_tmp
-            .merge(self.parent.edges, left_on="join_key", right_on="to")
+            .merge(edges, left_on="join_key", right_on="to")
             .drop(["to", "join_key"], axis="columns")
             .rename(columns={"from": len(self.parent.paths.columns)})
         )
@@ -1542,7 +1560,9 @@ def lt(other):
 
 
 def token_features_to_traversal(token_features: pd.DataFrame,
-                                drop_self_links=True):
+                                drop_self_links: bool = True,
+                                link_cols: Iterable[str] = (
+                                    "head", "left", "right")):
     """
     Turn a DataFrame of token features in the form returned by
     `make_tokens_and_features` into an empty graph traversal.
@@ -1555,13 +1575,25 @@ def token_features_to_traversal(token_features: pd.DataFrame,
     :param drop_self_links: If `True`, remove links from nodes to themselves
     to simplify query logic.
 
+    :param link_cols: Names of the columns to treat as links, if present.
+     This function will ignore any name in this list that doesn't match a
+     column name in `token_features`.
+
     :returns: A traversal containing a graph version of `token_features` and
     an empty set of paths.
     """
+    valid_link_cols = set(link_cols).intersection(token_features.columns)
     # Don't include token IDs in the vertex attributes
-    vertices = token_features.drop(["token_num", "head_token_num"], axis=1)
-    edges = pd.DataFrame(
-        {"from": token_features.index, "to": token_features["head_token_num"]})
+    vertices = token_features.drop(["token_num"] + list(valid_link_cols),
+                                   axis=1)
+    # Add edges for every column name in link_cols that is present.
+    edges_list = []
+    for name in valid_link_cols:
+        df = pd.DataFrame(
+            {"from": token_features.index, "to": token_features[name],
+             "type": name})
+        edges_list.append(df[~df["to"].isnull()])
+    edges = pd.concat(edges_list)
     if drop_self_links:
         edges = edges[edges["from"] != edges["to"]]
     paths = pd.DataFrame()
