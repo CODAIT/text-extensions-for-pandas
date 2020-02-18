@@ -40,11 +40,16 @@ def make_tokens(target_text: str,
 
 
 def make_tokens_and_features(target_text: str,
-                             language_model: spacy.language.Language
-                             ) -> pd.DataFrame:
+                             language_model: spacy.language.Language,
+                             add_left_and_right=False) -> pd.DataFrame:
     """
     :param target_text: Text to analyze
+
     :param language_model: Preconfigured spaCy language model object
+
+    :param add_left_and_right: If `True`, add columns "left" and "right"
+    containing references to previous and next tokens.
+
     :return: The tokens of the text plus additional linguistic features that the
     language model generates, represented as a `pd.DataFrame`.
     """
@@ -78,7 +83,7 @@ def make_tokens_and_features(target_text: str,
     # TODO: Replace references to categorical_hack with pd.Categorical when the
     #  bug is fixed.
 
-    return pd.DataFrame({
+    df_cols = {
         "token_num": range(len(tok_begins)),
         "char_span": tokens_series,
         "token_span": token_spans,
@@ -86,12 +91,24 @@ def make_tokens_and_features(target_text: str,
         "pos": categorical_hack([str(t.pos_) for t in spacy_doc]),
         "tag": categorical_hack([str(t.tag_) for t in spacy_doc]),
         "dep": categorical_hack([str(t.dep_) for t in spacy_doc]),
-        "head_token_num": np.array([idx_to_id[t.head.idx] for t in spacy_doc]),
+        "head": np.array([idx_to_id[t.head.idx] for t in spacy_doc]),
         "shape": categorical_hack([t.shape_ for t in spacy_doc]),
         "is_alpha": np.array([t.is_alpha for t in spacy_doc]),
         "is_stop": np.array([t.is_stop for t in spacy_doc]),
         "sentence": _make_sentences_series(spacy_doc, tokens_array)
-    })
+    }
+
+    if add_left_and_right:
+        # Use nullable int type because these columns contain nulls
+        df_cols["left"] = pd.array(
+            [None] + list(range(len(tok_begins) - 1)), dtype=pd.Int32Dtype()
+        )
+        df_cols["right"] = pd.array(
+            list(range(1, len(tok_begins))) + [None], dtype=pd.Int32Dtype()
+        )
+
+
+    return pd.DataFrame(df_cols)
 
 
 def _make_sentences_series(spacy_doc: spacy.tokens.doc.Doc,
