@@ -1,21 +1,36 @@
 #
+#  Copyright (c) 2020 IBM Corp.
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+#
 # gremlin.py
 #
 # Part of pandas_text
 #
 # Code for running Gremlin queries against parse trees stored as DataFrames.
 #
-from abc import ABC
-
 import itertools
 import json
-import numpy as np
-import pandas as pd
 import sys
 import textwrap
+from abc import ABC
 from typing import *
 
-from pandas_text import TokenSpan, CharSpan
+import numpy as np
+import pandas as pd
+
+from pandas_text import CharSpan
 
 
 class GraphTraversal:
@@ -26,6 +41,7 @@ class GraphTraversal:
     and there is no attempt at query optimization.
     This may change in the future.
     """
+
     def __init__(self):
         # See property getters below for the meanings of these attributes.
         self._vertices = None
@@ -376,6 +392,7 @@ class BootstrapTraversal(GraphTraversal):
     """
     A traversal that has no inputs but does have a graph.
     """
+
     def __init__(self, vertices: pd.DataFrame, edges: pd.DataFrame):
         """
         Initialize the common attributes of subclasses.
@@ -422,6 +439,7 @@ class UnaryTraversal(GraphTraversal, ABC):
     Also takes care of calling the parent's `compute()` method before entering
     `compute_impl()`, as well as propagating the parent's vertices and edges.
     """
+
     def __init__(self, parent: GraphTraversal):
         GraphTraversal.__init__(self)
         self._parent = parent
@@ -516,6 +534,7 @@ class PrecomputedTraversal(BootstrapTraversal):
 
     Also used for bootstrapping a new traversal.
     """
+
     def __init__(self, vertices: pd.DataFrame, edges: pd.DataFrame,
                  paths: pd.DataFrame, step_types: List[str],
                  aliases: Dict[str, int]):
@@ -586,6 +605,7 @@ class VTraversal(UnaryTraversal):
 class ConstantTraversal(UnaryTraversal):
     """A Gremlin `constant` step, with some additional information about output
     type that isn't present in the reference implementation of Gremlin."""
+
     def __init__(self, parent: GraphTraversal, value: Any, step_type: str):
         """
         :param parent: Traversal that produces inputs to this one
@@ -611,6 +631,7 @@ class ConstantTraversal(UnaryTraversal):
 
 class HasTraversal(UnaryTraversal):
     """Result of calling GraphTraversal.has()"""
+
     def __init__(self, parent: GraphTraversal, key: str, value: Any):
         UnaryTraversal.__init__(self, parent)
         if isinstance(value, ColumnPredicate):
@@ -637,6 +658,7 @@ class HasTraversal(UnaryTraversal):
 
 class AsTraversal(UnaryTraversal):
     """Result of calling GraphTraversal.as_()"""
+
     def __init__(self, parent: GraphTraversal, names: Tuple[str]):
         UnaryTraversal.__init__(self, parent)
         self._names = names
@@ -650,6 +672,7 @@ class AsTraversal(UnaryTraversal):
 
 class OutTraversal(UnaryTraversal):
     """Result of calling GraphTraversal.out()"""
+
     # TODO: This class ought to be combined with InTraversal, but currently
     #  they are separate as a workaround for some puzzling behavior of pd.merge
     def __init__(self, parent: GraphTraversal, edge_types: Tuple[str]):
@@ -672,10 +695,10 @@ class OutTraversal(UnaryTraversal):
         edges = edges[["from", "to"]]  # "type" col has served its purpose
         new_paths = (
             p
-            .merge(edges, left_on=p.columns[-1], right_on="from")
-            .drop("from",
-                  axis="columns")  # merge keeps both sides of equijoin
-            .rename(columns={
+                .merge(edges, left_on=p.columns[-1], right_on="from")
+                .drop("from",
+                      axis="columns")  # merge keeps both sides of equijoin
+                .rename(columns={
                 "to": len(p.columns)}))  # "to" field ==> Last element
         self._set_attrs(paths=new_paths,
                         step_types=self.parent.step_types + ["v"])
@@ -683,6 +706,7 @@ class OutTraversal(UnaryTraversal):
 
 class InTraversal(UnaryTraversal):
     """Result of calling GraphTraversal.in_()"""
+
     def __init__(self, parent: GraphTraversal, edge_types: Tuple[str]):
         UnaryTraversal.__init__(self, parent)
         self._edge_types = edge_types
@@ -704,9 +728,9 @@ class InTraversal(UnaryTraversal):
         merge_tmp["join_key"] = merge_tmp[merge_tmp.columns[-1]]
         new_paths = (
             merge_tmp
-            .merge(edges, left_on="join_key", right_on="to")
-            .drop(["to", "join_key"], axis="columns")
-            .rename(columns={"from": len(self.parent.paths.columns)})
+                .merge(edges, left_on="join_key", right_on="to")
+                .drop(["to", "join_key"], axis="columns")
+                .rename(columns={"from": len(self.parent.paths.columns)})
         )
         self._set_attrs(paths=new_paths,
                         step_types=self.parent.step_types + ["v"])
@@ -876,6 +900,7 @@ class DoubleUnderscore(GraphTraversal):
     This object doesn't itself perform any processing itself. Upstream rewrites
     replace these placeholders with the appropriate concrete subqueries.
     """
+
     def _not_impl(self):
         raise NotImplementedError("This object is a placeholder whose methods "
                                   "should never be called. Instead, rewrites "
@@ -940,6 +965,7 @@ class WherePredicateTraversal(UnaryTraversal):
     Additional arguments to the predicate, such as field names, may appear `by`
     modulators that come after this step.
     """
+
     def __init__(self, parent: GraphTraversal, pred: "VertexPredicate"):
         UnaryTraversal.__init__(self, parent)
         self._pred = pred
@@ -979,6 +1005,7 @@ class WherePredicateTraversal(UnaryTraversal):
 
 class WhereSubqueryTraversal(UnaryTraversal):
     """A Gremlin `where` step whose argument is a graph traversal."""
+
     def __init__(self, parent: GraphTraversal, subquery: GraphTraversal):
         UnaryTraversal.__init__(self, parent)
         self._subquery = subquery
@@ -1032,8 +1059,8 @@ class WhereSubqueryTraversal(UnaryTraversal):
             self._set_attrs(
                 paths=(
                     paths_with_leading_col[paths_with_leading_col[0]
-                                           .isin(remaining_leading_col_values)]
-                    .drop("artificial_leading_column", axis="columns"))
+                        .isin(remaining_leading_col_values)]
+                        .drop("artificial_leading_column", axis="columns"))
             )
 
             # Reset the subquery so that this step can be recomputed later.
@@ -1051,6 +1078,7 @@ class RepeatTraversal(UnaryTraversal):
     Can also represent an `emit` or `until` modulator that occurs before the
     `repeat`step that it modifies.
     """
+
     def __init__(self, parent: GraphTraversal,
                  loop_body: GraphTraversal = None,
                  emit_pred: "VertexPredicate" = None,
@@ -1083,7 +1111,7 @@ class RepeatTraversal(UnaryTraversal):
         # entire repeat "clause".
         UnaryTraversal.__init__(self, non_repeat_parent)
 
-        self._loop_body =\
+        self._loop_body = \
             self._non_null_value(loop_body, prev_loop_body, "loop body")
         self._init_emit_pred = \
             self._non_null_value(emit_pred, prev_emit_pred, "emit predicate")
@@ -1180,7 +1208,7 @@ class RepeatTraversal(UnaryTraversal):
             # Common case: Loop body is a chain of UnaryTraversals starting with
             # a __.
             if (self._until_before_repeat and
-                    np.any(self._until_pred(self.parent.last_vertices()))):
+                np.any(self._until_pred(self.parent.last_vertices()))):
                 # until() before repeat(), which means "do-while" semantics,
                 # and until predicate fired before first iteration.
                 self._set_attrs()
@@ -1210,7 +1238,7 @@ class RepeatTraversal(UnaryTraversal):
 
             # Iterations 2 and onward
             while not np.any(
-                    self._until_pred(prev_iter_output.last_vertices())):
+                self._until_pred(prev_iter_output.last_vertices())):
                 iteration_counter += 1
                 step_after_double_underscore.parent = prev_iter_output
                 self._loop_body.compute()
@@ -1240,6 +1268,7 @@ class CoalesceTraversal(UnaryTraversal):
     A Gremlin `coalesce` step. Runs one or more traversals and returns the
     results of the first one that emits at least one result.
     """
+
     def __init__(self, parent: GraphTraversal,
                  subqueries: Sequence[GraphTraversal]):
         """
@@ -1306,7 +1335,7 @@ class CoalesceTraversal(UnaryTraversal):
             remaining_leading_col_values = subquery_paths[0].unique()
             paths_with_leading_col = paths_with_leading_col[
                 ~paths_with_leading_col["artificial_leading_column"]
-                .isin(remaining_leading_col_values)]
+                    .isin(remaining_leading_col_values)]
 
             # Reset the subquery so that this step can be recomputed later.
             subquery.uncompute()
@@ -1330,6 +1359,7 @@ class ValuesTraversal(UnaryTraversal):
     """Gremlin `values` step, currently limited to a single field with a single
      value. Interprets `None`/nan as "no value in this field".
      """
+
     def __init__(self, parent: GraphTraversal, field_name: str):
         UnaryTraversal.__init__(self, parent)
         self._field_name = field_name
@@ -1350,7 +1380,7 @@ class ValuesTraversal(UnaryTraversal):
             return
         vertex_indexes = self.parent.paths[self.parent.paths.columns[-1]]
         field_values = (self.parent.vertices[self._field_name]
-                        .loc[vertex_indexes])
+            .loc[vertex_indexes])
         # TODO: Use a more descriptive step type than "raw Pandas type"
         step_type = None
         self._set_attrs(paths=self._parent_path_plus_elements(field_values),
@@ -1362,6 +1392,7 @@ class VertexPredicate:
     Base class for Boolean predicates applied to individual vertices of the
     graph.
     """
+
     def __init__(self, *children: "VertexPredicate"):
         self._children = children
 
@@ -1423,6 +1454,7 @@ class ColumnPredicate(VertexPredicate, ABC):
     Abstract base class for VertexPredicates that only read one column and may
     need that column to be bound late, as in a `has` step.
     """
+
     def __init__(self):
         VertexPredicate.__init__(self)
         self._target_col = None
@@ -1442,6 +1474,7 @@ class TruePredicate(ColumnPredicate):
     """
     Predicate that always returns `True`
     """
+
     def __call__(self, values: pd.DataFrame) -> np.ndarray:
         return np.full_like(values.index, True, dtype=np.bool)
 
@@ -1450,6 +1483,7 @@ class FalsePredicate(ColumnPredicate):
     """
     Predicate that always returns `False`
     """
+
     def __call__(self, values: pd.DataFrame) -> np.ndarray:
         return np.full_like(values.index, False, dtype=np.bool)
 
@@ -1478,6 +1512,7 @@ class Without(ColumnPredicate):
     """
     Implementation of the Gremlin `without()` predicate
     """
+
     def __init__(self, *args: Any):
         """
         :param args: 1 or more arguments to the predicate as Python varargs.
@@ -1496,6 +1531,7 @@ class BinaryPredicate(VertexPredicate, ABC):
     """
     Abstract base class for Gremlin binary predicates.
     """
+
     def __init__(self, other: str):
         """
         :param other: Name of the second vertex to compare against.
@@ -1529,6 +1565,7 @@ class LessThanPredicate(BinaryPredicate):
     """
     Implementation of the Gremlin `lt()` predicate.
     """
+
     def __init__(self, other: str):
         """
         :param other: Name of the second vertex to compare against
@@ -1618,6 +1655,7 @@ def token_features_to_gremlin(token_features: pd.DataFrame,
     :return: A string of Gremlin commands that you can paste into the Gremlin
     console to generate a graph that models the contents of `token_features`.
     """
+
     def _quote_str(v):
         return json.dumps(str(v))
 
@@ -1647,8 +1685,6 @@ def token_features_to_gremlin(token_features: pd.DataFrame,
         props_str = "".join(props_list)
         node_lines.append("""addV("token"){}.as({})""".format(
             props_str, _quote_str(index_val)))
-
-
 
     # Edges:
     # For each token, generate addE("head").from(token_id).to(head_id)

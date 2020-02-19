@@ -1,19 +1,32 @@
+#
+#  Copyright (c) 2020 IBM Corp.
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
 ################################################################################
 # algebra.py
 #
 # Span manipulation functions from pandas_text
-import functools
-
-import pandas as pd
-import numpy as np
-import regex
 
 from typing import *
+
+import numpy as np
+import pandas as pd
+import regex
 
 # Internal imports
 from pandas_text.char_span import CharSpan, CharSpanType, CharSpanArray
 from pandas_text.token_span import TokenSpan, TokenSpanType, TokenSpanArray
-
 
 
 def extract_dict(tokens: Union[CharSpanArray, pd.Series],
@@ -89,11 +102,11 @@ def extract_dict(tokens: Union[CharSpanArray, pd.Series],
 
 
 def extract_regex_tok(
-    tokens: Union[CharSpanArray, pd.Series],
-    compiled_regex: regex.Regex,
-    min_len=1,
-    max_len=1,
-    output_col_name: str = "match"):
+        tokens: Union[CharSpanArray, pd.Series],
+        compiled_regex: regex.Regex,
+        min_len=1,
+        max_len=1,
+        output_col_name: str = "match"):
     """
     Identify all (possibly overlapping) matches of a regular expression
     that start and end on token boundaries.
@@ -267,6 +280,9 @@ def lemmatize(spans: Union[pd.Series, TokenSpanArray, Iterable[TokenSpan]],
     :param token_features: Dataframe of token metadata. Index must be aligned
     with the token indices in `spans`.
 
+    :param lemma_col_name: Optional custom name for the dataframe column
+    containing the lemmatized form of each token.
+
     :return: A list containing normalized versions of the tokens
     in `spans`, with each token separated by single space character.
     """
@@ -275,7 +291,7 @@ def lemmatize(spans: Union[pd.Series, TokenSpanArray, Iterable[TokenSpan]],
     # TODO: Vectorize this loop
     for i in range(len(spans)):
         lemmas = token_features[lemma_col_name][
-            spans.begin_token[i]:spans.end_token[i]
-        ]
+                 spans.begin_token[i]:spans.end_token[i]
+                 ]
         ret.append(" ".join(lemmas))
     return ret

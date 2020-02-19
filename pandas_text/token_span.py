@@ -1,4 +1,19 @@
 #
+#  Copyright (c) 2020 IBM Corp.
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+#
 # token_span.py
 #
 # Part of pandas_text
@@ -6,10 +21,11 @@
 # Pandas extensions to support columns of spans with token offsets.
 #
 
-import pandas as pd
-import numpy as np
-from memoized_property import memoized_property
 from typing import *
+
+import numpy as np
+import pandas as pd
+from memoized_property import memoized_property
 
 # Internal imports
 import pandas_text.util as util
@@ -293,9 +309,10 @@ class TokenSpanArray(CharSpanArray):
             if tokens is None:
                 tokens = s.tokens
             if s.tokens != tokens:
-                raise ValueError(f"Mixing different token sets is not currently "
-                                 f"supported. Received two token sets:\n"
-                                 f"{tokens}\nand\n{s.tokens}")
+                raise ValueError(
+                    f"Mixing different token sets is not currently "
+                    f"supported. Received two token sets:\n"
+                    f"{tokens}\nand\n{s.tokens}")
             begin_tokens[i] = s.begin_token
             end_tokens[i] = s.end_token
             i += 1

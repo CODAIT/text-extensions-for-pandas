@@ -1,3 +1,18 @@
+#
+#  Copyright (c) 2020 IBM Corp.
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
 ################################################################################
 # io.py
 #
@@ -80,6 +95,7 @@ def make_tokens_and_features(target_text: str,
         # dtype = pd.CategoricalDtype(categories)
         # return pd.Categorical(values, dtype=dtype)
         return np.array(values)
+
     # TODO: Replace references to categorical_hack with pd.Categorical when the
     #  bug is fixed.
 
@@ -106,7 +122,6 @@ def make_tokens_and_features(target_text: str,
         df_cols["right"] = pd.array(
             list(range(1, len(tok_begins))) + [None], dtype=pd.Int32Dtype()
         )
-
 
     return pd.DataFrame(df_cols)
 
@@ -144,8 +159,8 @@ def token_features_to_tree(token_features: pd.DataFrame,
 
     :param token_features: A subset of a token features DataFrame in the format
     returned by `make_tokens_and_features()`. Must at a minimum contain the
-    `head_token_num` column and an integer index that corresponds to the ints
-    in the `head_token_num` column.
+    `head` column and an integer index that corresponds to the ints
+    in the `head` column.
 
     :param text_col: Name of the column in `token_features` from which the
     'covered text' label for each node of the parse tree should be extracted,
@@ -174,12 +189,12 @@ def token_features_to_tree(token_features: pd.DataFrame,
         else:
             return series.astype(str)
 
-    # Renumber the head_token_num column to a dense range starting from zero
+    # Renumber the head column to a dense range starting from zero
     tok_map = {token_features.index[i]: i
                for i in range(len(token_features.index))}
     # Note that we turn any links to tokens not in our input rows into
     # self-links, which will get removed later on.
-    head_tok = token_features["head_token_num"].values
+    head_tok = token_features["head"].values
     remapped_head_tok = []
     for i in range(len(token_features.index)):
         remapped_head_tok.append(
@@ -227,8 +242,8 @@ def render_parse_tree(token_features: pd.DataFrame,
 
     :param token_features: A subset of a token features DataFrame in the format
     returned by `make_tokens_and_features()`. Must at a minimum contain the
-    `head_token_num` column and an integer index that corresponds to the ints
-    in the `head_token_num` column.
+    `head` column and an integer index that corresponds to the ints
+    in the `head` column.
 
     :param text_col: Name of the column in `token_features` from which the
     'covered text' label for each node of the parse tree should be extracted,
@@ -250,9 +265,6 @@ def render_parse_tree(token_features: pd.DataFrame,
                                                         text_col, tag_col,
                                                         label_col),
                                  manual=True)
-
-
-
 
 
 def load_dict(file_name: str, tokenizer: spacy.tokenizer.Tokenizer):
