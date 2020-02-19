@@ -13,22 +13,18 @@
 #  limitations under the License.
 #
 
-################################################################################
-# pandas_text
 #
-# NLP addons for Pandas dataframes.
+# gremlin module
 #
-# To use:
-#   import pandas_text as pt
+# Part of pandas_text
+#
+# Code for running Gremlin queries against parse trees stored as DataFrames.
 #
 
-# For now just expose everything at the top level of the namespace
-from pandas_text.algebra import *
-from pandas_text.char_span import *
-from pandas_text.gremlin import *
-from pandas_text.io import *
-from pandas_text.span import *
-from pandas_text.token_span import *
+# For now we expose every symbol of the subpackages
+from pandas_text.gremlin.convert import *
+from pandas_text.gremlin.predicate import *
+from pandas_text.gremlin.traversal import *
 
-# Bring special Gremlin symbols up to the top-level scope
-from pandas_text.gremlin.traversal.underscore import __
+
+

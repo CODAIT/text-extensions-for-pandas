@@ -13,22 +13,13 @@
 #  limitations under the License.
 #
 
-################################################################################
-# pandas_text
+# graph_traversal.py
 #
-# NLP addons for Pandas dataframes.
-#
-# To use:
-#   import pandas_text as pt
-#
+# The GraphTraversal class, which contains most of the public API.
+from abc import ABC
+from typing import *
 
-# For now just expose everything at the top level of the namespace
-from pandas_text.algebra import *
-from pandas_text.char_span import *
-from pandas_text.gremlin import *
-from pandas_text.io import *
-from pandas_text.span import *
-from pandas_text.token_span import *
+from pandas_text import GraphTraversalBase
 
-# Bring special Gremlin symbols up to the top-level scope
-from pandas_text.gremlin.traversal.underscore import __
+
+
