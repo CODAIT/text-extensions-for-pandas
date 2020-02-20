@@ -131,7 +131,7 @@ class SelectTraversal(UnaryTraversal):
                                 "".format(by, alias))
                         df_contents[alias] = self.parent.vertices[by].loc[
                             elem].values
-                elif step_type is None:
+                elif "p" == step_type:
                     if by is not None:
                         # Gremlin requires empty by() for select on scalar step
                         raise ValueError(f"Attempted to apply non-empty by "
@@ -219,8 +219,8 @@ class ValuesTraversal(UnaryTraversal):
             return
         vertex_indexes = self.parent.paths[self.parent.paths.columns[-1]]
         field_values = (self.parent.vertices[self._field_name]
-            .loc[vertex_indexes])
-        # TODO: Use a more descriptive step type than "raw Pandas type"
-        step_type = None
+                        .loc[vertex_indexes])
+        # TODO: Use a more specific step type than "raw Pandas type"
+        step_type = "p"
         self._set_attrs(paths=self._parent_path_plus_elements(field_values),
                         step_types=self.parent.step_types + [step_type])

@@ -100,7 +100,7 @@ def make_tokens_and_features(target_text: str,
     #  bug is fixed.
 
     df_cols = {
-        "token_num": range(len(tok_begins)),
+        "id": range(len(tok_begins)),
         "char_span": tokens_series,
         "token_span": token_spans,
         "lemma": [t.lemma_ for t in spacy_doc],

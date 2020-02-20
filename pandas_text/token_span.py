@@ -213,7 +213,7 @@ class TokenSpanArray(CharSpanArray):
         elif isinstance(o, Iterable):
             return cls._from_sequence(o)
 
-    def __getitem__(self, item) -> TokenSpan:
+    def __getitem__(self, item) -> Union[TokenSpan, "TokenSpanArray"]:
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
@@ -226,6 +226,28 @@ class TokenSpanArray(CharSpanArray):
             return TokenSpanArray(self._tokens,
                                   self.begin_token[item],
                                   self.end_token[item])
+
+    def __setitem__(self, key: Union[int, np.ndarray], value: Any) -> None:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        if isinstance(key, np.ndarray):
+            raise NotImplementedError("Setting multiple rows at once not "
+                                      "implemented")
+        if not isinstance(key, int):
+            raise NotImplementedError(f"Don't understand key type "
+                                      f"'{type(key)}'")
+        if value is None:
+            self.begin_token[key] = TokenSpan.NULL_TOKEN_VALUE
+            self.end_token[key] = TokenSpan.NULL_TOKEN_VALUE
+        elif not isinstance(value, TokenSpan):
+            raise ValueError(
+                f"Attempted to set element of TokenSpanArray with"
+                f"an object of type {type(value)}")
+        else:
+            self.begin_token[key] = value.begin_token
+            self.end_token[key] = value.end_token
 
     def __eq__(self, other):
         """
@@ -390,6 +412,21 @@ class TokenSpanArray(CharSpanArray):
             raise ValueError("'<' relationship not defined for {} and {} "
                              "of types {} and {}"
                              "".format(self, other, type(self), type(other)))
+
+    def _reduce(self, name, skipna=True, **kwargs):
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        if name == "sum":
+            # Sum ==> combine, i.e. return the smallest span that contains all
+            #         spans in the series
+            return TokenSpan(self.tokens, np.min(self.begin_token),
+                             np.max(self.end_token))
+        else:
+            raise TypeError(f"'{name}' aggregation not supported on a series "
+                            f"backed by a TokenSpanArray")
+
 
     @property
     def tokens(self) -> CharSpanArray:

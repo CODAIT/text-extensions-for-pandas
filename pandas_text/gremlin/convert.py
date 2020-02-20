@@ -50,9 +50,7 @@ def token_features_to_traversal(token_features: pd.DataFrame,
     an empty set of paths.
     """
     valid_link_cols = set(link_cols).intersection(token_features.columns)
-    # Don't include token IDs in the vertex attributes
-    vertices = token_features.drop(["token_num"] + list(valid_link_cols),
-                                   axis=1)
+    vertices = token_features.copy()  # Make a shallow copy just in case
     # Add edges for every column name in link_cols that is present.
     edges_list = []
     for name in valid_link_cols:

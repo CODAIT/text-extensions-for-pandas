@@ -23,7 +23,11 @@ import pandas as pd
 # Abstract base classes for Gremlin traversal steps
 
 
-class GraphTraversalBase:
+class GraphTraversalBase(ABC):
+    """
+    Base class containing methods we want hidden from the public
+    `GraphTraversal` class.
+    """
 
     def __init__(self):
         # See property getters below for the meanings of these attributes.
@@ -41,6 +45,25 @@ class GraphTraversalBase:
                              "GraphTraversal that had not yet been computed."
                              "".format(sys._getframe(1).f_code.co_name))
 
+    def compute_impl(self) -> None:
+        """
+        Subclasses should override this method to compute the values of
+        `self._vertices` and the other fields that the constructor initializes
+        to None.
+        """
+        raise NotImplementedError("Subclasses need to implement this method")
+
+
+class GraphTraversal(GraphTraversalBase, ABC):
+    """
+    Main API entry point for Gremlin traversals.
+
+    Class that represents a [subset of] Gremlin graph traversal.
+
+    Methods that evaluate the traversal operate recursively with memoization,
+    and there is no attempt at query optimization.
+    This may change in the future.
+    """
     @property
     def vertices(self):
         """
@@ -72,7 +95,8 @@ class GraphTraversalBase:
         """
         :return: Array of additional information about the columns
         of `paths`. Each value may be one of:
-         * None (raw Pandas type)
+         * "p" (raw Pandas type)
+         * "r" (record with 1 or more fields)
          * "v" (vertex reference)
          * "e" (edge reference)
          * "a" (artificial unique key for internal use)
@@ -177,26 +201,6 @@ class GraphTraversalBase:
             return ["e[{}]".format(elem) for elem in last_elems]
         else:
             return last_elems
-
-    def compute_impl(self) -> None:
-        """
-        Subclasses should override this method to compute the values of
-        `self._vertices` and the other fields that the constructor initializes
-        to None.
-        """
-        raise NotImplementedError("Subclasses need to implement this method")
-
-
-class GraphTraversal(GraphTraversalBase, ABC):
-    """
-    Main API entry point for Gremlin traversals.
-
-    Class that represents a [subset of] Gremlin graph traversal.
-
-    Methods that evaluate the traversal operate recursively with memoization,
-    and there is no attempt at query optimization.
-    This may change in the future.
-    """
 
     def V(self):
         """
@@ -356,7 +360,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         return RepeatTraversal(self, until_pred=until_pred)
 
     def constant(self, value: Any,
-                 step_type: str = None) -> "GraphTraversal":
+                 step_type: str = "p") -> "GraphTraversal":
         """
         `constant` step. Adds the indicated constant value to each path in the
         parent traversal.
@@ -399,6 +403,18 @@ class GraphTraversal(GraphTraversalBase, ABC):
         """
         from pandas_text.gremlin.traversal.format import ValuesTraversal
         return ValuesTraversal(self, field_name)
+
+    def sum(self) -> "GraphTraversal":
+        """
+        A Gremlin `sum` step. Expects the last element of the current path to be
+        a scalar value. Returns the scalar sum as a single path containing one
+        element.
+
+        :return: A GraphTraversal that adds the indicated `sum` step to
+        the parent traversal.
+        """
+        from pandas_text.gremlin.traversal.aggregate import SumTraversal
+        return SumTraversal(self)
 
 
 class BootstrapTraversal(GraphTraversal):

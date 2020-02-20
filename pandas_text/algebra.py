@@ -242,6 +242,9 @@ def combine_agg(arg):
     ```python
     pt.combine(my_series)
     pt.combine(my_series.values)
+    ```
+
+
 
     :param arg: A DataFrame, Series, or Iterable of `CharSpan` or `TokenSpan`
     objects.
