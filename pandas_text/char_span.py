@@ -236,7 +236,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
     def __len__(self) -> int:
         return len(self._begins)
 
-    def __getitem__(self, item) -> CharSpan:
+    def __getitem__(self, item) -> Union[CharSpan, "CharSpanArray"]:
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
@@ -265,6 +265,21 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             raise ValueError("'<' relationship not defined for {} and {} "
                              "of types {} and {}"
                              "".format(self, other, type(self), type(other)))
+
+    def _reduce(self, name, skipna=True, **kwargs):
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        if name == "sum":
+            # Sum ==> combine, i.e. return the smallest span that contains all
+            #         spans in the series
+            return CharSpan(self.target_text, np.min(self.begin),
+                            np.max(self.end))
+        else:
+            raise TypeError(f"'{name}' aggregation not supported on a series "
+                            f"backed by a CharSpanArray")
+
 
     @property
     def target_text(self) -> str:
