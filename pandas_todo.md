@@ -71,7 +71,8 @@ Repro:
 ```
 2. Attempt to call the `in_()` method:
 ```python
-g = pt.token_features_to_traversal(token_features)
+import pandas_text.gremlin.convert
+g = pandas_text.gremlin.convert.token_features_to_traversal(token_features)
 g.V().in_().toList()
 ```
 You will get a strange error message about inputs to assign not being strings.
