@@ -13,18 +13,10 @@
 #  limitations under the License.
 #
 
+# traversal sub-package
 #
-# gremlin module
-#
-# Part of pandas_text
-#
-# Code for running Gremlin queries against parse trees stored as DataFrames.
-#
+# Contains classes that implement the different step types, as well as the
+# abstract base classes for graph traversals.
 
-# For now we expose every symbol of the subpackages
-from pandas_text.gremlin.convert import *
-from pandas_text.gremlin.predicate import *
-from pandas_text.gremlin.traversal import *
-
-
+from text_extensions_for_pandas.gremlin.traversal.base import GraphTraversal
 

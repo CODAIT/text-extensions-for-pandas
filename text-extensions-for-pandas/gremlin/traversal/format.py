@@ -21,7 +21,7 @@ from typing import Tuple
 
 import pandas as pd
 
-from pandas_text.gremlin.traversal.base import UnaryTraversal, GraphTraversal
+from text_extensions_for_pandas.gremlin.traversal.base import UnaryTraversal, GraphTraversal
 
 
 class AsTraversal(UnaryTraversal):

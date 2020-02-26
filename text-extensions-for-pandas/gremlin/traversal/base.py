@@ -209,7 +209,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         """
         # local import here and throughout this file because the Gremlin APIs
         # we implement have implicit circular dependencies.
-        from pandas_text.gremlin.traversal.constant import VTraversal
+        from text_extensions_for_pandas.gremlin.traversal.constant import VTraversal
         return VTraversal(self)
 
     def has(self, key: str, value: Any) -> "GraphTraversal":
@@ -223,7 +223,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         :returns: A GraphTraversal that filters out paths whose last element
         does not contain the indicated value in the indicated field.
         """
-        from pandas_text.gremlin.traversal.filter import HasTraversal
+        from text_extensions_for_pandas.gremlin.traversal.filter import HasTraversal
         return HasTraversal(self, key, value)
 
     def as_(self, *names: str) -> "GraphTraversal":
@@ -233,7 +233,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         :returns: A GraphTraversal that marks the current (rightmost) element
         of this traversal with the indicated short name[s].
         """
-        from pandas_text.gremlin.traversal.format import AsTraversal
+        from text_extensions_for_pandas.gremlin.traversal.format import AsTraversal
         return AsTraversal(self, names)
 
     def out(self, *edge_types: str) -> "GraphTraversal":
@@ -244,7 +244,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         :returns: A GraphTraversal that adds the destination of any edges out
         of the current traversal's last elemehasnt.
         """
-        from pandas_text.gremlin.traversal.move import OutTraversal
+        from text_extensions_for_pandas.gremlin.traversal.move import OutTraversal
         return OutTraversal(self, edge_types)
 
     def in_(self, *edge_types: str) -> "GraphTraversal":
@@ -255,7 +255,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         :returns: A GraphTraversal that adds the destination of any edges into
         the current traversal's last element.
         """
-        from pandas_text.gremlin.traversal.move import InTraversal
+        from text_extensions_for_pandas.gremlin.traversal.move import InTraversal
         return InTraversal(self, edge_types)
 
     def select(self, *args: str) -> "GraphTraversal":
@@ -268,7 +268,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
             raise ValueError(
                 "No arguments passed to select(). Must select at least 1 "
                 "alias from the traversal.")
-        from pandas_text.gremlin.traversal.format import SelectTraversal
+        from text_extensions_for_pandas.gremlin.traversal.format import SelectTraversal
         return SelectTraversal(self, selected_aliases=args)
 
     def where(self, target: Union["GraphTraversal",
@@ -288,9 +288,9 @@ class GraphTraversal(GraphTraversalBase, ABC):
         :return: Traversal that returns all input paths for which `subquery`
         produces one or more paths.
         """
-        from pandas_text.gremlin.traversal.filter import \
+        from text_extensions_for_pandas.gremlin.traversal.filter import \
             WhereSubqueryTraversal, WherePredicateTraversal
-        from pandas_text.gremlin.predicate import VertexPredicate
+        from text_extensions_for_pandas.gremlin.predicate import VertexPredicate
         if isinstance(target, GraphTraversal):
             return WhereSubqueryTraversal(self, target)
         elif isinstance(target, VertexPredicate):
@@ -322,7 +322,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         :return: Traversal that returns the result of repeating `loop_body` the
         appropriate number of times, as modified by any surrounding modulators.
         """
-        from pandas_text.gremlin.traversal.recurse import RepeatTraversal
+        from text_extensions_for_pandas.gremlin.traversal.recurse import RepeatTraversal
         return RepeatTraversal(self, loop_body)
 
     def emit(self, emit_pred: "VertexPredicate" = None) -> "GraphTraversal":
@@ -337,10 +337,10 @@ class GraphTraversal(GraphTraversalBase, ABC):
         returns a placeholder that will provide input to subsequent `repeat()`
         calls.
         """
-        from pandas_text.gremlin.predicate import TruePredicate
+        from text_extensions_for_pandas.gremlin.predicate import TruePredicate
         if emit_pred is None:
             emit_pred = TruePredicate()
-        from pandas_text.gremlin.traversal.recurse import RepeatTraversal
+        from text_extensions_for_pandas.gremlin.traversal.recurse import RepeatTraversal
         return RepeatTraversal(self, emit_pred=emit_pred)
 
     def until(self, until_pred: "VertexPredicate") -> "GraphTraversal":
@@ -356,7 +356,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         returns a placeholder that will provide input to subsequent `repeat()`
         calls.
         """
-        from pandas_text.gremlin.traversal.recurse import RepeatTraversal
+        from text_extensions_for_pandas.gremlin.traversal.recurse import RepeatTraversal
         return RepeatTraversal(self, until_pred=until_pred)
 
     def constant(self, value: Any,
@@ -372,7 +372,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         :returns: A GraphTraversal that adds the indicated `constant` step to
         the parent traversal.
         """
-        from pandas_text.gremlin.traversal.constant import ConstantTraversal
+        from text_extensions_for_pandas.gremlin.traversal.constant import ConstantTraversal
         return ConstantTraversal(self, value, step_type)
 
     def coalesce(self, *subqueries: "GraphTraversal") -> "GraphTraversal":
@@ -387,7 +387,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         :return: A GraphTraversal that adds the indicated `coalesce` step to
         the parent traversal.
         """
-        from pandas_text.gremlin.traversal.recurse import CoalesceTraversal
+        from text_extensions_for_pandas.gremlin.traversal.recurse import CoalesceTraversal
         return CoalesceTraversal(self, subqueries)
 
     def values(self, field_name: str) -> "GraphTraversal":
@@ -401,7 +401,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         :return: A GraphTraversal that adds the indicated `values` step to
         the parent traversal.
         """
-        from pandas_text.gremlin.traversal.format import ValuesTraversal
+        from text_extensions_for_pandas.gremlin.traversal.format import ValuesTraversal
         return ValuesTraversal(self, field_name)
 
     def sum(self) -> "GraphTraversal":
@@ -413,7 +413,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         :return: A GraphTraversal that adds the indicated `sum` step to
         the parent traversal.
         """
-        from pandas_text.gremlin.traversal.aggregate import SumTraversal
+        from text_extensions_for_pandas.gremlin.traversal.aggregate import SumTraversal
         return SumTraversal(self)
 
     def group(self) -> "GraphTraversal":
@@ -428,7 +428,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         :return: A GraphTraversal that adds the indicated `group` step to
         the parent traversal.
         """
-        from pandas_text.gremlin.traversal.aggregate import GroupTraversal
+        from text_extensions_for_pandas.gremlin.traversal.aggregate import GroupTraversal
         return GroupTraversal(self)
 
     def groupBy(self,
@@ -462,7 +462,7 @@ class GraphTraversal(GraphTraversalBase, ABC):
         :return: A GraphTraversal that adds the indicated `groupBy` step to
         the parent traversal.
         """
-        from pandas_text.gremlin.traversal.aggregate import GroupByTraversal
+        from text_extensions_for_pandas.gremlin.traversal.aggregate import GroupByTraversal
         return GroupByTraversal(self, groups, aggregates)
 
     def apply(self, step_fn: Callable[["GraphTraversal"], "GraphTraversal"]) \

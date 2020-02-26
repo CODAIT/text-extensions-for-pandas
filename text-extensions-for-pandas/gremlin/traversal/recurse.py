@@ -21,11 +21,11 @@ from typing import List, Sequence
 import numpy as np
 import pandas as pd
 
-from pandas_text.gremlin.predicate import VertexPredicate, TruePredicate, \
+from text_extensions_for_pandas.gremlin.predicate import VertexPredicate, TruePredicate, \
     FalsePredicate
-from pandas_text.gremlin.traversal.base import UnaryTraversal, GraphTraversal
-from pandas_text.gremlin.traversal.constant import PrecomputedTraversal
-from pandas_text.gremlin.traversal.underscore import find_double_underscore, __
+from text_extensions_for_pandas.gremlin.traversal.base import UnaryTraversal, GraphTraversal
+from text_extensions_for_pandas.gremlin.traversal.constant import PrecomputedTraversal
+from text_extensions_for_pandas.gremlin.traversal.underscore import find_double_underscore, __
 
 
 class RepeatTraversal(UnaryTraversal):

@@ -16,7 +16,7 @@
 ################################################################################
 # algebra.py
 #
-# Span manipulation functions from pandas_text
+# Span manipulation functions from text_extensions_for_pandas
 
 from typing import *
 
@@ -25,8 +25,10 @@ import pandas as pd
 import regex
 
 # Internal imports
-from pandas_text.char_span import CharSpan, CharSpanType, CharSpanArray
-from pandas_text.token_span import TokenSpan, TokenSpanType, TokenSpanArray
+from text_extensions_for_pandas.char_span import CharSpan, CharSpanType,\
+    CharSpanArray
+from text_extensions_for_pandas.token_span import TokenSpan, TokenSpanType,\
+    TokenSpanArray
 
 
 def extract_dict(tokens: Union[CharSpanArray, pd.Series],

@@ -16,7 +16,7 @@
 #
 # char_span.py
 #
-# Part of pandas_text
+# Part of text_extensions_for_pandas
 #
 # Pandas extensions to support columns of spans with character offsets.
 #
@@ -28,7 +28,7 @@ import pandas as pd
 from memoized_property import memoized_property
 
 # Internal imports
-import pandas_text.util as util
+import text_extensions_for_pandas.util as util
 
 
 class CharSpan:

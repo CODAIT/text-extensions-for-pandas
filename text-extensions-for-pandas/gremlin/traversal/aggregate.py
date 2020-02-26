@@ -21,9 +21,9 @@ from typing import *
 
 import pandas as pd
 
-from pandas_text.gremlin.traversal.base import GraphTraversal, UnaryTraversal
-from pandas_text.gremlin.traversal.format import ValuesTraversal
-from pandas_text.gremlin.traversal.underscore import __
+from text_extensions_for_pandas.gremlin.traversal.base import GraphTraversal, UnaryTraversal
+from text_extensions_for_pandas.gremlin.traversal.format import ValuesTraversal
+from text_extensions_for_pandas.gremlin.traversal.underscore import __
 
 
 class AggregateTraversal(UnaryTraversal, ABC):

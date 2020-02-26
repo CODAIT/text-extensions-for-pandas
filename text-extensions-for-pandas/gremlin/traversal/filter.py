@@ -19,12 +19,12 @@
 import itertools
 from typing import Any
 
-from pandas_text import __
-from pandas_text.gremlin.predicate import ColumnPredicate, Within
-from pandas_text.gremlin.traversal.underscore import find_double_underscore
-from pandas_text.gremlin import PrecomputedTraversal
+from text_extensions_for_pandas import __
+from text_extensions_for_pandas.gremlin.predicate import ColumnPredicate, Within
+from text_extensions_for_pandas.gremlin.traversal.underscore import find_double_underscore
+from text_extensions_for_pandas.gremlin import PrecomputedTraversal
 
-from pandas_text.gremlin.traversal.base import \
+from text_extensions_for_pandas.gremlin.traversal.base import \
     GraphTraversal, UnaryTraversal
 
 

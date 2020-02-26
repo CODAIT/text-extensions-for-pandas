@@ -14,21 +14,21 @@
 #
 
 ################################################################################
-# pandas_text
+# text_extensions_for_pandas
 #
 # NLP addons for Pandas dataframes.
 #
 # To use:
-#   import pandas_text as pt
+#   import text_extensions_for_pandas as pt
 #
 
 # For now just expose everything at the top level of the namespace
-from pandas_text.algebra import *
-from pandas_text.char_span import *
-from pandas_text.gremlin import *
-from pandas_text.io import *
-from pandas_text.span import *
-from pandas_text.token_span import *
+from text_extensions_for_pandas.algebra import *
+from text_extensions_for_pandas.char_span import *
+from text_extensions_for_pandas.gremlin import *
+from text_extensions_for_pandas.io import *
+from text_extensions_for_pandas.span import *
+from text_extensions_for_pandas.token_span import *
 
 # Bring special Gremlin symbols up to the top-level scope
-from pandas_text.gremlin.traversal.underscore import __
+from text_extensions_for_pandas.gremlin.traversal.underscore import __

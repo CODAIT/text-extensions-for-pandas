@@ -1,7 +1,7 @@
 #
 # util.py
 #
-# Part of pandas_text
+# Part of text_extensions_for_pandas
 #
 # Internal utility functions, not exposed in the public API.
 #

@@ -22,7 +22,7 @@ import pandas as pd
 import numpy as np
 from typing import *
 
-from pandas_text.gremlin.traversal.base import GraphTraversal
+from text_extensions_for_pandas.gremlin.traversal.base import GraphTraversal
 
 
 class VertexPredicate:

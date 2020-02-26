@@ -18,8 +18,8 @@
 # Code associated with the Gremlin double-underscore (__) operator
 from typing import Tuple
 
-from pandas_text.gremlin.traversal.base import GraphTraversal, UnaryTraversal
-from pandas_text.gremlin.traversal.constant import PrecomputedTraversal,\
+from text_extensions_for_pandas.gremlin.traversal.base import GraphTraversal, UnaryTraversal
+from text_extensions_for_pandas.gremlin.traversal.constant import PrecomputedTraversal,\
     BootstrapTraversal
 
 

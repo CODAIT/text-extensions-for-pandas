@@ -16,7 +16,7 @@
 #
 # span.py
 #
-# Part of pandas_text
+# Part of text_extensions_for_pandas
 #
 # Functionality common to both character- and token-based span types.
 #
@@ -24,7 +24,7 @@
 import pandas as pd
 
 # Internal imports
-from pandas_text.char_span import CharSpanType
+from text_extensions_for_pandas.char_span import CharSpanType
 
 
 @pd.api.extensions.register_series_accessor("span")

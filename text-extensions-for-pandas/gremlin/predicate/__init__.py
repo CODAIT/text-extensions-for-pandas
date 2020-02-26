@@ -23,8 +23,8 @@ from typing import Iterator, Any
 import numpy as np
 import pandas as pd
 
-from pandas_text.gremlin.traversal.base import GraphTraversalBase
-from pandas_text.gremlin.predicate.base import ColumnPredicate, VertexPredicate
+from text_extensions_for_pandas.gremlin.traversal.base import GraphTraversalBase
+from text_extensions_for_pandas.gremlin.predicate.base import ColumnPredicate, VertexPredicate
 
 
 class TruePredicate(ColumnPredicate):

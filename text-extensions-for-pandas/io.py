@@ -16,7 +16,7 @@
 ################################################################################
 # io.py
 #
-# Functions in pandas_text that create DataFrames and convert them to other
+# Functions in text_extensions_for_pandas that create DataFrames and convert them to other
 # formats.
 
 import numpy as np
@@ -29,8 +29,8 @@ import spacy.tokens.doc
 from spacy.tokenizer import Tokenizer
 from spacy.lang.en import English
 
-from pandas_text.char_span import CharSpan, CharSpanType, CharSpanArray
-from pandas_text.token_span import TokenSpan, TokenSpanType, TokenSpanArray
+from text_extensions_for_pandas.char_span import CharSpan, CharSpanType, CharSpanArray
+from text_extensions_for_pandas.token_span import TokenSpan, TokenSpanType, TokenSpanArray
 
 # Set to True to use sparse storage for tokens 2-n of n-token dictionary
 # entries. First token is always stored dense, of course.

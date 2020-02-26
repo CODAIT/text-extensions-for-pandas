@@ -19,7 +19,7 @@
 
 from typing import Tuple
 
-from pandas_text.gremlin.traversal.base import \
+from text_extensions_for_pandas.gremlin.traversal.base import \
     GraphTraversal, UnaryTraversal
 
 

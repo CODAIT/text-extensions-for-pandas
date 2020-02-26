@@ -20,7 +20,7 @@ from typing import List, Dict, Any
 
 import pandas as pd
 
-from pandas_text.gremlin.traversal.base import BootstrapTraversal, \
+from text_extensions_for_pandas.gremlin.traversal.base import BootstrapTraversal, \
     GraphTraversal, UnaryTraversal
 
 
