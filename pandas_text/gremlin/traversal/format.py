@@ -159,8 +159,8 @@ class SelectTraversal(UnaryTraversal):
 
         Modifies this object in place.
 
-        :field_name: Next argument in the list of field name arguments to select
-         or `None` to select the step's entire output (vertex number or
+        :param field_name: Next argument in the list of field name arguments to
+         select or `None` to select the step's entire output (vertex number or
          literal)
 
         :returns: A pointer to this object (after modification) to enable
@@ -202,6 +202,10 @@ class ValuesTraversal(UnaryTraversal):
     def __init__(self, parent: GraphTraversal, field_name: str):
         UnaryTraversal.__init__(self, parent)
         self._field_name = field_name
+
+    @property
+    def field_name(self):
+        return self._field_name
 
     def compute_impl(self) -> None:
         last_step_type = self.parent.step_types[-1]

@@ -416,6 +416,70 @@ class GraphTraversal(GraphTraversalBase, ABC):
         from pandas_text.gremlin.traversal.aggregate import SumTraversal
         return SumTraversal(self)
 
+    def group(self) -> "GraphTraversal":
+        """
+        A Gremlin `group` step. Groups and aggregates the final element of
+        all active paths.
+
+        Must be modified by `by` modulators that specify the grouping key
+        (an attribute of the final path element) and the grouping value
+        (attribute or aggregate to extract for each group).
+
+        :return: A GraphTraversal that adds the indicated `group` step to
+        the parent traversal.
+        """
+        from pandas_text.gremlin.traversal.aggregate import GroupTraversal
+        return GroupTraversal(self)
+
+    def groupBy(self,
+                groups: Sequence[str],
+                aggregates: Sequence[Tuple[str, str, str]]):
+        """
+        **Extension to Gremlin**
+
+        A grouped aggregation step with Pandas-like semantics.
+
+        Whereas the Gremlin `group` step aggregates just the final element of
+        each path and produces a new single-element path for each group,
+        the `groupBy` step groups and aggregates entire paths and returns
+        multi-step paths. The first `len(groups)` elements of the
+        returned paths are the grouping keys and the remaining `len(aggregates)`
+        elements are aggregate values.
+
+        Aliases in `grouping_aliases` will be mapped to their new positions in
+        the returned path. All other aliases on the input to this step will not
+        be accessible in the output of this step.
+
+        :param groups: Names of aliases in the input paths that, taken together,
+         comprise the grouping key
+
+        :param aggregates: Sequence of triples, where the elements of each
+        triple are:
+        * Name of alias containing what to aggregate
+        * Name of Pandas aggregate to apply
+        * Alias to apply to the resulting path element
+
+        :return: A GraphTraversal that adds the indicated `groupBy` step to
+        the parent traversal.
+        """
+        from pandas_text.gremlin.traversal.aggregate import GroupByTraversal
+        return GroupByTraversal(self, groups, aggregates)
+
+    def apply(self, step_fn: Callable[["GraphTraversal"], "GraphTraversal"]) \
+            -> "GraphTraversal":
+        """
+        **Extension to Gremlin**
+
+        Mechanism for defining macros as Python functions and applying those
+        macros without disrupting expression chaining.
+
+        :param step_fn: Function that takes a `GraphTraversal` as input and
+            returns the same traversal with additional steps added.
+        :return: The result of applying `step_fn` to this `GraphTraversal`
+        """
+        return step_fn(self)
+
+
 
 class BootstrapTraversal(GraphTraversal):
     """
