@@ -184,7 +184,7 @@ class RepeatTraversal(UnaryTraversal):
                 emit_type = self._add_to_emit_list(self.parent, emit_list,
                                                    emit_type)
 
-            # First iteration is special.
+            # For the first iteration, we substitute __ with the parent step.
             iteration_counter = 0
             step_after_double_underscore.parent = (
                 PrecomputedTraversal.as_precomputed(self.parent))
@@ -195,9 +195,11 @@ class RepeatTraversal(UnaryTraversal):
                 PrecomputedTraversal.as_precomputed(self._loop_body))
             self._loop_body.uncompute()
 
+            until_mask = self._until_pred(prev_iter_output.last_vertices())
+
             # Iterations 2 and onward
-            while not np.any(
-                self._until_pred(prev_iter_output.last_vertices())):
+            # np.any() returns false when fed empty input
+            while len(until_mask) > 0 and not np.any(until_mask):
                 iteration_counter += 1
                 step_after_double_underscore.parent = prev_iter_output
                 self._loop_body.compute()
@@ -206,6 +208,7 @@ class RepeatTraversal(UnaryTraversal):
                 prev_iter_output = (
                     PrecomputedTraversal.as_precomputed(self._loop_body))
                 self._loop_body.uncompute()
+                until_mask = self._until_pred(prev_iter_output.last_vertices())
 
             # Fully reset the loop body so that this step can be recomputed
             # later.
