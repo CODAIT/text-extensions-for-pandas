@@ -16,8 +16,8 @@
 ################################################################################
 # io.py
 #
-# Functions in text_extensions_for_pandas that create DataFrames and convert them to other
-# formats.
+# Functions in text_extensions_for_pandas that create DataFrames and convert
+# them to other formats.
 
 import numpy as np
 import pandas as pd
