@@ -65,55 +65,43 @@ def make_tokens_and_features(target_text: str,
     :param add_left_and_right: If `True`, add columns "left" and "right"
     containing references to previous and next tokens.
 
-    :return: The tokens of the text plus additional linguistic features that the
-    language model generates, represented as a `pd.DataFrame`.
+    :return: A tuple of two dataframes:
+    1. The tokens of the text plus additional linguistic features that the
+       language model generates, represented as a `pd.DataFrame`.
+    2. A table of named entities identified by the language model's named entity
+       tagger, represented as a `pd.DataFrame`.
     """
     spacy_doc = language_model(target_text)
+
     # TODO: Performance tuning of the translation code that follows
     # Represent the character spans of the tokens
     tok_begins = np.array([t.idx for t in spacy_doc])
     tok_ends = np.array([t.idx + len(t) for t in spacy_doc])
     tokens_array = CharSpanArray(target_text, tok_begins, tok_ends)
     tokens_series = pd.Series(tokens_array)
-
     # Also build token-based spans to make it easier to compose
     token_spans = TokenSpanArray.from_char_offsets(tokens_series.values)
-
     # spaCy identifies tokens by semi-arbitrary integer "indexes" (in practice,
     # the offset of the first character in the token). Translate from these
     # to a dense range of integer IDs that will correspond to the index of our
     # returned DataFrame.
     idx_to_id = {spacy_doc[i].idx: i for i in range(len(spacy_doc))}
-
-    # pd.Categorical() is currently broken if any extension types are present.
-    # Here's a temporary workaround:
-    def categorical_hack(values):
-        # The following lets us construct Categorical columns, but things fall
-        # apart as soon as we try to run DataFrame.groupby()
-        # values_arr = np.array(values, dtype=np.str)
-        # categories = np.unique(values_arr)
-        # dtype = pd.CategoricalDtype(categories)
-        # return pd.Categorical(values, dtype=dtype)
-        return np.array(values)
-
-    # TODO: Replace references to categorical_hack with pd.Categorical when the
-    #  bug is fixed.
-
     df_cols = {
         "id": range(len(tok_begins)),
         "char_span": tokens_series,
         "token_span": token_spans,
         "lemma": [t.lemma_ for t in spacy_doc],
-        "pos": categorical_hack([str(t.pos_) for t in spacy_doc]),
-        "tag": categorical_hack([str(t.tag_) for t in spacy_doc]),
-        "dep": categorical_hack([str(t.dep_) for t in spacy_doc]),
+        "pos": pd.Categorical([str(t.pos_) for t in spacy_doc]),
+        "tag": pd.Categorical([str(t.tag_) for t in spacy_doc]),
+        "dep": pd.Categorical([str(t.dep_) for t in spacy_doc]),
         "head": np.array([idx_to_id[t.head.idx] for t in spacy_doc]),
-        "shape": categorical_hack([t.shape_ for t in spacy_doc]),
+        "shape": pd.Categorical([t.shape_ for t in spacy_doc]),
+        "ent_iob": pd.Categorical([str(t.ent_iob_) for t in spacy_doc]),
+        "ent_type": pd.Categorical([str(t.ent_type_) for t in spacy_doc]),
         "is_alpha": np.array([t.is_alpha for t in spacy_doc]),
         "is_stop": np.array([t.is_stop for t in spacy_doc]),
         "sentence": _make_sentences_series(spacy_doc, tokens_array)
     }
-
     if add_left_and_right:
         # Use nullable int type because these columns contain nulls
         df_cols["left"] = pd.array(
@@ -122,7 +110,6 @@ def make_tokens_and_features(target_text: str,
         df_cols["right"] = pd.array(
             list(range(1, len(tok_begins))) + [None], dtype=pd.Int32Dtype()
         )
-
     return pd.DataFrame(df_cols)
 
 
@@ -230,6 +217,76 @@ def token_features_to_tree(token_features: pd.DataFrame,
         "words": words_df.to_dict(orient="records"),
         "arcs": arcs_df.to_dict(orient="records")
     }
+
+
+def iob_to_spans(token_features: pd.DataFrame,
+                 iob_col_name: str = "ent_iob",
+                 char_span_col_name: str = "char_span",
+                 entity_type_col_name: str = "ent_type"):
+    """
+    Convert token tags in Inside–Outside–Beginning (IOB) format to a series of
+    `TokenSpan`s of entities.
+
+    :param token_features: DataFrame of token features in the format returned by
+     `make_tokens_and_features`.
+
+    :param iob_col_name: Name of a column in `token_features` that contains the
+     IOB tags as strings, "I", "O", or "B".
+
+    :param char_span_col_name: Name of a column in `token_features` that
+     contains the tokens as a `CharSpanArray`.
+
+    :param entity_type_col_name: Optional name of a column in `token_features`
+     that contains entity type information; or `None` if no such column exists.
+
+    :return: A `pd.DataFrame` with the following columns:
+    * `token_span`: Span (with token offsets) of each entity
+    * `<value of entity_type_col_name>`: (optional) Entity type
+    """
+    # Start out with 1-token prefixes of all entities.
+    begin_mask = token_features[iob_col_name] == "B"
+    first_tokens = token_features[begin_mask].index
+    entity_types = token_features[begin_mask]["ent_type"]
+    entity_prefixes = pd.DataFrame({
+        "ent_type": entity_types,
+        "begin": first_tokens,  # Inclusive
+        "end": first_tokens + 1,  # Exclusive
+        "next_tag": token_features.iloc[first_tokens + 1][iob_col_name].values
+    })
+
+    df_list = []  # Type: pd.DataFrame
+
+    if len(entity_prefixes.index) == 0:
+        # Code below needs at least one element in the list for schema
+        df_list = [entity_prefixes]
+
+    # Iteratively expand the prefixes
+    while len(entity_prefixes.index) > 0:
+        complete_mask = entity_prefixes["next_tag"].isin(["O", "B"])
+        complete_entities = entity_prefixes[complete_mask]
+        incomplete_entities = entity_prefixes[~complete_mask].copy()
+        incomplete_entities["end"] = incomplete_entities["end"] + 1
+        incomplete_entities["next_tag"] = \
+            token_features.iloc[incomplete_entities["end"]][iob_col_name].values
+        df_list.append(complete_entities)
+        entity_prefixes = incomplete_entities
+    all_entities = pd.concat(df_list)
+
+    # Sort spans by location, not length.
+    all_entities.sort_values("begin", inplace=True)
+
+    # Convert [begin, end) pairs to spans
+    entity_spans_array = (
+        TokenSpanArray(token_features[char_span_col_name].values,
+                       all_entities["begin"].values,
+                       all_entities["end"].values))
+    if entity_type_col_name is None:
+        return pd.DataFrame({"token_span": entity_spans_array})
+    else:
+        return pd.DataFrame({
+            "token_span": entity_spans_array,
+            entity_type_col_name: all_entities["ent_type"].values
+        })
 
 
 def render_parse_tree(token_features: pd.DataFrame,
