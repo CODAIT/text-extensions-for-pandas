@@ -246,7 +246,10 @@ def iob_to_spans(token_features: pd.DataFrame,
     # Start out with 1-token prefixes of all entities.
     begin_mask = token_features[iob_col_name] == "B"
     first_tokens = token_features[begin_mask].index
-    entity_types = token_features[begin_mask]["ent_type"]
+    if entity_type_col_name is None:
+        entity_types = np.zeros(len(first_tokens))
+    else:
+        entity_types = token_features[begin_mask][entity_type_col_name]
     entity_prefixes = pd.DataFrame({
         "ent_type": entity_types,
         "begin": first_tokens,  # Inclusive
