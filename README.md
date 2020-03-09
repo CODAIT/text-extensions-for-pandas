@@ -5,9 +5,9 @@ Natural language processing support for Pandas dataframes.
 
 ## Purpose of this Project
 
-Natural language processing (NLP) applications typically consist of a large number of components tied together in a complex pipeline. These components can range from deep parsers and machine learning models to lookup tables and business rules. All of them work by creating and manipulating data structures that represent data about the target text --- things like tokens, entities, parse trees, and so on.
+Natural language processing (NLP) applications tend to consist of multiple components tied together in a complex pipeline. These components can range from deep parsers and machine learning models to lookup tables and business rules. All of them work by creating and manipulating data structures that represent data about the target text --- things like tokens, entities, parse trees, and so on.
 
-Libraries for common NLP tasks tend to implement their own custom data structures. They also implement and basic low-level operations like filtering and pattern matching over these data structures. For example, `nltk` represents named entities as a list of Python objects:
+Libraries for common NLP tasks tend to implement their own custom data structures. They also implement basic low-level operations like filtering and pattern matching over these data structures. For example, `nltk` represents named entities as a list of Python objects:
 
 ```python
 >>> entities = nltk.chunk.ne_chunk(tagged)
