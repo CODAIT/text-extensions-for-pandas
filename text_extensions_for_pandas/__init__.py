@@ -23,7 +23,7 @@
 #
 
 # For now just expose everything at the top level of the namespace
-from text_extensions_for_pandas.algebra import *
+from text_extensions_for_pandas.spanner import *
 from text_extensions_for_pandas.char_span import *
 from text_extensions_for_pandas.gremlin import *
 from text_extensions_for_pandas.io import *
