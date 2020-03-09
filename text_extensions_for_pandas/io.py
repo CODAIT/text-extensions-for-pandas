@@ -29,8 +29,7 @@ import spacy.tokens.doc
 from spacy.tokenizer import Tokenizer
 from spacy.lang.en import English
 
-from text_extensions_for_pandas.char_span import CharSpan, CharSpanType, CharSpanArray
-from text_extensions_for_pandas.token_span import TokenSpan, TokenSpanType, TokenSpanArray
+from text_extensions_for_pandas.array import *
 
 # Set to True to use sparse storage for tokens 2-n of n-token dictionary
 # entries. First token is always stored dense, of course.

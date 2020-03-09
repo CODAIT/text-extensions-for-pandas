@@ -14,17 +14,18 @@
 #
 
 #
-# span.py
+# accessor.py
 #
 # Part of text_extensions_for_pandas
 #
-# Functionality common to both character- and token-based span types.
+# Pandas accessors to create namespaces for extension types' type-specific
+# functionality.
 #
 
 import pandas as pd
 
 # Internal imports
-from text_extensions_for_pandas.char_span import CharSpanType
+from text_extensions_for_pandas.array.char_span import CharSpanType
 
 
 @pd.api.extensions.register_series_accessor("span")

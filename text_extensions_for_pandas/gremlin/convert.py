@@ -18,8 +18,9 @@ from typing import Iterable
 
 import pandas as pd
 
-from text_extensions_for_pandas.char_span import CharSpan
-from text_extensions_for_pandas.gremlin.traversal.constant import PrecomputedTraversal
+from text_extensions_for_pandas.array import CharSpan
+from text_extensions_for_pandas.gremlin.traversal.constant import \
+    PrecomputedTraversal
 
 # convert.py
 #

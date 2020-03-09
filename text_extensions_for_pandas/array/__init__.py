@@ -13,20 +13,16 @@
 #  limitations under the License.
 #
 
-################################################################################
-# text_extensions_for_pandas
 #
-# NLP addons for Pandas dataframes.
+# array module
 #
-# To use:
-#   import text_extensions_for_pandas as pt
+# Part of text_extensions_for_pandas
+#
+# Implementions of extension types for Pandas dataframes.
 #
 
-# For now just expose everything at the top level of the namespace
-from text_extensions_for_pandas.spanner import *
-from text_extensions_for_pandas.array import *
-from text_extensions_for_pandas.gremlin import *
-from text_extensions_for_pandas.io import *
+# For now we expose every symbol of the subpackages
+from text_extensions_for_pandas.array.char_span import *
+from text_extensions_for_pandas.array.token_span import *
+from text_extensions_for_pandas.array.accessor import *
 
-# Bring special Gremlin symbols up to the top-level scope
-from text_extensions_for_pandas.gremlin.traversal.underscore import __

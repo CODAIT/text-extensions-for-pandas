@@ -29,7 +29,8 @@ from memoized_property import memoized_property
 
 # Internal imports
 import text_extensions_for_pandas.util as util
-from text_extensions_for_pandas.char_span import CharSpan, CharSpanArray, CharSpanType
+from text_extensions_for_pandas.array.char_span import CharSpan, \
+    CharSpanArray, CharSpanType
 
 
 class TokenSpan(CharSpan):
