@@ -20,8 +20,8 @@ from typing import List, Dict, Any
 
 import pandas as pd
 
-from text_extensions_for_pandas.gremlin.traversal.base import BootstrapTraversal, \
-    GraphTraversal, UnaryTraversal
+from text_extensions_for_pandas.gremlin.traversal.base import \
+    BootstrapTraversal, GraphTraversal, UnaryTraversal
 
 
 class PrecomputedTraversal(BootstrapTraversal):

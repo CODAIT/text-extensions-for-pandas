@@ -18,9 +18,10 @@
 # Code associated with the Gremlin double-underscore (__) operator
 from typing import Tuple
 
-from text_extensions_for_pandas.gremlin.traversal.base import GraphTraversal, UnaryTraversal
-from text_extensions_for_pandas.gremlin.traversal.constant import PrecomputedTraversal,\
-    BootstrapTraversal
+from text_extensions_for_pandas.gremlin.traversal.base import GraphTraversal, \
+    UnaryTraversal
+from text_extensions_for_pandas.gremlin.traversal.constant import \
+    PrecomputedTraversal, BootstrapTraversal
 
 
 class DoubleUnderscore(GraphTraversal):

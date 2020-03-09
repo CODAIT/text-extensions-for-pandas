@@ -21,7 +21,8 @@ from typing import *
 
 import pandas as pd
 
-from text_extensions_for_pandas.gremlin.traversal.base import GraphTraversal, UnaryTraversal
+from text_extensions_for_pandas.gremlin.traversal.base import GraphTraversal,\
+    UnaryTraversal
 from text_extensions_for_pandas.gremlin.traversal.format import ValuesTraversal
 from text_extensions_for_pandas.gremlin.traversal.underscore import __
 
