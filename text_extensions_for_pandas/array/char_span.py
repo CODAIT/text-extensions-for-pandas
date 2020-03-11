@@ -57,6 +57,13 @@ class CharSpan:
                                  "must be paired with an end offset of {}",
                                  CharSpan.NULL_OFFSET_VALUE,
                                  CharSpan.NULL_OFFSET_VALUE)
+        elif begin < 0:
+            raise ValueError("begin must be >= 0")
+        elif end < 0:
+            raise ValueError("end must be >= 0")
+        elif end > len(text):
+            raise ValueError(f"end must be less than length of target string "
+                             f"({end} > {len(text)}")
         self._text = text
         self._begin = begin
         self._end = end
@@ -64,16 +71,31 @@ class CharSpan:
     def __repr__(self) -> str:
         return "[{}, {}): '{}'".format(self.begin, self.end, self.covered_text)
 
+    def __eq__(self, other):
+        return (self.begin == other.begin
+                and self.end == other.end
+                and self.target_text == other.target_text)
+
     def __lt__(self, other):
         """
         span1 < span2 if span1.end <= span2.begin
         """
-        if isinstance(other, CharSpan):
+        # TODO: Should we compare target strings?
+        if isinstance(other, (CharSpan, CharSpanArray)):
             return self.end <= other.begin
         else:
             raise ValueError("Less-than relationship not defined for {} and {} "
                              "of types {} and {}"
                              "".format(self, other, type(self), type(other)))
+
+    def __gt__(self, other):
+        return other < self
+
+    def __le__(self, other):
+        return self < other or self == other
+
+    def __ge__(self, other):
+        return other <= self
 
     @property
     def begin(self):
@@ -148,7 +170,16 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
     are character offsets into the target text.
     """
 
-    def __init__(self, text: str, begins: np.ndarray, ends: np.ndarray):
+    def __init__(self, text: str,
+                 begins: Union[np.ndarray, List[int]],
+                 ends: Union[np.ndarray, List[int]]):
+        """
+        :param text: Target text from which the spans of this array are drawn
+        :param begins: Begin offsets of spans (closed)
+        :param ends: End offsets (open)
+        """
+        begins = np.array(begins) if isinstance(begins, list) else begins
+        ends = np.array(ends) if isinstance(ends, list) else ends
         self._text = text
         self._begins = begins
         self._ends = ends
@@ -175,8 +206,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        # No na's allowed at the moment.
-        return np.repeat(False, len(self))
+        return np.equal(self._begins, CharSpan.NULL_OFFSET_VALUE)
 
     def copy(self) -> "CharSpanArray":
         """
@@ -212,6 +242,10 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             elif not isinstance(fill_value, CharSpan):
                 raise ValueError("Fill value must be Null, nan, or a CharSpan "
                                  "(was {})".format(fill_value))
+        else:
+            # Dummy fill value to keep code below happy
+            fill_value = CharSpan(self.target_text, CharSpan.NULL_OFFSET_VALUE,
+                                  CharSpan.NULL_OFFSET_VALUE)
 
         # Pandas' internal implementation of take() does most of the heavy
         # lifting.
@@ -236,19 +270,6 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
     def __len__(self) -> int:
         return len(self._begins)
 
-    def __getitem__(self, item) -> Union[CharSpan, "CharSpanArray"]:
-        """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
-        for information about this method.
-        """
-        if isinstance(item, int):
-            return CharSpan(self._text, int(self._begins[item]),
-                            int(self._ends[item]))
-        else:
-            # item not an int --> assume it's a numpy-compatible index
-            return CharSpanArray(self.target_text,
-                                 self.begin[item], self.end[item])
-
     def __lt__(self, other):
         """
         Pandas-style array/series comparison function.
@@ -266,6 +287,53 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
                              "of types {} and {}"
                              "".format(self, other, type(self), type(other)))
 
+    def __gt__(self, other):
+        return other < self
+
+    def __le__(self, other):
+        # TODO: Figure out what the semantics of this operation should be.
+        raise NotImplementedError()
+
+    def __ge__(self, other):
+        # TODO: Figure out what the semantics of this operation should be.
+        raise NotImplementedError()
+
+    def __getitem__(self, item) -> Union[CharSpan, "CharSpanArray"]:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        if isinstance(item, int):
+            return CharSpan(self._text, int(self._begins[item]),
+                            int(self._ends[item]))
+        else:
+            # item not an int --> assume it's a numpy-compatible index
+            return CharSpanArray(self._text,
+                                 self._begins[item],
+                                 self._ends[item])
+
+    def __setitem__(self, key: Union[int, np.ndarray], value: Any) -> None:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        if isinstance(key, np.ndarray):
+            raise NotImplementedError("Setting multiple rows at once not "
+                                      "implemented")
+        if not isinstance(key, int):
+            raise NotImplementedError(f"Don't understand key type "
+                                      f"'{type(key)}'")
+        if value is None:
+            self._begins[key] = CharSpan.NULL_OFFSET_VALUE
+            self._ends[key] = CharSpan.NULL_OFFSET_VALUE
+        elif not isinstance(value, CharSpan):
+            raise ValueError(
+                f"Attempted to set element of CharSpanArray with"
+                f"an object of type {type(value)}")
+        else:
+            self._begins[key] = value.begin
+            self._ends[key] = value.end
+
     def _reduce(self, name, skipna=True, **kwargs):
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
@@ -279,7 +347,6 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         else:
             raise TypeError(f"'{name}' aggregation not supported on a series "
                             f"backed by a CharSpanArray")
-
 
     @property
     def target_text(self) -> str:
@@ -313,9 +380,14 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         """
         # TODO: Vectorized version of this
         text = self.target_text
-        return np.array([
-            text[s[0]:s[1]] for s in self.as_tuples()
-        ])
+        result = np.zeros(len(self), dtype=np.object)
+        for i in range(len(self)):
+            if self._begins[i] == CharSpan.NULL_OFFSET_VALUE:
+                # Null value at this index
+                result[i] = None
+            else:
+                result[i] = text[self._begins[i]:self._ends[i]]
+        return result
 
     @memoized_property
     def normalized_covered_text(self) -> np.ndarray:
@@ -323,7 +395,10 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         :return: A normalized version of the covered text of the spans in this
           array. Currently "normalized" means "lowercase".
         """
-        return np.char.lower(self.covered_text)
+        # Currently we can't use np.char.lower directly because
+        # self.covered_text needs to be an object array, not a numpy string
+        # array, to allow for null values.
+        return np.vectorize(np.char.lower)(self.covered_text)
 
     def as_frame(self) -> pd.DataFrame:
         """
