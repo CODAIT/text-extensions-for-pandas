@@ -16,7 +16,7 @@
 import numpy as np
 import unittest
 
-from text_extensions_for_pandas.array.char_span_test import ArrayTestBase
+from text_extensions_for_pandas.array.test_char_span import ArrayTestBase
 
 from text_extensions_for_pandas.array.token_span import *
 
@@ -61,8 +61,8 @@ class TokenSpanTest(ArrayTestBase):
         self.assertEqual(repr(s2), "[0, 4): 'This is a really'")
         s2 = TokenSpan(toks2, 0, 15)
         self.assertEqual(repr(s2),
-                         "[0, 15): 'This is a really really rea [...] "
-                         "really really long string.'")
+                         "[0, 15): 'This is a really really really really [...]"
+                         " ly really really really long string.'")
 
     def test_equals(self):
         toks = self._make_spans_of_tokens()
@@ -257,3 +257,5 @@ class TokenSpanArrayTest(ArrayTestBase):
         self.assertEqual(len(df), len(arr))
 
 
+if __name__ == '__main__':
+    unittest.main()

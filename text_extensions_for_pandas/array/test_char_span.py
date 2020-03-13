@@ -231,3 +231,6 @@ class CharSpanArrayTest(ArrayTestBase):
         df = arr.as_frame()
         self._assertArrayEquals(df.columns, ["begin", "end", "covered_text"])
         self.assertEqual(len(df), len(arr))
+
+if __name__ == '__main__':
+    unittest.main()
