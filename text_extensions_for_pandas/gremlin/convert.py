@@ -37,7 +37,7 @@ def token_features_to_traversal(token_features: pd.DataFrame,
     Similar to calling `graph.traversal()` in Gremlin.
 
     :param token_features: DataFrame containing information about individual
-    tokens. Must contain a `head_token_num` column that is synchronized with
+    tokens. Must contain a `head` column that is synchronized with
     the DataFrame's index.
 
     :param drop_self_links: If `True`, remove links from nodes to themselves
@@ -118,7 +118,7 @@ def token_features_to_gremlin(token_features: pd.DataFrame,
     # Edges:
     # For each token, generate addE("head").from(token_id).to(head_id)
     edge_lines = []
-    for index, value in token_features["head_token_num"].items():
+    for index, value in token_features["head"].items():
         if drop_self_links and index == value:
             continue
         edge_lines.append("""addE("head").from({}).to({})""".format(

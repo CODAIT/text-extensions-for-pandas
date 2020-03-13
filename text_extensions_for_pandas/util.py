@@ -16,7 +16,7 @@ _ELLIPSIS = " [...] "
 _ELLIPSIS_LEN = len(_ELLIPSIS)
 
 
-def truncate_str(s: str, max_len=60):
+def truncate_str(s: str, max_len=80):
     """
     Ensure that a string is less than `max_len` characters in length by cutting
     out the middle.

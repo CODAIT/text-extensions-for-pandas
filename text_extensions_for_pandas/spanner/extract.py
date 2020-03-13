@@ -98,8 +98,11 @@ def extract_dict(tokens: Union[CharSpanArray, pd.Series],
     # Gather together all the sets of matches and wrap in a dataframe.
     begins = np.concatenate(begins_list)
     ends = np.concatenate(ends_list)
-    return pd.DataFrame({output_col_name: TokenSpanArray(tokens.values,
-                                                         begins, ends)})
+    result = pd.DataFrame({output_col_name: TokenSpanArray(tokens.values,
+                                                           begins, ends)})
+    # Results are sorted by number of tokens; sort by location instead.
+    result["__begin"] = result[output_col_name].values.begin
+    return result.sort_values("__begin")[[output_col_name]]
 
 
 def extract_regex_tok(
