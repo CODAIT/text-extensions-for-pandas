@@ -204,8 +204,6 @@ class CharSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(arr1 < s1, [False, False, False, False])
         self._assertArrayEquals(arr1 < arr2, [False, False, True, False])
 
-
-
     def test_reduce(self):
         arr = self._make_spans_of_tokens()
         self.assertEqual(

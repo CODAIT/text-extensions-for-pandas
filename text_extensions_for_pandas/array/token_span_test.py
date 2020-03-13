@@ -75,13 +75,22 @@ class TokenSpanTest(ArrayTestBase):
 
     def test_less_than(self):
         toks = self._make_spans_of_tokens()
-        s1 = TokenSpan(toks, 0, 4)
-        s2 = TokenSpan(toks, 2, 4)
-        s3 = TokenSpan(toks, 4, 5)
+        s1 = TokenSpan(toks, 0, 3)
+        s2 = TokenSpan(toks, 2, 3)
+        s3 = TokenSpan(toks, 3, 4)
 
         self.assertLess(s1, s3)
         self.assertLessEqual(s1, s3)
         self.assertFalse(s1 < s2)
+
+    def test_add(self):
+        toks = self._make_spans_of_tokens()
+        s1 = TokenSpan(toks, 0, 3)
+        s2 = TokenSpan(toks, 2, 3)
+        s3 = TokenSpan(toks, 3, 4)
+
+        self.assertEqual(s1 + s2, s1)
+        self.assertEqual(s2 + s3, TokenSpan(toks, 2, 4))
 
 
 class TokenSpanArrayTest(ArrayTestBase):
@@ -232,6 +241,13 @@ class TokenSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(
             arr.end, [4, 7, 9, 14, 7, 14, 14]
         )
+
+    def test_normalized_covered_text(self):
+        arr = self._make_spans()
+        self._assertArrayEquals(
+            arr.normalized_covered_text, ["this", "is", "a", "test",
+                                          "this is", "a test",
+                                          "this is a test"])
 
     def test_as_frame(self):
         arr = self._make_spans()

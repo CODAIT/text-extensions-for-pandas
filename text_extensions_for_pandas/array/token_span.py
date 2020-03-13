@@ -122,6 +122,29 @@ class TokenSpan(CharSpan):
         else:
             return CharSpan.__lt__(self, other)
 
+    def __add__(self, other):
+        """
+        span1 + span2 == minimal span that covers both spans
+        :param other: Other span to add to this one. Currently constrained to
+            be a single TokenSpan. Eventually this argument will permit
+            CharSpan, CharSpanArray, and TokenSpanArray
+        :return: minimal span that covers both spans
+        """
+        if isinstance(other, TokenSpan):
+            if not self.tokens.equals(other.tokens):
+                raise ValueError("Can't combine TokenSpans over different sets "
+                                 "of tokens")
+            if (self.begin_token == TokenSpan.NULL_OFFSET_VALUE
+                    or other.begin_token == TokenSpan.NULL_OFFSET_VALUE):
+                return TokenSpan.make_null(self.tokens)
+            else:
+                return TokenSpan(self.tokens,
+                                 min(self.begin_token, other.begin_token),
+                                 max(self.end_token, other.end_token))
+        else:
+            raise NotImplementedError(f"Adding TokenSpan and {type(other)} "
+                                      f"not yet implemented")
+
     @property
     def tokens(self):
         return self._tokens
