@@ -328,9 +328,6 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
                 self._equiv_array_versions.append(other.version)
             return True
 
-
-
-
     @classmethod
     def _concat_same_type(
         cls, to_concat: Sequence[pd.api.extensions.ExtensionArray]
