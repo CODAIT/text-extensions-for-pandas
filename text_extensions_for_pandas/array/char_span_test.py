@@ -37,6 +37,11 @@ class CharSpanTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             CharSpan(test_text, CharSpan.NULL_OFFSET_VALUE, 0)
 
+    def test_repr(self):
+        test_text = "This is a test."
+        s1 = CharSpan(test_text, 0, 4)
+        self.assertEqual(repr(s1), "[0, 4): 'This'")
+
     def test_equals(self):
         test_text = "This is a test."
         s1 = CharSpan(test_text, 0, 4)
@@ -56,6 +61,7 @@ class CharSpanTest(unittest.TestCase):
         self.assertLessEqual(s1, s3)
         self.assertFalse(s1 < s2)
 
+
 class ArrayTestBase(unittest.TestCase):
     """
     Shared base class for CharSpanArrayTest and TokenSpanArrayTest
@@ -72,6 +78,14 @@ class ArrayTestBase(unittest.TestCase):
         """
         a1 = np.array(a1) if isinstance(a1, np.ndarray) else a1
         a2 = np.array(a2) if isinstance(a2, np.ndarray) else a2
+        if len(a1) != len(a2):
+            raise self.failureException(
+                f"Arrays:\n"
+                f"   {a1}\n"
+                f"and\n"
+                f"   {a2}\n"
+                f"have different lengths {len(a1)} and {len(a2)}"
+            )
         mask = (a1 == a2)
         if not np.all(mask):
             raise self.failureException(
@@ -79,11 +93,11 @@ class ArrayTestBase(unittest.TestCase):
                 f"   {a1}\n"
                 f"and\n"
                 f"   {a2}\n"
-                f"differ at positions: {np.argwhere(mask)}"
+                f"differ at positions: {np.argwhere(~mask)}"
             )
 
     @staticmethod
-    def _make_char_spans():
+    def _make_spans_of_tokens():
         """
         :return: An example CharSpanArray containing the tokens of the string
           "This is a test.", not including the period at the end.
@@ -96,12 +110,57 @@ class ArrayTestBase(unittest.TestCase):
 class CharSpanArrayTest(ArrayTestBase):
 
     def test_create(self):
-        arr = self._make_char_spans()
+        arr = self._make_spans_of_tokens()
         self._assertArrayEquals(
             arr.covered_text, ["This", "is", "a", "test"])
 
+    def test_dtype(self):
+        arr = CharSpanArray("", np.array([]), np.array([]))
+        self.assertTrue(isinstance(arr.dtype, CharSpanType))
+
+    def test_len(self):
+        self.assertEqual(len(self._make_spans_of_tokens()), 4)
+
+    def test_getitem(self):
+        arr = self._make_spans_of_tokens()
+        self.assertEqual(arr[2].covered_text, "a")
+        self._assertArrayEquals(arr[2:4].covered_text, ["a", "test"])
+
+    def test_setitem(self):
+        arr = self._make_spans_of_tokens()
+        arr[1] = arr[2]
+        self._assertArrayEquals(arr.covered_text,
+                                ["This", "a", "a", "test"])
+        arr[3] = None
+        self._assertArrayEquals(arr.covered_text,
+                                ["This", "a", "a", None])
+        with self.assertRaises(ValueError):
+            arr[0] = "Invalid argument for __setitem__()"
+
+    def test_equals(self):
+        arr = self._make_spans_of_tokens()
+        self._assertArrayEquals(
+            arr[0:4] == arr[1], [False, True, False, False])
+        arr2 = self._make_spans_of_tokens()
+        self._assertArrayEquals(arr == arr2, [True] * 4)
+
+        self.assertTrue(arr.equals(arr2))
+        arr2._text = "This is a different string."
+        arr2.increment_version()
+        self.assertFalse(arr.equals(arr2))
+        arr2._text = arr.target_text
+        arr2.increment_version()
+        self.assertTrue(arr.equals(arr2))
+        self.assertTrue(arr2.equals(arr))
+        arr[2] = arr[1]
+        self.assertFalse(arr.equals(arr2))
+        self.assertFalse(arr2.equals(arr))
+        arr[2] = arr2[2]
+        self.assertTrue(arr.equals(arr2))
+        self.assertTrue(arr2.equals(arr))
+
     def test_nulls(self):
-        arr = self._make_char_spans()
+        arr = self._make_spans_of_tokens()
         arr[2] = CharSpan(arr.target_text, CharSpan.NULL_OFFSET_VALUE,
                           CharSpan.NULL_OFFSET_VALUE)
         self.assertIsNone(arr.covered_text[2])
@@ -111,7 +170,7 @@ class CharSpanArrayTest(ArrayTestBase):
             arr.isna(), [False, False, True, False])
 
     def test_copy(self):
-        arr = self._make_char_spans()
+        arr = self._make_spans_of_tokens()
         arr2 = arr.copy()
         arr[0] = CharSpan(arr.target_text, 8, 9)
         self._assertArrayEquals(arr2.covered_text,
@@ -120,7 +179,7 @@ class CharSpanArrayTest(ArrayTestBase):
                                 ["a", "is", "a", "test"])
 
     def test_take(self):
-        arr = self._make_char_spans()
+        arr = self._make_spans_of_tokens()
         self._assertArrayEquals(arr.take([2, 0]).covered_text,
                                 ["a", "This"])
         self._assertArrayEquals(arr.take([]).covered_text, [])
@@ -129,13 +188,6 @@ class CharSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(
             arr.take([2, -1, 0], allow_fill=True).covered_text,
             ["a", None, "This"])
-
-    def test_dtype(self):
-        arr = CharSpanArray("", np.array([]), np.array([]))
-        self.assertTrue(isinstance(arr.dtype, CharSpanType))
-
-    def test_len(self):
-        self.assertEqual(len(self._make_char_spans()), 4)
 
     def test_less_than(self):
         arr1 = CharSpanArray("This is a test.",
@@ -152,24 +204,10 @@ class CharSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(arr1 < s1, [False, False, False, False])
         self._assertArrayEquals(arr1 < arr2, [False, False, True, False])
 
-    def test_getitem(self):
-        arr = self._make_char_spans()
-        self.assertEqual(arr[2].covered_text, "a")
-        self._assertArrayEquals(arr[2:4].covered_text, ["a", "test"])
 
-    def test_setitem(self):
-        arr = self._make_char_spans()
-        arr[1] = arr[2]
-        self._assertArrayEquals(arr.covered_text,
-                                ["This", "a", "a", "test"])
-        arr[3] = None
-        self._assertArrayEquals(arr.covered_text,
-                                ["This", "a", "a", None])
-        with self.assertRaises(ValueError):
-            arr[0] = "Invalid argument for __setitem__()"
 
     def test_reduce(self):
-        arr = self._make_char_spans()
+        arr = self._make_spans_of_tokens()
         self.assertEqual(
             arr._reduce("sum"), CharSpan(arr.target_text, 0, 14))
         # Remind ourselves to modify this test after implementing min and max
@@ -186,14 +224,12 @@ class CharSpanArrayTest(ArrayTestBase):
         )
 
     def test_normalized_covered_text(self):
-        arr = self._make_char_spans()
-        print(f"Covered text: {arr.covered_text}")
-        print(f"Normalized covered text: {arr.normalized_covered_text}")
+        arr = self._make_spans_of_tokens()
         self._assertArrayEquals(
             arr.normalized_covered_text, ["this", "is", "a", "test"])
 
     def test_as_frame(self):
-        arr = self._make_char_spans()
+        arr = self._make_spans_of_tokens()
         df = arr.as_frame()
         self._assertArrayEquals(df.columns, ["begin", "end", "covered_text"])
         self.assertEqual(len(df), len(arr))

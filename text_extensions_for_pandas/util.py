@@ -6,10 +6,31 @@
 # Internal utility functions, not exposed in the public API.
 #
 
+import math
 import numpy as np
 from typing import *
 
 # Internal imports
+
+_ELLIPSIS = " [...] "
+_ELLIPSIS_LEN = len(_ELLIPSIS)
+
+
+def truncate_str(s: str, max_len=60):
+    """
+    Ensure that a string is less than `max_len` characters in length by cutting
+    out the middle.
+
+    :param s: Input string
+    :param max_len: maximum allowable length of the string
+    :return: Either the original string or a truncated version
+    """
+    if len(s) <= max_len:
+        return s
+    else:
+        before_len = math.ceil(max_len / 2) - math.floor(_ELLIPSIS_LEN / 2)
+        after_len = math.floor(max_len / 2) - math.ceil(_ELLIPSIS_LEN / 2)
+        return s[0:before_len] + _ELLIPSIS + s[-after_len:]
 
 
 def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"]) -> str:

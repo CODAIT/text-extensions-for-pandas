@@ -36,13 +36,13 @@ class CharSpan:
     Python object representation of a single span with character offsets; that
     is, a single row of a `CharSpanArray`.
 
-    An offset of `CharSpan.NULL_TOKEN_VALUE` (currently -1) indicates
+    An offset of `CharSpan.NULL_OFFSET_VALUE` (currently -1) indicates
     "not a span" in the sense that NaN is "not a number".
     """
 
     # Begin/end value that indicates "not a span" in the sense that NaN is
     # "not a number".
-    NULL_OFFSET_VALUE = -1
+    NULL_OFFSET_VALUE = -1  # Type: int
 
     def __init__(self, text: str, begin: int, end: int):
         """
@@ -180,9 +180,156 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         """
         begins = np.array(begins) if isinstance(begins, list) else begins
         ends = np.array(ends) if isinstance(ends, list) else ends
-        self._text = text
-        self._begins = begins
-        self._ends = ends
+        self._text = text  # Type: str
+        self._begins = begins  # Type: np.ndarray
+        self._ends = ends  # Type: np.ndarray
+
+        # Monotonically increasing version number for tracking changes and
+        # invalidating caches
+        self._version = 0  # Type: int
+
+        # Cached list of other CharSpanArrays that are exactly the same as this
+        # one. Each element is the result of calling id()
+        self._equivalent_arrays = []  # Type: List[int]
+
+        # Version numbers of elements in self._equivalent_arrays, to ensure that
+        # a change hasn't made the arrays no longer equal
+        self._equiv_array_versions = []  # Type: List[int]
+
+        # Cached hash value of this array
+        self._hash = None
+
+    @property
+    def dtype(self) -> pd.api.extensions.ExtensionDtype:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        return CharSpanType()
+
+    def __len__(self) -> int:
+        return len(self._begins)
+
+    def __getitem__(self, item) -> Union[CharSpan, "CharSpanArray"]:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        if isinstance(item, int):
+            return CharSpan(self._text, int(self._begins[item]),
+                            int(self._ends[item]))
+        else:
+            # item not an int --> assume it's a numpy-compatible index
+            return CharSpanArray(self._text,
+                                 self._begins[item],
+                                 self._ends[item])
+
+    def __setitem__(self, key: Union[int, np.ndarray], value: Any) -> None:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        if isinstance(key, np.ndarray):
+            raise NotImplementedError("Setting multiple rows at once not "
+                                      "implemented")
+        if not isinstance(key, int):
+            raise NotImplementedError(f"Don't understand key type "
+                                      f"'{type(key)}'")
+        if value is None:
+            self._begins[key] = CharSpan.NULL_OFFSET_VALUE
+            self._ends[key] = CharSpan.NULL_OFFSET_VALUE
+        elif not isinstance(value, CharSpan):
+            raise ValueError(
+                f"Attempted to set element of CharSpanArray with"
+                f"an object of type {type(value)}")
+        else:
+            self._begins[key] = value.begin
+            self._ends[key] = value.end
+        # We just changed the contents of this array, so invalidate any cached
+        # results computed from those contents.
+        self.increment_version()
+
+    def __eq__(self, other):
+        """
+        Pandas/Numpy-style array/series comparison function.
+
+        :param other: Second operand of a Pandas "==" comparison with the series
+        that wraps this TokenSpanArray.
+
+        :return: Returns a boolean mask indicating which rows match `other`.
+        """
+        if isinstance(other, CharSpan):
+            mask = np.full(len(self), True, dtype=np.bool)
+            mask[self.target_text != other.target_text] = False
+            mask[self.begin != other.begin] = False
+            mask[self.end != other.end] = False
+            return mask
+        elif isinstance(other, CharSpanArray):
+            if len(self) != len(other):
+                raise ValueError("Can't compare arrays of differing lengths "
+                                 "{} and {}".format(len(self), len(other)))
+            if self.target_text != other.target_text:
+                return np.zeros(self.begin.shape, dtype=np.bool)
+            return np.logical_and(
+                self.begin == self.begin,
+                self.end == self.end
+            )
+        else:
+            # TODO: Return False here once we're sure that this
+            #  function is catching all the comparisons that really matter.
+            raise ValueError("Don't know how to compare objects of type "
+                             "'{}' and '{}'".format(type(self), type(other)))
+
+    def __hash__(self):
+        if self._hash is None:
+            self._hash = hash((self._text, self._begins.tobytes(),
+                               self._ends.tobytes()))
+        return self._hash
+
+    def equals(self, other: "CharSpanArray"):
+        """
+        :param other: A second `CharSpanArray`
+        :return: True if both arrays have the same target text (can be a
+        different string object with the same contents) and the same spans
+        in the same order.
+        """
+        if not isinstance(other, CharSpanArray):
+            raise TypeError(f"equals() not defined for arguments of type "
+                            f"{type(other)}")
+        if self is other:
+            return True
+
+        # Check for cached result
+        if id(other) in self._equivalent_arrays:
+            cache_ix = self._equivalent_arrays.index(id(other))
+        else:
+            cache_ix = -1
+
+        if (cache_ix >= 0
+                and other.version == self._equiv_array_versions[cache_ix]):
+            # Cached "equal" result
+            return True
+        elif (self.target_text != other.target_text
+              or not np.array_equal(self.begin, other.begin)
+              or not np.array_equal(self.end, other.end)):
+            # "Not equal" result from slow path
+            if cache_ix >= 0:
+                del self._equivalent_arrays[cache_ix]
+                del self._equiv_array_versions[cache_ix]
+            return False
+        else:
+            # If we get here, self and other are equal, and we had to expend
+            # quite a bit of effort to figure that out.
+            # Cache the result so we don't have to do that again.
+            if cache_ix >= 0:
+                self._equiv_array_versions[cache_ix] = other.version
+            else:
+                self._equivalent_arrays.append(id(other))
+                self._equiv_array_versions.append(other.version)
+            return True
+
+
+
 
     @classmethod
     def _concat_same_type(
@@ -259,16 +406,6 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         )
         return CharSpanArray(self.target_text, begins, ends)
 
-    @property
-    def dtype(self) -> pd.api.extensions.ExtensionDtype:
-        """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
-        for information about this method.
-        """
-        return CharSpanType()
-
-    def __len__(self) -> int:
-        return len(self._begins)
 
     def __lt__(self, other):
         """
@@ -297,42 +434,6 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
     def __ge__(self, other):
         # TODO: Figure out what the semantics of this operation should be.
         raise NotImplementedError()
-
-    def __getitem__(self, item) -> Union[CharSpan, "CharSpanArray"]:
-        """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
-        for information about this method.
-        """
-        if isinstance(item, int):
-            return CharSpan(self._text, int(self._begins[item]),
-                            int(self._ends[item]))
-        else:
-            # item not an int --> assume it's a numpy-compatible index
-            return CharSpanArray(self._text,
-                                 self._begins[item],
-                                 self._ends[item])
-
-    def __setitem__(self, key: Union[int, np.ndarray], value: Any) -> None:
-        """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
-        for information about this method.
-        """
-        if isinstance(key, np.ndarray):
-            raise NotImplementedError("Setting multiple rows at once not "
-                                      "implemented")
-        if not isinstance(key, int):
-            raise NotImplementedError(f"Don't understand key type "
-                                      f"'{type(key)}'")
-        if value is None:
-            self._begins[key] = CharSpan.NULL_OFFSET_VALUE
-            self._ends[key] = CharSpan.NULL_OFFSET_VALUE
-        elif not isinstance(value, CharSpan):
-            raise ValueError(
-                f"Attempted to set element of CharSpanArray with"
-                f"an object of type {type(value)}")
-        else:
-            self._begins[key] = value.begin
-            self._ends[key] = value.end
 
     def _reduce(self, name, skipna=True, **kwargs):
         """
@@ -364,6 +465,30 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
     def end(self) -> np.ndarray:
         return self._ends
 
+    @property
+    def version(self) -> int:
+        """
+        :return: Monotonically increasing version number that changes every time
+        this array is modified. **NOTE:** This number might not change if a
+        caller obtains a pointer to an internal array and modifies it.
+        Callers who perform such modifications should call `increment_version()`
+        """
+        return self._version
+
+    def increment_version(self):
+        """
+        Manually increase the version counter of this array to indicate that
+        the array's contents have changed. Also invalidates any internal cached
+        data derived from the array's state.
+        """
+        # Invalidate cached computation
+        self._equivalent_arrays = []
+        self._equiv_array_versions = []
+        self._hash = None
+
+        # Increment the counter
+        self._version += 1
+
     def as_tuples(self) -> np.ndarray:
         """
         Returns (begin, end) pairs as an array of tuples
@@ -380,6 +505,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         """
         # TODO: Vectorized version of this
         text = self.target_text
+        # Need dtype=np.object so we can return nulls
         result = np.zeros(len(self), dtype=np.object)
         for i in range(len(self)):
             if self._begins[i] == CharSpan.NULL_OFFSET_VALUE:

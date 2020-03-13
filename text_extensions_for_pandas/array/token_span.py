@@ -41,12 +41,9 @@ class TokenSpan(CharSpan):
     This class is also a subclass of `CharSpan` and can return character-level
     information.
 
-    An offset of `TokenSpan.NULL_TOKEN_VALUE` (currently -1) indicates
+    An offset of `TokenSpan.NULL_OFFSET_VALUE` (currently -1) indicates
     "not a span" in the sense that NaN is "not a number".
     """
-    # Begin/end value that indicates "not a span" in the sense that NaN is
-    # "not a number".
-    NULL_TOKEN_VALUE = CharSpan.NULL_OFFSET_VALUE
 
     def __init__(self, tokens: CharSpanArray, begin_token: int, end_token: int):
         """
@@ -57,12 +54,25 @@ class TokenSpan(CharSpan):
 
         :param end_token: End offset; exclusive, one past the last token
         """
-        if TokenSpan.NULL_TOKEN_VALUE == begin_token:
-            if TokenSpan.NULL_TOKEN_VALUE != end_token:
+        if TokenSpan.NULL_OFFSET_VALUE != begin_token and begin_token < 0:
+            raise ValueError(f"Begin token offset must be NULL_OFFSET_VALUE or "
+                             f"greater than zero (got {begin_token})")
+        if (TokenSpan.NULL_OFFSET_VALUE != begin_token
+                and end_token < begin_token):
+            raise ValueError(f"End must be >= begin (got {begin_token} and "
+                             f"{end_token}")
+        if begin_token > len(tokens):
+            raise ValueError(f"Begin token offset of {begin_token} larger than "
+                             f"number of tokens ({len(tokens)})")
+        if end_token > len(tokens) + 1:
+            raise ValueError(f"End token offset of {begin_token} larger than "
+                             f"number of tokens + 1 ({len(tokens)} + 1)")
+        if TokenSpan.NULL_OFFSET_VALUE == begin_token:
+            if TokenSpan.NULL_OFFSET_VALUE != end_token:
                 raise ValueError("Begin offset with special 'null' value {} "
                                  "must be paired with an end offset of {}",
-                                 TokenSpan.NULL_TOKEN_VALUE,
-                                 TokenSpan.NULL_TOKEN_VALUE)
+                                 TokenSpan.NULL_OFFSET_VALUE,
+                                 TokenSpan.NULL_OFFSET_VALUE)
             begin_char_off = end_char_off = CharSpan.NULL_OFFSET_VALUE
         else:
             begin_char_off = tokens.begin[begin_token]
@@ -73,20 +83,34 @@ class TokenSpan(CharSpan):
         self._begin_token = begin_token
         self._end_token = end_token
 
+    @classmethod
+    def make_null(cls, tokens):
+        """
+        Convenience method for building null spans.
+        :param tokens: Tokens of the target string
+        :return: A null span over the indicated tokens
+        """
+        return TokenSpan(tokens, TokenSpan.NULL_OFFSET_VALUE,
+                         TokenSpan.NULL_OFFSET_VALUE)
+
     def __repr__(self) -> str:
-        if TokenSpan.NULL_TOKEN_VALUE == self._begin_token:
+        if TokenSpan.NULL_OFFSET_VALUE == self._begin_token:
             return "Nil"
         else:
             return "[{}, {}): '{}'".format(self.begin_token, self.end_token,
-                                           self.covered_text)
+                                           util.truncate_str(self.covered_text))
 
     def __eq__(self, other):
         return (
             isinstance(other, TokenSpan)
-            and self.tokens == other.tokens
+            and self.tokens.equals(other.tokens)
             and self.begin_token == other.begin_token
             and self.end_token == other.end_token
         )
+
+    def __hash__(self):
+        result = hash((self.tokens, self.begin_token, self.end_token))
+        return result
 
     def __lt__(self, other):
         """
@@ -97,9 +121,6 @@ class TokenSpan(CharSpan):
             return self.end_token <= other.begin_token
         else:
             return CharSpan.__lt__(self, other)
-
-    def __hash__(self):
-        return hash((self.tokens, self.begin_token, self.end_token))
 
     @property
     def tokens(self):
@@ -149,7 +170,7 @@ class TokenSpanArray(CharSpanArray):
     `begin_token` and `end_token` are token offsets into the target text.
 
     Null values are encoded with begin and end offsets of
-    `TokenSpan.NULL_TOKEN_VALUE`.
+    `TokenSpan.NULL_OFFSET_VALUE`.
 
     Fields:
     * `self._tokens`: Reference to the target string's tokens as a
@@ -157,9 +178,10 @@ class TokenSpanArray(CharSpanArray):
         objects are treated as different even if the arrays have the same
         contents.
     * `self._begin_tokens`: Numpy array of integer offsets in tokens. An offset
-       of TokenSpan.NULL_TOKEN_VALUE here indicates a null value.
+       of TokenSpan.NULL_OFFSET_VALUE here indicates a null value.
     * `self._end_tokens`: Numpy array of end offsets (1 + last token in span).
     """
+
 
     @staticmethod
     def from_char_offsets(tokens: CharSpanArray) -> "TokenSpanArray":
@@ -176,8 +198,8 @@ class TokenSpanArray(CharSpanArray):
         return TokenSpanArray(tokens, begin_tokens, begin_tokens + 1)
 
     def __init__(self, tokens: CharSpanArray,
-                 begin_tokens: np.ndarray = None,
-                 end_tokens: np.ndarray = None):
+                 begin_tokens: Union[np.ndarray, List[int]] = None,
+                 end_tokens: Union[np.ndarray, List[int]] = None):
         """
         :param tokens: Character-level span information about the underlying
         tokens.
@@ -185,9 +207,17 @@ class TokenSpanArray(CharSpanArray):
         :param begin_tokens: Array of begin offsets measured in tokens
         :param end_tokens: Array of end offsets measured in tokens
         """
-        self._tokens = tokens
-        self._begin_tokens = begin_tokens
-        self._end_tokens = end_tokens
+        begin_tokens = (np.array(begin_tokens)
+                        if isinstance(begin_tokens, list) else begin_tokens)
+        end_tokens = (np.array(end_tokens)
+                      if isinstance(end_tokens, list) else end_tokens)
+        self._tokens = tokens  # Type: CharSpanArray
+        self._begin_tokens = begin_tokens  # Type: np.ndarray
+        self._end_tokens = end_tokens  # Type: np.ndarray
+        # Cached hash value
+        self._hash = None
+
+    # Overrides of superclass methods go here.
 
     @property
     def dtype(self) -> pd.api.extensions.ExtensionDtype:
@@ -195,24 +225,6 @@ class TokenSpanArray(CharSpanArray):
 
     def __len__(self) -> int:
         return len(self._begin_tokens)
-
-    @classmethod
-    def make_array(cls, o) -> "TokenSpanArray":
-        """
-        Make a `TokenSpanArray` object out of any of several types of input.
-
-        :param o: a TokenSpanArray object represented as a `pd.Series`, a list
-        of `TokenSpan` objects, or maybe just an actual `TokenSpanArray` object.
-
-        :return: TokenSpanArray version of `o`, which may be a pointer to `o` or
-        one of its fields.
-        """
-        if isinstance(o, TokenSpanArray):
-            return o
-        elif isinstance(o, pd.Series):
-            return cls.make_array(o.values)
-        elif isinstance(o, Iterable):
-            return cls._from_sequence(o)
 
     def __getitem__(self, item) -> Union[TokenSpan, "TokenSpanArray"]:
         """
@@ -240,19 +252,20 @@ class TokenSpanArray(CharSpanArray):
             raise NotImplementedError(f"Don't understand key type "
                                       f"'{type(key)}'")
         if value is None:
-            self.begin_token[key] = TokenSpan.NULL_TOKEN_VALUE
-            self.end_token[key] = TokenSpan.NULL_TOKEN_VALUE
+            self._begin_tokens[key] = TokenSpan.NULL_OFFSET_VALUE
+            self._end_tokens[key] = TokenSpan.NULL_OFFSET_VALUE
         elif not isinstance(value, TokenSpan):
             raise ValueError(
                 f"Attempted to set element of TokenSpanArray with"
                 f"an object of type {type(value)}")
         else:
-            self.begin_token[key] = value.begin_token
-            self.end_token[key] = value.end_token
+            self._begin_tokens[key] = value.begin_token
+            self._end_tokens[key] = value.end_token
+        self._clear_cached_properties()
 
     def __eq__(self, other):
         """
-        Pandas-style array/series comparison function.
+        Pandas/Numpy-style array/series comparison function.
 
         :param other: Second operand of a Pandas "==" comparison with the series
         that wraps this TokenSpanArray.
@@ -260,8 +273,9 @@ class TokenSpanArray(CharSpanArray):
         :return: Returns a boolean mask indicating which rows match `other`.
         """
         if isinstance(other, TokenSpan):
+            if not self.tokens.equals(other.tokens):
+                return np.zeros(self._begin_tokens.shape, dtype=np.bool)
             mask = np.full(len(self), True, dtype=np.bool)
-            mask[self.tokens != other.tokens] = False
             mask[self.begin_token != other.begin_token] = False
             mask[self.end_token != other.end_token] = False
             return mask
@@ -269,8 +283,8 @@ class TokenSpanArray(CharSpanArray):
             if len(self) != len(other):
                 raise ValueError("Can't compare arrays of differing lengths "
                                  "{} and {}".format(len(self), len(other)))
-            if self.tokens != other.tokens:
-                return False  # Pandas will broadcast this to an array
+            if not self.tokens.equals(other.tokens):
+                return np.zeros(self._begin_tokens.shape, dtype=np.bool)
             return np.logical_and(
                 self.begin_token == self.begin_token,
                 self.end_token == self.end_token
@@ -281,10 +295,16 @@ class TokenSpanArray(CharSpanArray):
             raise ValueError("Don't know how to compare objects of type "
                              "'{}' and '{}'".format(type(self), type(other)))
 
+    def __hash__(self):
+        if self._hash is None:
+            self._hash = hash((self._tokens, self._begin_tokens.tobytes(),
+                               self._end_tokens.tobytes()))
+        return self._hash
+
     @classmethod
     def _concat_same_type(
         cls, to_concat: Sequence[pd.api.extensions.ExtensionArray]
-    ) -> pd.api.extensions.ExtensionArray:
+    ) -> "TokenSpanArray":
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
@@ -294,7 +314,7 @@ class TokenSpanArray(CharSpanArray):
         # Require exact object equality of the tokens for now.
         tokens = to_concat[0].tokens
         for c in to_concat:
-            if c.tokens != tokens:
+            if not c.tokens.equals(tokens):
                 raise ValueError("Can only concatenate spans that are over "
                                  "the same set of tokens")
         begin_tokens = np.concatenate([a.begin_token for a in to_concat])
@@ -321,8 +341,8 @@ class TokenSpanArray(CharSpanArray):
         for information about this method.
         """
         tokens = None
-        begin_tokens = np.full(len(scalars), TokenSpan.NULL_TOKEN_VALUE, np.int)
-        end_tokens = np.full(len(scalars), TokenSpan.NULL_TOKEN_VALUE, np.int)
+        begin_tokens = np.full(len(scalars), TokenSpan.NULL_OFFSET_VALUE, np.int)
+        end_tokens = np.full(len(scalars), TokenSpan.NULL_OFFSET_VALUE, np.int)
         i = 0
         for s in scalars:
             if not isinstance(s, TokenSpan):
@@ -331,7 +351,7 @@ class TokenSpanArray(CharSpanArray):
                                  f"object of type {type(s)}")
             if tokens is None:
                 tokens = s.tokens
-            if s.tokens != tokens:
+            if not s.tokens.equals(tokens):
                 raise ValueError(
                     f"Mixing different token sets is not currently "
                     f"supported. Received two token sets:\n"
@@ -346,8 +366,7 @@ class TokenSpanArray(CharSpanArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        # No na's allowed at the moment.
-        return np.repeat(False, len(self))
+        return self.nulls_mask
 
     def copy(self) -> "TokenSpanArray":
         """
@@ -359,7 +378,7 @@ class TokenSpanArray(CharSpanArray):
             self.begin_token.copy(),
             self.end_token.copy()
         )
-        # TODO: Copy cached properties too
+        # TODO: Copy cached properties
         return ret
 
     def take(
@@ -376,8 +395,8 @@ class TokenSpanArray(CharSpanArray):
         if fill_value is None or np.math.isnan(fill_value):
             # Replace with a "nan span"
             fill_value = TokenSpan(self.tokens,
-                                   TokenSpan.NULL_TOKEN_VALUE,
-                                   TokenSpan.NULL_TOKEN_VALUE)
+                                   TokenSpan.NULL_OFFSET_VALUE,
+                                   TokenSpan.NULL_OFFSET_VALUE)
         elif not isinstance(fill_value, TokenSpan):
             raise ValueError("Fill value must be Null, nan, or a TokenSpan "
                              "(was {})".format(fill_value))
@@ -414,6 +433,14 @@ class TokenSpanArray(CharSpanArray):
                              "of types {} and {}"
                              "".format(self, other, type(self), type(other)))
 
+    def __le__(self, other):
+        # TODO: Figure out what the semantics of this operation should be.
+        raise NotImplementedError()
+
+    def __ge__(self, other):
+        # TODO: Figure out what the semantics of this operation should be.
+        raise NotImplementedError()
+
     def _reduce(self, name, skipna=True, **kwargs):
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
@@ -428,6 +455,26 @@ class TokenSpanArray(CharSpanArray):
             raise TypeError(f"'{name}' aggregation not supported on a series "
                             f"backed by a TokenSpanArray")
 
+    ####################################################
+    # Methods that don't override the superclass go here
+
+    @classmethod
+    def make_array(cls, o) -> "TokenSpanArray":
+        """
+        Make a `TokenSpanArray` object out of any of several types of input.
+
+        :param o: a TokenSpanArray object represented as a `pd.Series`, a list
+        of `TokenSpan` objects, or maybe just an actual `TokenSpanArray` object.
+
+        :return: TokenSpanArray version of `o`, which may be a pointer to `o` or
+        one of its fields.
+        """
+        if isinstance(o, TokenSpanArray):
+            return o
+        elif isinstance(o, pd.Series):
+            return cls.make_array(o.values)
+        elif isinstance(o, Iterable):
+            return cls._from_sequence(o)
 
     @property
     def tokens(self) -> CharSpanArray:
@@ -446,14 +493,14 @@ class TokenSpanArray(CharSpanArray):
         """
         :return: A boolean mask indicating which rows are nulls
         """
-        return self.begin_token == TokenSpan.NULL_TOKEN_VALUE
+        return self._begin_tokens == TokenSpan.NULL_OFFSET_VALUE
 
     @memoized_property
-    def have_nulls(self) -> np.ndarray:
+    def have_nulls(self) -> bool:
         """
         :return: True if this column contains one or more nulls
         """
-        return not np.any(self.nulls_mask)
+        return np.any(self.nulls_mask)
 
     @memoized_property
     def begin(self) -> np.ndarray:
@@ -462,7 +509,7 @@ class TokenSpanArray(CharSpanArray):
         """
         result = self._tokens.begin[self.begin_token]
         # Correct for null values
-        result[self.nulls_mask] = TokenSpan.NULL_TOKEN_VALUE
+        result[self.nulls_mask] = TokenSpan.NULL_OFFSET_VALUE
         return result
 
     @memoized_property
@@ -477,7 +524,7 @@ class TokenSpanArray(CharSpanArray):
         mask = (self.end_token == self.begin_token)
         result[mask] = self.begin[mask]
         # Correct for null values
-        result[self.nulls_mask] = TokenSpan.NULL_TOKEN_VALUE
+        result[self.nulls_mask] = TokenSpan.NULL_OFFSET_VALUE
         return result
 
     @property
@@ -512,11 +559,14 @@ class TokenSpanArray(CharSpanArray):
         """
         # TODO: Vectorized version of this
         text = self.target_text
-        result = np.array([
-            text[s[0]:s[1]] for s in self.as_tuples()
-        ])
-        # Correct for null values
-        result[self.nulls_mask] = None
+        # Need dtype=np.object so we can return nulls
+        result = np.zeros(len(self), dtype=np.object)
+        for i in range(len(self)):
+            if self._begin_tokens[i] == TokenSpan.NULL_OFFSET_VALUE:
+                # Null value at this index
+                result[i] = None
+            else:
+                result[i] = text[self.begin[i]:self.end[i]]
         return result
 
     def as_frame(self) -> pd.DataFrame:
@@ -532,8 +582,25 @@ class TokenSpanArray(CharSpanArray):
             "covered_text": self.covered_text
         })
 
+    ##########################################
+    # Keep private and protected methods here.
+
     def _repr_html_(self) -> str:
         """
         HTML pretty-printing of a series of spans for Jupyter notebooks.
         """
         return util.pretty_print_html(self)
+
+    def _clear_cached_properties(self) -> None:
+        """
+        Remove cached values of memoized properties to reflect changes to the
+        data on which they are based.
+        """
+        # TODO: Figure out how to generate this list automatically
+        property_names = ["nulls_mask", "have_nulls", "begin", "end"]
+        for n in property_names:
+            attr_name = '_{0}'.format(n)
+            if hasattr(self, attr_name):
+                delattr(self, attr_name)
+        self._hash = None
+
