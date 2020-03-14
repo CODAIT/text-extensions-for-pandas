@@ -17,6 +17,7 @@ import numpy as np
 import unittest
 
 from text_extensions_for_pandas.array.char_span import *
+from text_extensions_for_pandas.util import TestBase
 
 
 class CharSpanTest(unittest.TestCase):
@@ -62,40 +63,10 @@ class CharSpanTest(unittest.TestCase):
         self.assertFalse(s1 < s2)
 
 
-class ArrayTestBase(unittest.TestCase):
+class ArrayTestBase(TestBase):
     """
     Shared base class for CharSpanArrayTest and TokenSpanArrayTest
     """
-    def _assertArrayEquals(self, a1: Union[np.ndarray, List[Any]],
-                           a2: Union[np.ndarray, List[Any]]) -> None:
-        """
-        Assert that two arrays are completely identical, with useful error
-        messages if they are not.
-
-        :param a1: first array to compare. Lists automatically converted to
-         arrays.
-        :param a2: second array (or list)
-        """
-        a1 = np.array(a1) if isinstance(a1, np.ndarray) else a1
-        a2 = np.array(a2) if isinstance(a2, np.ndarray) else a2
-        if len(a1) != len(a2):
-            raise self.failureException(
-                f"Arrays:\n"
-                f"   {a1}\n"
-                f"and\n"
-                f"   {a2}\n"
-                f"have different lengths {len(a1)} and {len(a2)}"
-            )
-        mask = (a1 == a2)
-        if not np.all(mask):
-            raise self.failureException(
-                f"Arrays:\n"
-                f"   {a1}\n"
-                f"and\n"
-                f"   {a2}\n"
-                f"differ at positions: {np.argwhere(~mask)}"
-            )
-
     @staticmethod
     def _make_spans_of_tokens():
         """

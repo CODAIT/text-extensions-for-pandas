@@ -55,7 +55,7 @@ def adjacent_join(first_series: pd.Series,
     """
     # For now we always make the first series the outer.
     # TODO: Make the larger series the outer and adjust the join logic
-    # below accordingly.
+    #  below accordingly.
     outer = pd.DataFrame({
         "outer_span": first_series,
         "outer_end": first_series.values.end_token
@@ -65,8 +65,11 @@ def adjacent_join(first_series: pd.Series,
     # Pandas' high-performance equijoin
     inner_span_list = [second_series] * (max_gap - min_gap + 1)
     outer_end_list = [
-        # Join predicate: outer_span = inner_span.begin + gap
-        second_series.values.begin_token + gap
+        # Outer comes first, so join predicate is:
+        #     outer_span.end + gap == inner_span.begin
+        # or equivalently:
+        #     outer_span.end = inner_span.begin - gap
+        second_series.values.begin_token - gap
         for gap in range(min_gap, max_gap + 1)
     ]
     inner = pd.DataFrame({

@@ -9,6 +9,7 @@
 import math
 import numpy as np
 from typing import *
+import unittest
 
 # Internal imports
 
@@ -84,3 +85,39 @@ def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"]) -> str:
         </div>
     </div>
     """.format(spans_html, "".join(text_pieces))
+
+
+class TestBase(unittest.TestCase):
+    """
+    Base class to hold common utility code used by test cases in multiple files.
+    """
+
+    def _assertArrayEquals(self, a1: Union[np.ndarray, List[Any]],
+                           a2: Union[np.ndarray, List[Any]]) -> None:
+        """
+        Assert that two arrays are completely identical, with useful error
+        messages if they are not.
+
+        :param a1: first array to compare. Lists automatically converted to
+         arrays.
+        :param a2: second array (or list)
+        """
+        a1 = np.array(a1) if isinstance(a1, np.ndarray) else a1
+        a2 = np.array(a2) if isinstance(a2, np.ndarray) else a2
+        if len(a1) != len(a2):
+            raise self.failureException(
+                f"Arrays:\n"
+                f"   {a1}\n"
+                f"and\n"
+                f"   {a2}\n"
+                f"have different lengths {len(a1)} and {len(a2)}"
+            )
+        mask = (a1 == a2)
+        if not np.all(mask):
+            raise self.failureException(
+                f"Arrays:\n"
+                f"   {a1}\n"
+                f"and\n"
+                f"   {a2}\n"
+                f"differ at positions: {np.argwhere(~mask)}"
+            )
