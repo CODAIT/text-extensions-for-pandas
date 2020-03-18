@@ -120,6 +120,22 @@ class CharSpan:
         else:
             return self.target_text[self.begin:self.end]
 
+    def overlaps(self, other: "CharSpan"):
+        """
+        :param other: Another CharSpan or TokenSpan
+        :return: True if the two spans overlap. Also True if a zero-length
+            span is contained within the other.
+        """
+        if self.begin == other.begin and self.end == other.end:
+            # Ensure that pairs of identical zero-length spans overlap.
+            return True
+        elif other.begin >= self.end:
+            return False  # other completely to the right of self
+        elif other.end <= self.begin:
+            return False  # other completely to the left of self
+        else:  # other.begin < self.end and other.end >= self.begin
+            return True
+
 
 @pd.api.extensions.register_extension_dtype
 class CharSpanType(pd.api.extensions.ExtensionDtype):
@@ -345,6 +361,33 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         ends = np.concatenate([a.end for a in to_concat])
         return CharSpanArray(text, begins, ends)
 
+    @classmethod
+    def _from_sequence(cls, scalars, dtype=None, copy=False):
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        text = None
+        begins = np.full(len(scalars), CharSpan.NULL_OFFSET_VALUE, np.int)
+        ends = np.full(len(scalars), CharSpan.NULL_OFFSET_VALUE, np.int)
+        i = 0
+        for s in scalars:
+            if not isinstance(s, CharSpan):
+                raise ValueError(f"Can only convert a sequence of CharSpan "
+                                 f"objects to a CharSpanArray. Found an "
+                                 f"object of type {type(s)}")
+            if text is None:
+                text = s.target_text
+            if s.target_text != text:
+                raise ValueError(
+                    f"Mixing different target texts is not currently "
+                    f"supported. Received two different strings:\n"
+                    f"{text}\nand\n{s.target_text}")
+            begins[i] = s.begin
+            ends[i] = s.end
+            i += 1
+        return CharSpanArray(text, begins, ends)
+
     def isna(self) -> np.array:
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
@@ -533,6 +576,31 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             "end": self.end,
             "covered_text": self.covered_text
         })
+
+    def overlaps(self, other: Union["CharSpanArray", CharSpan]):
+        """
+        :param other: Either a single span or an array of spans of the same
+            length as this one
+        :return: Numpy array containing a boolean mask of all entries that
+            overlap the corresponding element of `other`
+        """
+        if not isinstance(other, (CharSpan, CharSpanArray)):
+            raise TypeError(f"overlaps not defined for input type "
+                            f"{type(other)}")
+
+        # Replicate the logic in CharSpan.overlaps() with boolean masks
+        exact_equal_mask = np.logical_and(self.begin == other.begin,
+                                          self.end == other.end)
+        begin_ge_end_mask = other.begin >= self.end
+        end_le_begin_mask = other.end <= self.begin
+
+        # (self.begin == other.begin and self.end == other.end)
+        # or not (other.begin >= self.end or other.end <= self.begin)
+        return np.logical_or(exact_equal_mask,
+                             np.logical_not(
+                                 np.logical_or(begin_ge_end_mask,
+                                               end_le_begin_mask)))
+
 
     def _repr_html_(self) -> str:
         """

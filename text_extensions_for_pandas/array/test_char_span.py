@@ -62,6 +62,42 @@ class CharSpanTest(unittest.TestCase):
         self.assertLessEqual(s1, s3)
         self.assertFalse(s1 < s2)
 
+    def test_overlaps(self):
+        test_text = "This is a test."
+        s1 = CharSpan(test_text, 2, 4)
+        no_overlap = [
+            CharSpan(test_text, 0, 1),
+            CharSpan(test_text, 0, 2),
+            CharSpan(test_text, 1, 1),
+            CharSpan(test_text, 2, 2),
+            CharSpan(test_text, 4, 4),
+            CharSpan(test_text, 4, 5),
+            CharSpan(test_text, 5, 7)
+        ]
+        overlap = [
+            CharSpan(test_text, 1, 3),
+            CharSpan(test_text, 1, 4),
+            CharSpan(test_text, 2, 3),
+            CharSpan(test_text, 2, 4),
+            CharSpan(test_text, 2, 5),
+            CharSpan(test_text, 3, 3),
+            CharSpan(test_text, 3, 4),
+        ]
+
+        for s_other in no_overlap:
+            self.assertFalse(s1.overlaps(s_other))
+            self.assertFalse(s_other.overlaps(s1))
+
+        for s_other in overlap:
+            self.assertTrue(s1.overlaps(s_other))
+            self.assertTrue(s_other.overlaps(s1))
+
+        s2 = CharSpan(test_text, 1, 1)
+        s3 = CharSpan(test_text, 1, 1)
+        s4 = CharSpan(test_text, 2, 2)
+        self.assertTrue(s2.overlaps(s3))
+        self.assertFalse(s3.overlaps(s4))
+
 
 class ArrayTestBase(TestBase):
     """
@@ -202,6 +238,58 @@ class CharSpanArrayTest(ArrayTestBase):
         df = arr.as_frame()
         self._assertArrayEquals(df.columns, ["begin", "end", "covered_text"])
         self.assertEqual(len(df), len(arr))
+
+    def test_overlaps(self):
+        test_text = "This is a test."
+        s1 = CharSpan(test_text, 2, 4)
+        s_others = [
+            # Non-overlapping
+            CharSpan(test_text, 0, 1),
+            CharSpan(test_text, 0, 2),
+            CharSpan(test_text, 1, 1),
+            CharSpan(test_text, 2, 2),
+            CharSpan(test_text, 4, 4),
+            CharSpan(test_text, 4, 5),
+            CharSpan(test_text, 5, 7),
+            # Overlapping
+            CharSpan(test_text, 1, 3),
+            CharSpan(test_text, 1, 4),
+            CharSpan(test_text, 2, 3),
+            CharSpan(test_text, 2, 4),
+            CharSpan(test_text, 2, 5),
+            CharSpan(test_text, 3, 3),
+            CharSpan(test_text, 3, 4),
+        ]
+
+        expected_mask = [False] * 7 + [True] * 7
+
+        s1_array = CharSpanArray._from_sequence([s1] * len(s_others))
+        others_array = CharSpanArray._from_sequence(s_others)
+
+        self._assertArrayEquals(
+            s1_array.overlaps(others_array), expected_mask
+        )
+        self._assertArrayEquals(
+            others_array.overlaps(s1_array), expected_mask
+        )
+        self._assertArrayEquals(
+            others_array.overlaps(s1), expected_mask
+        )
+
+        # Check zero-length span cases
+        one_one = CharSpanArray._from_sequence([CharSpan(test_text, 1, 1)] * 2)
+        one_one_2_2 = CharSpanArray._from_sequence(
+            [CharSpan(test_text, 1, 1), CharSpan(test_text, 2, 2)])
+        self._assertArrayEquals(
+            one_one.overlaps(one_one_2_2), [True, False]
+        )
+        self._assertArrayEquals(
+            one_one_2_2.overlaps(one_one), [True, False]
+        )
+        self._assertArrayEquals(
+            one_one_2_2.overlaps(CharSpan(test_text, 1, 1)), [True, False]
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -22,6 +22,10 @@
 import numpy as np
 import pandas as pd
 
+from text_extensions_for_pandas.array.char_span import CharSpanType, \
+    CharSpanArray
+from text_extensions_for_pandas.array.token_span import TokenSpanType, \
+    TokenSpanArray
 
 def adjacent_join(first_series: pd.Series,
                   second_series: pd.Series,
@@ -84,3 +88,96 @@ def adjacent_join(first_series: pd.Series,
         first_name: joined["outer_span"],
         second_name: joined["inner_span"]
     })
+
+
+def overlap_join(first_series: pd.Series,
+                 second_series: pd.Series,
+                 first_name: str = "first",
+                 second_name: str = "second"):
+    """
+    Compute the join of two series of spans, where a pair of spans is
+    considered to match if they overlap.
+
+    :param first_series: Spans that appear earlier. dtype must be TokenSpan.
+
+    :param second_series: Spans that come after. dtype must be TokenSpan.
+
+    :param first_name: Name to give the column in the returned dataframe that
+    is derived from `first_series`.
+
+    :param second_name: Column name for spans from `second_series` in the
+    returned DataFrame.
+
+    :returns: a new `pd.DataFrame` containing all pairs of spans that match
+    the join predicate. Columns of the DataFrame will be named according
+    to the `first_name` and `second_name` arguments.
+    """
+    # For now we always use character offsets.
+    # TODO: Use token offsets of both sides of the join are TokenSpanArrays
+    def _get_char_offsets(s: pd.Series):
+        # noinspection PyUnresolvedReferences
+        return s.values.begin, s.values.end
+
+    first_begins, first_ends = _get_char_offsets(first_series)
+    second_begins, second_ends = _get_char_offsets(second_series)
+
+    # The algorithm here is what is known in the ER literature as "blocking".
+    # First evaluate a looser predicate that can be translated to an equijoin,
+    # then filter using the actual join predicate.
+
+    # Compute average span length to determine blocking factor
+    # TODO: Is average the right aggregate to use here?
+    total_len = (np.sum(first_ends - first_begins)
+                 + np.sum(second_ends - second_begins))
+    average_len = total_len / (len(first_series) + len(second_series))
+    blocking_factor = int(np.floor(average_len))
+
+    # Generate a table of which blocks each row of the input participates in.
+    # Use primary key (index) values because inputs can have duplicate spans.
+    def _make_table(name, index, begins, ends):
+        # TODO: Vectorize this part.
+        indexes = []
+        blocks = []
+        for i, b, e in zip(index, begins, ends):
+            for block in range(b // blocking_factor, e // blocking_factor + 1):
+                indexes.append(i)
+                blocks.append(block)
+        return pd.DataFrame({
+            name: indexes,
+            "block": blocks
+        })
+
+    first_table = _make_table("first", first_series.index,
+                              first_begins, first_ends)
+    second_table = _make_table("second", second_series.index,
+                               second_begins, second_ends)
+
+    # Do an equijoin on block ID and remove duplicates from the resulting
+    # <first key, second key> relation.
+    merged_table = pd.merge(first_table, second_table)
+    key_pairs = merged_table.groupby(["first", "second"]).aggregate(
+        {"first": "first", "second": "first"}
+    )
+
+    # Join the keys back with the original series to form the result, plus
+    # some extra values due to blocking.
+    block_result = pd.DataFrame({
+        first_name: first_series.loc[key_pairs["first"]].values,
+        second_name: second_series.loc[key_pairs["second"]].values,
+    })
+
+    # Filter out extra values from blocking
+    mask = block_result[first_name].values.overlaps(
+        block_result[second_name].values
+    )
+    return block_result[mask].reset_index(drop=True)
+
+
+
+
+
+
+
+
+
+
