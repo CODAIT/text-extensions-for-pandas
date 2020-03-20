@@ -72,7 +72,7 @@ class CharSpanTest(unittest.TestCase):
             CharSpan(test_text, 2, 2),
             CharSpan(test_text, 4, 4),
             CharSpan(test_text, 4, 5),
-            CharSpan(test_text, 5, 7)
+            CharSpan(test_text, 5, 7),
         ]
         overlap = [
             CharSpan(test_text, 1, 3),
@@ -98,28 +98,61 @@ class CharSpanTest(unittest.TestCase):
         self.assertTrue(s2.overlaps(s3))
         self.assertFalse(s3.overlaps(s4))
 
+    def test_contains(self):
+        test_text = "This is a test."
+        s1 = CharSpan(test_text, 2, 4)
+        not_contained = [
+            CharSpan(test_text, 0, 1),
+            CharSpan(test_text, 0, 2),
+            CharSpan(test_text, 1, 1),
+            CharSpan(test_text, 1, 3),
+            CharSpan(test_text, 1, 4),
+            CharSpan(test_text, 2, 5),
+            CharSpan(test_text, 4, 5),
+            CharSpan(test_text, 5, 7),
+        ]
+        contained = [
+            CharSpan(test_text, 2, 2),
+            CharSpan(test_text, 2, 3),
+            CharSpan(test_text, 2, 4),
+            CharSpan(test_text, 3, 3),
+            CharSpan(test_text, 3, 4),
+            CharSpan(test_text, 4, 4),
+        ]
+
+        for s_other in not_contained:
+            self.assertFalse(s1.contains(s_other))
+
+        for s_other in contained:
+            self.assertTrue(s1.contains(s_other))
+
+        s2 = CharSpan(test_text, 1, 1)
+        s3 = CharSpan(test_text, 1, 1)
+        s4 = CharSpan(test_text, 2, 2)
+        self.assertTrue(s2.contains(s3))
+        self.assertFalse(s3.contains(s4))
+
 
 class ArrayTestBase(TestBase):
     """
     Shared base class for CharSpanArrayTest and TokenSpanArrayTest
     """
+
     @staticmethod
     def _make_spans_of_tokens():
         """
         :return: An example CharSpanArray containing the tokens of the string
           "This is a test.", not including the period at the end.
         """
-        return CharSpanArray("This is a test.",
-                             np.array([0, 5, 8, 10]),
-                             np.array([4, 7, 9, 14]))
+        return CharSpanArray(
+            "This is a test.", np.array([0, 5, 8, 10]), np.array([4, 7, 9, 14])
+        )
 
 
 class CharSpanArrayTest(ArrayTestBase):
-
     def test_create(self):
         arr = self._make_spans_of_tokens()
-        self._assertArrayEquals(
-            arr.covered_text, ["This", "is", "a", "test"])
+        self._assertArrayEquals(arr.covered_text, ["This", "is", "a", "test"])
 
     def test_dtype(self):
         arr = CharSpanArray("", np.array([]), np.array([]))
@@ -136,18 +169,15 @@ class CharSpanArrayTest(ArrayTestBase):
     def test_setitem(self):
         arr = self._make_spans_of_tokens()
         arr[1] = arr[2]
-        self._assertArrayEquals(arr.covered_text,
-                                ["This", "a", "a", "test"])
+        self._assertArrayEquals(arr.covered_text, ["This", "a", "a", "test"])
         arr[3] = None
-        self._assertArrayEquals(arr.covered_text,
-                                ["This", "a", "a", None])
+        self._assertArrayEquals(arr.covered_text, ["This", "a", "a", None])
         with self.assertRaises(ValueError):
             arr[0] = "Invalid argument for __setitem__()"
 
     def test_equals(self):
         arr = self._make_spans_of_tokens()
-        self._assertArrayEquals(
-            arr[0:4] == arr[1], [False, True, False, False])
+        self._assertArrayEquals(arr[0:4] == arr[1], [False, True, False, False])
         arr2 = self._make_spans_of_tokens()
         self._assertArrayEquals(arr == arr2, [True] * 4)
 
@@ -168,43 +198,38 @@ class CharSpanArrayTest(ArrayTestBase):
 
     def test_nulls(self):
         arr = self._make_spans_of_tokens()
-        arr[2] = CharSpan(arr.target_text, CharSpan.NULL_OFFSET_VALUE,
-                          CharSpan.NULL_OFFSET_VALUE)
+        arr[2] = CharSpan(
+            arr.target_text, CharSpan.NULL_OFFSET_VALUE, CharSpan.NULL_OFFSET_VALUE
+        )
         self.assertIsNone(arr.covered_text[2])
-        self._assertArrayEquals(
-            arr.covered_text, ["This", "is", None, "test"])
-        self._assertArrayEquals(
-            arr.isna(), [False, False, True, False])
+        self._assertArrayEquals(arr.covered_text, ["This", "is", None, "test"])
+        self._assertArrayEquals(arr.isna(), [False, False, True, False])
 
     def test_copy(self):
         arr = self._make_spans_of_tokens()
         arr2 = arr.copy()
         arr[0] = CharSpan(arr.target_text, 8, 9)
-        self._assertArrayEquals(arr2.covered_text,
-                                ["This", "is", "a", "test"])
-        self._assertArrayEquals(arr.covered_text,
-                                ["a", "is", "a", "test"])
+        self._assertArrayEquals(arr2.covered_text, ["This", "is", "a", "test"])
+        self._assertArrayEquals(arr.covered_text, ["a", "is", "a", "test"])
 
     def test_take(self):
         arr = self._make_spans_of_tokens()
-        self._assertArrayEquals(arr.take([2, 0]).covered_text,
-                                ["a", "This"])
+        self._assertArrayEquals(arr.take([2, 0]).covered_text, ["a", "This"])
         self._assertArrayEquals(arr.take([]).covered_text, [])
-        self._assertArrayEquals(arr.take([2, -1, 0]).covered_text,
-                                ["a", "test", "This"])
         self._assertArrayEquals(
-            arr.take([2, -1, 0], allow_fill=True).covered_text,
-            ["a", None, "This"])
+            arr.take([2, -1, 0]).covered_text, ["a", "test", "This"]
+        )
+        self._assertArrayEquals(
+            arr.take([2, -1, 0], allow_fill=True).covered_text, ["a", None, "This"]
+        )
 
     def test_less_than(self):
-        arr1 = CharSpanArray("This is a test.",
-                             np.array([0, 5, 8, 10]),
-                             np.array([4, 7, 9, 14]))
+        arr1 = CharSpanArray(
+            "This is a test.", np.array([0, 5, 8, 10]), np.array([4, 7, 9, 14])
+        )
         s1 = CharSpan(arr1.target_text, 0, 1)
         s2 = CharSpan(arr1.target_text, 11, 14)
-        arr2 = CharSpanArray(arr1.target_text,
-                             [0, 3, 10, 7],
-                             [0, 4, 12, 9])
+        arr2 = CharSpanArray(arr1.target_text, [0, 3, 10, 7], [0, 4, 12, 9])
 
         self._assertArrayEquals(s1 < arr1, [False, True, True, True])
         self._assertArrayEquals(s2 > arr1, [True, True, True, False])
@@ -213,25 +238,22 @@ class CharSpanArrayTest(ArrayTestBase):
 
     def test_reduce(self):
         arr = self._make_spans_of_tokens()
-        self.assertEqual(
-            arr._reduce("sum"), CharSpan(arr.target_text, 0, 14))
+        self.assertEqual(arr._reduce("sum"), CharSpan(arr.target_text, 0, 14))
         # Remind ourselves to modify this test after implementing min and max
         with self.assertRaises(TypeError):
             arr._reduce("min")
 
     def test_as_tuples(self):
-        arr = CharSpanArray("This is a test.",
-                            np.array([0, 5, 8, 10]),
-                            np.array([4, 7, 9, 14]))
-        self._assertArrayEquals(
-            arr.as_tuples(),
-            [[0, 4], [5, 7], [8, 9], [10, 14]]
+        arr = CharSpanArray(
+            "This is a test.", np.array([0, 5, 8, 10]), np.array([4, 7, 9, 14])
         )
+        self._assertArrayEquals(arr.as_tuples(), [[0, 4], [5, 7], [8, 9], [10, 14]])
 
     def test_normalized_covered_text(self):
         arr = self._make_spans_of_tokens()
         self._assertArrayEquals(
-            arr.normalized_covered_text, ["this", "is", "a", "test"])
+            arr.normalized_covered_text, ["this", "is", "a", "test"]
+        )
 
     def test_as_frame(self):
         arr = self._make_spans_of_tokens()
@@ -266,30 +288,61 @@ class CharSpanArrayTest(ArrayTestBase):
         s1_array = CharSpanArray._from_sequence([s1] * len(s_others))
         others_array = CharSpanArray._from_sequence(s_others)
 
-        self._assertArrayEquals(
-            s1_array.overlaps(others_array), expected_mask
-        )
-        self._assertArrayEquals(
-            others_array.overlaps(s1_array), expected_mask
-        )
-        self._assertArrayEquals(
-            others_array.overlaps(s1), expected_mask
-        )
+        self._assertArrayEquals(s1_array.overlaps(others_array), expected_mask)
+        self._assertArrayEquals(others_array.overlaps(s1_array), expected_mask)
+        self._assertArrayEquals(others_array.overlaps(s1), expected_mask)
 
         # Check zero-length span cases
         one_one = CharSpanArray._from_sequence([CharSpan(test_text, 1, 1)] * 2)
         one_one_2_2 = CharSpanArray._from_sequence(
-            [CharSpan(test_text, 1, 1), CharSpan(test_text, 2, 2)])
-        self._assertArrayEquals(
-            one_one.overlaps(one_one_2_2), [True, False]
+            [CharSpan(test_text, 1, 1), CharSpan(test_text, 2, 2)]
         )
-        self._assertArrayEquals(
-            one_one_2_2.overlaps(one_one), [True, False]
-        )
+        self._assertArrayEquals(one_one.overlaps(one_one_2_2), [True, False])
+        self._assertArrayEquals(one_one_2_2.overlaps(one_one), [True, False])
         self._assertArrayEquals(
             one_one_2_2.overlaps(CharSpan(test_text, 1, 1)), [True, False]
         )
 
+    def test_contains(self):
+        test_text = "This is a test."
+        s1 = CharSpan(test_text, 2, 4)
+        s_others = [
+            # Not contained within s1
+            CharSpan(test_text, 0, 1),
+            CharSpan(test_text, 0, 2),
+            CharSpan(test_text, 1, 1),
+            CharSpan(test_text, 1, 3),
+            CharSpan(test_text, 1, 4),
+            CharSpan(test_text, 2, 5),
+            CharSpan(test_text, 4, 5),
+            CharSpan(test_text, 5, 7),
+            # Contained within s1
+            CharSpan(test_text, 2, 2),
+            CharSpan(test_text, 2, 3),
+            CharSpan(test_text, 2, 4),
+            CharSpan(test_text, 3, 3),
+            CharSpan(test_text, 3, 4),
+            CharSpan(test_text, 4, 4),
+        ]
 
-if __name__ == '__main__':
+        expected_mask = [False] * 8 + [True] * 6
+
+        s1_array = CharSpanArray._from_sequence([s1] * len(s_others))
+        others_array = CharSpanArray._from_sequence(s_others)
+
+        self._assertArrayEquals(s1_array.contains(others_array), expected_mask)
+
+        # Check zero-length span cases
+        one_one = CharSpanArray._from_sequence([CharSpan(test_text, 1, 1)] * 2)
+        one_one_2_2 = CharSpanArray._from_sequence(
+            [CharSpan(test_text, 1, 1), CharSpan(test_text, 2, 2)]
+        )
+        self._assertArrayEquals(one_one.contains(one_one_2_2), [True, False])
+        self._assertArrayEquals(one_one_2_2.contains(one_one), [True, False])
+        self._assertArrayEquals(
+            one_one_2_2.contains(CharSpan(test_text, 1, 1)), [True, False]
+        )
+
+
+if __name__ == "__main__":
     unittest.main()

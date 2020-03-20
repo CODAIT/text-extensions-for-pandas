@@ -22,9 +22,12 @@ from spacy.lang.en import English
 from text_extensions_for_pandas.spanner.extract import extract_regex_tok
 from text_extensions_for_pandas.io import make_tokens
 from text_extensions_for_pandas.util import TestBase
-from text_extensions_for_pandas.array.token_span import TokenSpan,\
-    TokenSpanArray
-from text_extensions_for_pandas.spanner.join import adjacent_join, overlap_join
+from text_extensions_for_pandas.array.token_span import TokenSpan, TokenSpanArray
+from text_extensions_for_pandas.spanner.join import (
+    adjacent_join,
+    contain_join,
+    overlap_join,
+)
 
 # SpaCy tokenizer (only) setup
 nlp = English()
@@ -42,28 +45,32 @@ _TOKENS_SERIES = make_tokens(_TEXT, _tokenizer)
 _TOKENS_ARRAY = _TOKENS_SERIES.values  # Type: CharSpanArray
 _TOKEN_SPANS_ARRAY = TokenSpanArray.from_char_offsets(_TOKENS_ARRAY)
 _CAPS_WORD = extract_regex_tok(_TOKENS_ARRAY, regex.compile("[A-Z][a-z]*"))
-_CAPS_WORDS = extract_regex_tok(_TOKENS_ARRAY,
-                                regex.compile("[A-Z][a-z]*(\\s([A-Z][a-z]*))*"),
-                                1, 2)
+_CAPS_WORDS = extract_regex_tok(
+    _TOKENS_ARRAY, regex.compile("[A-Z][a-z]*(\\s([A-Z][a-z]*))*"), 1, 2
+)
 _THE = extract_regex_tok(_TOKENS_ARRAY, regex.compile("[Tt]he"))
 
 
 class JoinTest(TestBase):
-
     def test_adjacent_join(self):
         result1 = adjacent_join(_THE["match"], _CAPS_WORD["match"])
-        self.assertEqual(str(result1), textwrap.dedent(
-            """\
+        self.assertEqual(
+            str(result1),
+            textwrap.dedent(
+                """\
                          first               second
             0  [22, 23): 'the'  [23, 24): 'Knights'
             1  [25, 26): 'the'    [26, 27): 'Round'
             2  [38, 39): 'the'     [39, 40): 'Wise'
             3  [43, 44): 'the'    [44, 45): 'Brave'
-            4  [48, 49): 'the'     [49, 50): 'Pure'"""))
-        result2 = adjacent_join(_THE["match"], _CAPS_WORD["match"],
-                                max_gap=3)
-        self.assertEqual(str(result2), textwrap.dedent(
-            """\
+            4  [48, 49): 'the'     [49, 50): 'Pure'"""
+            ),
+        )
+        result2 = adjacent_join(_THE["match"], _CAPS_WORD["match"], max_gap=3)
+        self.assertEqual(
+            str(result2),
+            textwrap.dedent(
+                """\
                           first                second
             0   [22, 23): 'the'   [23, 24): 'Knights'
             1   [22, 23): 'the'     [26, 27): 'Round'
@@ -76,11 +83,16 @@ class JoinTest(TestBase):
             8   [43, 44): 'the'     [44, 45): 'Brave'
             9   [43, 44): 'the'       [46, 47): 'Sir'
             10  [43, 44): 'the'   [47, 48): 'Galahad'
-            11  [48, 49): 'the'      [49, 50): 'Pure'"""))
-        result3 = adjacent_join(_THE["match"], _CAPS_WORD["match"],
-                                min_gap=3, max_gap=6)
-        self.assertEqual(str(result3), textwrap.dedent(
-            """\
+            11  [48, 49): 'the'      [49, 50): 'Pure'"""
+            ),
+        )
+        result3 = adjacent_join(
+            _THE["match"], _CAPS_WORD["match"], min_gap=3, max_gap=6
+        )
+        self.assertEqual(
+            str(result3),
+            textwrap.dedent(
+                """\
                          first                second
             0  [22, 23): 'the'     [26, 27): 'Round'
             1  [22, 23): 'the'     [27, 28): 'Table'
@@ -91,19 +103,28 @@ class JoinTest(TestBase):
             6  [38, 39): 'the'  [42, 43): 'Lancelot'
             7  [38, 39): 'the'     [44, 45): 'Brave'
             8  [43, 44): 'the'   [47, 48): 'Galahad'
-            9  [43, 44): 'the'      [49, 50): 'Pure'"""))
+            9  [43, 44): 'the'      [49, 50): 'Pure'"""
+            ),
+        )
 
     def test_overlaps_join(self):
-        join_arg = pd.Series(TokenSpanArray._from_sequence([
-            TokenSpan(_TOKENS_ARRAY, 23, 28),  # Knights of the Round Table
-            TokenSpan(_TOKENS_ARRAY, 17, 19),  # searching for
-            TokenSpan(_TOKENS_ARRAY, 1, 2),  # In
-            TokenSpan(_TOKENS_ARRAY, 1, 2),  # In (second copy)
-            TokenSpan(_TOKENS_ARRAY, 42, 45),  # Lancelot the Brave
-        ]))
+        join_arg = pd.Series(
+            TokenSpanArray._from_sequence(
+                [
+                    TokenSpan(_TOKENS_ARRAY, 23, 28),  # Knights of the Round Table
+                    TokenSpan(_TOKENS_ARRAY, 17, 19),  # searching for
+                    TokenSpan(_TOKENS_ARRAY, 1, 2),  # In
+                    TokenSpan(_TOKENS_ARRAY, 1, 2),  # In (second copy)
+                    TokenSpan(_TOKENS_ARRAY, 42, 45),  # Lancelot the Brave
+                ]
+            )
+        )
 
         result1 = overlap_join(join_arg, _CAPS_WORD["match"])
-        self.assertEqual(str(result1), textwrap.dedent("""\
+        self.assertEqual(
+            str(result1),
+            textwrap.dedent(
+                """\
                                                 first                second
             0  [23, 28): 'Knights of the Round Table'   [23, 24): 'Knights'
             1  [23, 28): 'Knights of the Round Table'     [26, 27): 'Round'
@@ -111,10 +132,15 @@ class JoinTest(TestBase):
             3                            [1, 2): 'In'          [1, 2): 'In'
             4                            [1, 2): 'In'          [1, 2): 'In'
             5          [42, 45): 'Lancelot the Brave'  [42, 43): 'Lancelot'
-            6          [42, 45): 'Lancelot the Brave'     [44, 45): 'Brave'"""))
+            6          [42, 45): 'Lancelot the Brave'     [44, 45): 'Brave'"""
+            ),
+        )
 
         result2 = overlap_join(_CAPS_WORD["match"], join_arg)
-        self.assertEqual(str(result2), textwrap.dedent("""\
+        self.assertEqual(
+            str(result2),
+            textwrap.dedent(
+                """\
                               first                                  second
             0          [1, 2): 'In'                            [1, 2): 'In'
             1          [1, 2): 'In'                            [1, 2): 'In'
@@ -122,7 +148,51 @@ class JoinTest(TestBase):
             3     [26, 27): 'Round'  [23, 28): 'Knights of the Round Table'
             4     [27, 28): 'Table'  [23, 28): 'Knights of the Round Table'
             5  [42, 43): 'Lancelot'          [42, 45): 'Lancelot the Brave'
-            6     [44, 45): 'Brave'          [42, 45): 'Lancelot the Brave'"""))
+            6     [44, 45): 'Brave'          [42, 45): 'Lancelot the Brave'"""
+            ),
+        )
 
-if __name__ == '__main__':
+    def test_contain_join(self):
+        join_arg = pd.Series(
+            TokenSpanArray._from_sequence(
+                [
+                    TokenSpan(_TOKENS_ARRAY, 23, 28),  # Knights of the Round Table
+                    TokenSpan(_TOKENS_ARRAY, 17, 19),  # searching for
+                    TokenSpan(_TOKENS_ARRAY, 1, 2),  # In
+                    TokenSpan(_TOKENS_ARRAY, 1, 2),  # In (second copy)
+                    TokenSpan(_TOKENS_ARRAY, 42, 45),  # Lancelot the Brave
+                ]
+            )
+        )
+
+        result1 = contain_join(join_arg, _CAPS_WORD["match"])
+        self.assertEqual(
+            str(result1),
+            textwrap.dedent(
+                """\
+                                                    first                second
+                0  [23, 28): 'Knights of the Round Table'   [23, 24): 'Knights'
+                1  [23, 28): 'Knights of the Round Table'     [26, 27): 'Round'
+                2  [23, 28): 'Knights of the Round Table'     [27, 28): 'Table'
+                3                            [1, 2): 'In'          [1, 2): 'In'
+                4                            [1, 2): 'In'          [1, 2): 'In'
+                5          [42, 45): 'Lancelot the Brave'  [42, 43): 'Lancelot'
+                6          [42, 45): 'Lancelot the Brave'     [44, 45): 'Brave'"""
+            ),
+        )
+
+        result2 = contain_join(_CAPS_WORD["match"], join_arg)
+        print(result2)
+        self.assertEqual(
+            str(result2),
+            textwrap.dedent(
+                """\
+                          first        second
+                0  [1, 2): 'In'  [1, 2): 'In'
+                1  [1, 2): 'In'  [1, 2): 'In'"""
+            ),
+        )
+
+
+if __name__ == "__main__":
     unittest.main()

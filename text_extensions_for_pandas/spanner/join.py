@@ -22,17 +22,18 @@
 import numpy as np
 import pandas as pd
 
-from text_extensions_for_pandas.array.char_span import CharSpanType, \
-    CharSpanArray
-from text_extensions_for_pandas.array.token_span import TokenSpanType, \
-    TokenSpanArray
+from text_extensions_for_pandas.array.char_span import CharSpanType, CharSpanArray
+from text_extensions_for_pandas.array.token_span import TokenSpanType, TokenSpanArray
 
-def adjacent_join(first_series: pd.Series,
-                  second_series: pd.Series,
-                  first_name: str = "first",
-                  second_name: str = "second",
-                  min_gap: int = 0,
-                  max_gap: int = 0):
+
+def adjacent_join(
+    first_series: pd.Series,
+    second_series: pd.Series,
+    first_name: str = "first",
+    second_name: str = "second",
+    min_gap: int = 0,
+    max_gap: int = 0,
+):
     """
     Compute the join of two series of spans, where a pair of spans is
     considered to match if they are adjacent to each other in the text.
@@ -60,10 +61,9 @@ def adjacent_join(first_series: pd.Series,
     # For now we always make the first series the outer.
     # TODO: Make the larger series the outer and adjust the join logic
     #  below accordingly.
-    outer = pd.DataFrame({
-        "outer_span": first_series,
-        "outer_end": first_series.values.end_token
-    })
+    outer = pd.DataFrame(
+        {"outer_span": first_series, "outer_end": first_series.values.end_token}
+    )
 
     # Inner series gets replicated for every possible offset so we can use
     # Pandas' high-performance equijoin
@@ -76,31 +76,34 @@ def adjacent_join(first_series: pd.Series,
         second_series.values.begin_token - gap
         for gap in range(min_gap, max_gap + 1)
     ]
-    inner = pd.DataFrame({
-        "inner_span": pd.concat(inner_span_list),
-        "outer_end": np.concatenate(outer_end_list)
-    })
+    inner = pd.DataFrame(
+        {
+            "inner_span": pd.concat(inner_span_list),
+            "outer_end": np.concatenate(outer_end_list),
+        }
+    )
     joined = outer.merge(inner)
 
     # Now we have a DataFrame with the schema
     # [outer_span, outer_end, inner_span]
-    return pd.DataFrame({
-        first_name: joined["outer_span"],
-        second_name: joined["inner_span"]
-    })
+    return pd.DataFrame(
+        {first_name: joined["outer_span"], second_name: joined["inner_span"]}
+    )
 
 
-def overlap_join(first_series: pd.Series,
-                 second_series: pd.Series,
-                 first_name: str = "first",
-                 second_name: str = "second"):
+def overlap_join(
+    first_series: pd.Series,
+    second_series: pd.Series,
+    first_name: str = "first",
+    second_name: str = "second",
+):
     """
     Compute the join of two series of spans, where a pair of spans is
     considered to match if they overlap.
 
-    :param first_series: Spans that appear earlier. dtype must be TokenSpan.
+    :param first_series: First set of spans to join, wrapped in a `pd.Series`
 
-    :param second_series: Spans that come after. dtype must be TokenSpan.
+    :param second_series: Second set of spans to join.
 
     :param first_name: Name to give the column in the returned dataframe that
     is derived from `first_series`.
@@ -127,8 +130,7 @@ def overlap_join(first_series: pd.Series,
 
     # Compute average span length to determine blocking factor
     # TODO: Is average the right aggregate to use here?
-    total_len = (np.sum(first_ends - first_begins)
-                 + np.sum(second_ends - second_begins))
+    total_len = np.sum(first_ends - first_begins) + np.sum(second_ends - second_begins)
     average_len = total_len / (len(first_series) + len(second_series))
     blocking_factor = int(np.floor(average_len))
 
@@ -142,15 +144,12 @@ def overlap_join(first_series: pd.Series,
             for block in range(b // blocking_factor, e // blocking_factor + 1):
                 indexes.append(i)
                 blocks.append(block)
-        return pd.DataFrame({
-            name: indexes,
-            "block": blocks
-        })
+        return pd.DataFrame({name: indexes, "block": blocks})
 
-    first_table = _make_table("first", first_series.index,
-                              first_begins, first_ends)
-    second_table = _make_table("second", second_series.index,
-                               second_begins, second_ends)
+    first_table = _make_table("first", first_series.index, first_begins, first_ends)
+    second_table = _make_table(
+        "second", second_series.index, second_begins, second_ends
+    )
 
     # Do an equijoin on block ID and remove duplicates from the resulting
     # <first key, second key> relation.
@@ -161,23 +160,48 @@ def overlap_join(first_series: pd.Series,
 
     # Join the keys back with the original series to form the result, plus
     # some extra values due to blocking.
-    block_result = pd.DataFrame({
-        first_name: first_series.loc[key_pairs["first"]].values,
-        second_name: second_series.loc[key_pairs["second"]].values,
-    })
+    block_result = pd.DataFrame(
+        {
+            first_name: first_series.loc[key_pairs["first"]].values,
+            second_name: second_series.loc[key_pairs["second"]].values,
+        }
+    )
 
     # Filter out extra values from blocking
-    mask = block_result[first_name].values.overlaps(
-        block_result[second_name].values
-    )
+    mask = block_result[first_name].values.overlaps(block_result[second_name].values)
     return block_result[mask].reset_index(drop=True)
 
 
+def contain_join(
+    first_series: pd.Series,
+    second_series: pd.Series,
+    first_name: str = "first",
+    second_name: str = "second",
+):
+    """
+    Compute the join of two series of spans, where a pair of spans is
+    considered to match if the second span is contained within the first.
 
+    :param first_series: First set of spans to join, wrapped in a `pd.Series`
 
+    :param second_series: Second set of spans to join. These are the ones that
+     are contained within the first set where the join predicate is satisfied.
 
+    :param first_name: Name to give the column in the returned dataframe that
+    is derived from `first_series`.
 
+    :param second_name: Column name for spans from `second_series` in the
+    returned DataFrame.
 
-
-
-
+    :returns: a new `pd.DataFrame` containing all pairs of spans that match
+    the join predicate. Columns of the DataFrame will be named according
+    to the `first_name` and `second_name` arguments.
+    """
+    # For now we just run overlap_join() and filter the results.
+    # TODO: Factor out the blocking code so that we can avoid filtering
+    #  and regenerating the index twice.
+    overlap_result = overlap_join(first_series, second_series, first_name, second_name)
+    mask = overlap_result[first_name].values.contains(
+        overlap_result[second_name].values
+    )
+    return overlap_result[mask].reset_index(drop=True)

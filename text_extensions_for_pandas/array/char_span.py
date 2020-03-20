@@ -136,6 +136,14 @@ class CharSpan:
         else:  # other.begin < self.end and other.end >= self.begin
             return True
 
+    def contains(self, other: "CharSpan"):
+        """
+        :param other: Another CharSpan or TokenSpan
+        :return: True if `other` is entirely within the bounds of this span. Also
+            True if a zero-length span is contained within the other.
+        """
+        return other.begin >= self.begin and other.end <= self.end
+
 
 @pd.api.extensions.register_extension_dtype
 class CharSpanType(pd.api.extensions.ExtensionDtype):
@@ -601,6 +609,21 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
                                  np.logical_or(begin_ge_end_mask,
                                                end_le_begin_mask)))
 
+    def contains(self, other: Union["CharSpanArray", CharSpan]):
+        """
+        :param other: Either a single span or an array of spans of the same
+            length as this one
+        :return: Numpy array containing a boolean mask of all entries that
+            contain the corresponding element of `other`
+        """
+        if not isinstance(other, (CharSpan, CharSpanArray)):
+            raise TypeError(f"contains not defined for input type "
+                            f"{type(other)}")
+
+        # Replicate the logic in CharSpan.contains() with boolean masks
+        begin_ge_begin_mask = other.begin >= self.begin
+        end_le_end_mask = other.end <= self.end
+        return np.logical_and(begin_ge_begin_mask, end_le_end_mask)
 
     def _repr_html_(self) -> str:
         """
