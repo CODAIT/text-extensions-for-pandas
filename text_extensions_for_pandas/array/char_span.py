@@ -20,7 +20,7 @@
 #
 # Pandas extensions to support columns of spans with character offsets.
 #
-
+import textwrap
 from typing import *
 
 import numpy as np
@@ -69,7 +69,8 @@ class CharSpan:
         self._end = end
 
     def __repr__(self) -> str:
-        return "[{}, {}): '{}'".format(self.begin, self.end, self.covered_text)
+        return "[{}, {}): '{}'".format(self.begin, self.end,
+                                       textwrap.shorten(self.covered_text, 80))
 
     def __eq__(self, other):
         return (self.begin == other.begin

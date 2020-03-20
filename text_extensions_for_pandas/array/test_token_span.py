@@ -79,8 +79,8 @@ class TokenSpanTest(ArrayTestBase):
         s2 = TokenSpan(toks2, 0, 15)
         self.assertEqual(
             repr(s2),
-            "[0, 85): 'This is a really really really really [...]"
-            " ly really really really long string.'",
+            "[0, 85): 'This is a really really really really really really "
+            "really really really [...]'"
         )
 
     def test_equals(self):

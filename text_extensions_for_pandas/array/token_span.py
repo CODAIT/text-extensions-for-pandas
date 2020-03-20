@@ -20,7 +20,7 @@
 #
 # Pandas extensions to support columns of spans with token offsets.
 #
-
+import textwrap
 from typing import *
 
 import numpy as np
@@ -117,11 +117,11 @@ class TokenSpan(CharSpan):
             return "Nil"
         elif TokenSpan.USE_TOKEN_OFFSETS_IN_REPR:
             return "[{}, {}): '{}'".format(
-                self.begin_token, self.end_token, util.truncate_str(self.covered_text)
+                self.begin_token, self.end_token, textwrap.shorten(self.covered_text, 80)
             )
         else:
             return "[{}, {}): '{}'".format(
-                self.begin, self.end, util.truncate_str(self.covered_text)
+                self.begin, self.end, textwrap.shorten(self.covered_text, 80)
             )
 
     def __eq__(self, other):
