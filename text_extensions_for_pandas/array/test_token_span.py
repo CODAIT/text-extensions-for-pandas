@@ -46,7 +46,7 @@ class TokenSpanTest(ArrayTestBase):
     def test_repr(self):
         toks = self._make_spans_of_tokens()
         s1 = TokenSpan(toks, 0, 2)
-        self.assertEqual(repr(s1), "[0, 2): 'This is'")
+        self.assertEqual(repr(s1), "[0, 7): 'This is'")
 
         toks2 = CharSpanArray(
             "This is a really really really really really really really really "
@@ -58,10 +58,10 @@ class TokenSpanTest(ArrayTestBase):
             ["This", "is", "a", "really", "really", "really", "really", "really",
              "really", "really", "really", "really", "long", "string", "."])
         s2 = TokenSpan(toks2, 0, 4)
-        self.assertEqual(repr(s2), "[0, 4): 'This is a really'")
+        self.assertEqual(repr(s2), "[0, 16): 'This is a really'")
         s2 = TokenSpan(toks2, 0, 15)
         self.assertEqual(repr(s2),
-                         "[0, 15): 'This is a really really really really [...]"
+                         "[0, 85): 'This is a really really really really [...]"
                          " ly really really really long string.'")
 
     def test_equals(self):

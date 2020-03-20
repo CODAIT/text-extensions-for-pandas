@@ -93,11 +93,18 @@ class TokenSpan(CharSpan):
         return TokenSpan(tokens, TokenSpan.NULL_OFFSET_VALUE,
                          TokenSpan.NULL_OFFSET_VALUE)
 
+    # Set this flag to True to use offets in tokens, not characters, in the
+    # string representation of TokenSpans globally.
+    USE_TOKEN_OFFSETS_IN_REPR = False
+
     def __repr__(self) -> str:
         if TokenSpan.NULL_OFFSET_VALUE == self._begin_token:
             return "Nil"
-        else:
+        elif TokenSpan.USE_TOKEN_OFFSETS_IN_REPR:
             return "[{}, {}): '{}'".format(self.begin_token, self.end_token,
+                                           util.truncate_str(self.covered_text))
+        else:
+            return "[{}, {}): '{}'".format(self.begin, self.end,
                                            util.truncate_str(self.covered_text))
 
     def __eq__(self, other):

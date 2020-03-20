@@ -52,7 +52,17 @@ _THE = extract_regex_tok(_TOKENS_ARRAY, regex.compile("[Tt]he"))
 
 
 class JoinTest(TestBase):
+    def setUp(self):
+        # Make it easier to see what's going on with join results
+        self._prev_token_offsets_flag_value = TokenSpan.USE_TOKEN_OFFSETS_IN_REPR
+        TokenSpan.USE_TOKEN_OFFSETS_IN_REPR = True
+
+    def tearDown(self):
+        # Restore TokenSpan repr formatting to avoid messing up other tests.
+        TokenSpan.USE_TOKEN_OFFSETS_IN_REPR = self._prev_token_offsets_flag_value
+
     def test_adjacent_join(self):
+
         result1 = adjacent_join(_THE["match"], _CAPS_WORD["match"])
         self.assertEqual(
             str(result1),
@@ -106,6 +116,8 @@ class JoinTest(TestBase):
             9  [43, 44): 'the'      [49, 50): 'Pure'"""
             ),
         )
+
+
 
     def test_overlaps_join(self):
         join_arg = pd.Series(
@@ -182,7 +194,6 @@ class JoinTest(TestBase):
         )
 
         result2 = contain_join(_CAPS_WORD["match"], join_arg)
-        print(result2)
         self.assertEqual(
             str(result2),
             textwrap.dedent(
