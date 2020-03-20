@@ -149,6 +149,10 @@ class TokenSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(arr.covered_text[0:4], ["This", "This", "a", None])
         arr[[0, 1, 3]] = None
         self._assertArrayEquals(arr.covered_text[0:4], [None, None, "a", None])
+        arr[[2, 1, 3]] = arr[[4, 5, 6]]
+        self._assertArrayEquals(
+            arr.covered_text[0:4], [None, "a test", "This is", "This is a test"]
+        )
 
     def test_equals(self):
         arr = self._make_spans()

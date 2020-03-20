@@ -304,6 +304,7 @@ class TokenSpanArray(CharSpanArray):
         for information about this method.
         """
         expected_key_types = (int, np.ndarray, list, slice)
+        expected_value_types = (TokenSpan, TokenSpanArray)
         if not isinstance(key, expected_key_types):
             raise NotImplementedError(
                 f"Don't understand key type "
@@ -313,10 +314,11 @@ class TokenSpanArray(CharSpanArray):
         if value is None:
             self._begin_tokens[key] = TokenSpan.NULL_OFFSET_VALUE
             self._end_tokens[key] = TokenSpan.NULL_OFFSET_VALUE
-        elif not isinstance(value, TokenSpan):
+        elif not isinstance(value, expected_value_types):
             raise ValueError(
                 f"Attempted to set element of TokenSpanArray with"
-                f"an object of type {type(value)}"
+                f"an object of type {type(value)}; current set of"
+                f"allowed types is {expected_value_types}"
             )
         else:
             self._begin_tokens[key] = value.begin_token
