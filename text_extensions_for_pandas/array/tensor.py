@@ -88,25 +88,25 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         :param ends: End offsets (open)
         """
         if isinstance(values, list):
-            self._values = np.stack(obj, axis=0)
+            self._tensor = np.stack(values, axis=0)
         else:
-            self._values = values
+            self._tensor = values
         
-        if not self._values.flags.c_contiguous:
+        if not self._tensor.flags.c_contiguous:
             if make_contiguous:
-                self._values = np.ascontiguousarray(self._values)
+                self._tensor = np.ascontiguousarray(self._tensor)
             else:
                 raise ValueError("Input ndarray is not contiguous")
 
     @classmethod
     def _concat_same_type(
-        cls, to_concat: Sequence[pd.api.extensions.ExtensionArray]
-    ) -> pd.api.extensions.ExtensionArray:
+        cls, to_concat: Sequence["TensorArray"]
+    ) -> "TensorArray":
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        return TensorArray([self._values, to_concat._values])
+        return TensorArray([a._tensor for a in to_concat])
 
     def isna(self) -> np.array:
         """
@@ -114,7 +114,7 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         for information about this method.
         """
         # TODO any or all values in row nan?
-        return np.any(np.isnan(self._values), axis=1)
+        return np.any(np.isnan(self._tensor), axis=1)
 
     def copy(self) -> "TensorArray":
         """
@@ -122,7 +122,7 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         for information about this method.
         """
         ret = TensorArray(
-            self._values,
+            self._tensor,
         )
         # TODO: Copy cached properties too
         return ret
@@ -136,7 +136,7 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         for information about this method.
         """
         # TODO if allow_fill:
-        values = self._values.take(indices, axis=0)
+        values = self._tensor.take(indices, axis=0)
         return TensorArray(values)
 
     @property
@@ -148,10 +148,10 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         return TensorType()
 
     def __len__(self) -> int:
-        return len(self._values)
+        return len(self._tensor)
 
     def __eq__(self, other):
-        return self._values == other._values
+        return self._tensor == other._tensor
 
     def __lt__(self, other):
         """
@@ -163,23 +163,28 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         :return: Returns a boolean mask indicating which rows are less than
          `other`. span1 < span2 if span1.end <= span2.begin.
         """
-        return self._values < other._values
+        return self._tensor < other._tensor
 
     def __gt__(self, other):
-        return self._values > other._values
+        return self._tensor > other._tensor
 
     def __le__(self, other):
-        return self._values <= other._values
+        return self._tensor <= other._tensor
 
     def __ge__(self, other):
-        return self._values >= other._values
+        return self._tensor >= other._tensor
 
     def __getitem__(self, item) -> "TensorArray":
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        return TensorArray(self._values[item])
+        # TODO pandas converts series with np.asarray, then applied a function e.g. map_infer(array, is_float) to format strings etc.
+        # If single element return as np.ndarray, if slice return TensorArray of slice
+        if isinstance(item, int):
+            return self._tensor[item]
+        else:
+            return TensorArray(self._tensor[item])
 
     def __setitem__(self, key: Union[int, np.ndarray], value: Any) -> None:
         """
@@ -193,7 +198,7 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        return self._values.__repr__()
+        return self._tensor.__repr__()
 
     def _reduce(self, name, skipna=True, **kwargs):
         """
@@ -205,7 +210,7 @@ class TensorArray(pd.api.extensions.ExtensionArray):
     '''
     @property
     def values(self) -> np.ndarray:
-        return self._values
+        return self._tensor
     '''
 
     '''
@@ -227,10 +232,10 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         """
         return util.pretty_print_html(self)
 
-    def to_numpy(self, dtype=None, copy=False, na_value=pd.lib.no_default):
+    def to_numpy(self, dtype=None, copy=False, na_value=pd.api.extensions.no_default):
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
         # TODO options
-        return self._values
+        return self._tensor
