@@ -350,7 +350,7 @@ class TokenSpanArray(CharSpanArray):
             if not self.tokens.equals(other.tokens):
                 return np.zeros(self._begin_tokens.shape, dtype=np.bool)
             return np.logical_and(
-                self.begin_token == self.begin_token, self.end_token == self.end_token
+                self.begin_token == other.begin_token, self.end_token == other.end_token
             )
         else:
             # TODO: Return False here once we're sure that this
