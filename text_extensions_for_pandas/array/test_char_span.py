@@ -196,6 +196,12 @@ class CharSpanArrayTest(ArrayTestBase):
         self.assertTrue(arr.equals(arr2))
         self.assertTrue(arr2.equals(arr))
 
+    def test_not_equals(self):
+        arr = self._make_spans_of_tokens()
+        self._assertArrayEquals(arr[0:4] != arr[1], [True, False, True, True])
+        arr2 = self._make_spans_of_tokens()
+        self._assertArrayEquals(arr != arr2, [False] * 4)
+
     def test_nulls(self):
         arr = self._make_spans_of_tokens()
         arr[2] = CharSpan(

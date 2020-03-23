@@ -161,6 +161,12 @@ class TokenSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(arr == arr2, [True] * 7)
         self._assertArrayEquals(arr[0:3] == arr[3:6], [False, False, False])
 
+    def test_not_equals(self):
+        arr = self._make_spans()
+        arr2 = self._make_spans()
+        self._assertArrayEquals(arr[0:4] != arr[1], [True, False, True, True])
+        self._assertArrayEquals(arr != arr2, [False] * 7)
+        self._assertArrayEquals(arr[0:3] != arr[3:6], [True, True, True])
 
     def test_concat_same_type(self):
         arr = self._make_spans()

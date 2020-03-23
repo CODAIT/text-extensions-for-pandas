@@ -305,6 +305,9 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             raise ValueError("Don't know how to compare objects of type "
                              "'{}' and '{}'".format(type(self), type(other)))
 
+    def __ne__(self, other):
+        return ~(self == other)
+
     def __hash__(self):
         if self._hash is None:
             self._hash = hash((self._text, self._begins.tobytes(),
