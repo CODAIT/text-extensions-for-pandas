@@ -318,3 +318,75 @@ class CoalesceTraversal(UnaryTraversal):
             new_step_types.append(next_step_types[0])
         new_paths = pd.concat(paths_list)
         self._set_attrs(paths=new_paths, step_types=new_step_types)
+
+
+class UnionTraversal(UnaryTraversal):
+    """
+    A Gremlin `union` step. Runs one or more traversals and returns the
+    *multiset* union of all their results.
+    """
+
+    def __init__(self, parent: GraphTraversal,
+                 subqueries: Sequence[GraphTraversal]):
+        """
+        :param parent: Input to the `coalesce` step
+        :param subqueries: Sub-traversals to run in this step.
+        """
+        UnaryTraversal.__init__(self, parent)
+        for s in subqueries:
+            found_double_underscore, _ = find_double_underscore(s)
+            if not found_double_underscore:
+                raise NotImplementedError("union without __ not implemented")
+        self._subqueries = subqueries
+
+    def compute_impl(self) -> None:
+        # TODO: This code has a lot in common with the coalesce and where steps.
+        #  Factor out the common parts.
+
+        # Loop until we run out of subqueries or input paths
+        paths_list = []  # Type: List[pd.DataFrame]
+        next_step_types = []  # Type: List[str]
+        for subquery in self._subqueries:
+            _, step_after_double_underscore = find_double_underscore(subquery)
+            double_underscore_replacement = (
+                PrecomputedTraversal(vertices=self.parent.vertices,
+                                     edges=self.parent.edges,
+                                     paths=self.parent.paths,
+                                     step_types=self.parent.step_types,
+                                     aliases=self.parent.aliases))
+            step_after_double_underscore.parent = double_underscore_replacement
+            subquery.compute()
+            subquery_paths = subquery.paths
+            if len(subquery_paths.index) > 0:
+                parent_path_len = len(self.parent.paths.columns)
+                if len(subquery_paths.columns) == parent_path_len:
+                    # Subquery didn't add any elements, just filtered parent paths.
+                    paths_list.append(subquery_paths)
+                    next_step_types.append("empty")  # Special flag for our own use
+                else:
+                    # Subquery added at least one element to the paths.
+                    # Keep the parts of the path that came from the parent, plus the
+                    # last element that came from the subquery.
+                    columns_to_keep = subquery_paths.columns[
+                        list(range(0, parent_path_len)) + [-1]]
+                    paths = subquery_paths[columns_to_keep]
+                    # Clean up column names
+                    paths.columns = list(range(len(paths.columns)))
+                    paths_list.append(paths)
+                    next_step_types.append(subquery.step_types[-1])
+
+            # Reset the subquery so that this step can be recomputed later.
+            subquery.uncompute()
+            step_after_double_underscore.parent = __
+
+        for i in range(1, len(next_step_types)):
+            if next_step_types[i] != next_step_types[0]:
+                raise ValueError(f"Traversals 0 and {i} passed to union "
+                                 f"produce mismatched output element types "
+                                 f"'{next_step_types[0]}' and "
+                                 f"'{next_step_types[i]}'")
+        new_step_types = self.parent.step_types.copy()
+        if next_step_types[0] != "empty":
+            new_step_types.append(next_step_types[0])
+        new_paths = pd.concat(paths_list)
+        self._set_attrs(paths=new_paths, step_types=new_step_types)

@@ -390,6 +390,20 @@ class GraphTraversal(GraphTraversalBase, ABC):
         from text_extensions_for_pandas.gremlin.traversal.recurse import CoalesceTraversal
         return CoalesceTraversal(self, subqueries)
 
+    def union(self, *subqueries: "GraphTraversal") -> "GraphTraversal":
+        """
+        A Gremlin `union` step. Returns the multiset union of the results
+         of `subqueries`.
+
+        :param subqueries: Sub-traversals to run, in the order that they should
+         be tried.
+
+        :return: A GraphTraversal that adds the indicated `union` step to
+         the parent traversal.
+        """
+        from text_extensions_for_pandas.gremlin.traversal.recurse import UnionTraversal
+        return UnionTraversal(self, subqueries)
+
     def values(self, field_name: str) -> "GraphTraversal":
         """
         A Gremlin `values` step. Expects the last element of the current path to
