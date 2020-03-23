@@ -17,14 +17,13 @@
 #
 # Boolean predicates for Gremlin queries.
 
-from abc import ABC
-from typing import Iterator, Any
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from text_extensions_for_pandas.gremlin.traversal.base import GraphTraversalBase
-from text_extensions_for_pandas.gremlin.predicate.base import ColumnPredicate, VertexPredicate
+from text_extensions_for_pandas.gremlin.predicate.base import BinaryPredicate, \
+    ColumnPredicate, VertexPredicate, BinaryPredicate
 
 
 class TruePredicate(ColumnPredicate):
@@ -84,40 +83,6 @@ class Without(ColumnPredicate):
         return (~vertices[self.target_col].isin(self._args)).values
 
 
-class BinaryPredicate(VertexPredicate, ABC):
-    """
-    Abstract base class for Gremlin binary predicates.
-    """
-
-    def __init__(self, other: str):
-        """
-        :param other: Name of the second vertex to compare against.
-        """
-        VertexPredicate.__init__(self)
-        self._other_alias = other
-        self._other_vertices = None  # Type: pd.DataFrame
-        self._left_col = None  # Type: str
-        self._right_col = None  # Type: str
-
-    def bind_aliases_self(self, parent: GraphTraversalBase) -> None:
-        self._other_vertices = parent.alias_to_vertices(self._other_alias)
-
-    def modulate_self(self, modulator: Iterator[str]) -> None:
-        self._left_col = next(modulator)
-        self._right_col = next(modulator)
-
-    @property
-    def other_vertices(self) -> pd.DataFrame:
-        """
-        :return: The current set of vertices in the second argument of this
-        predicate.
-        """
-        if self._other_vertices is None:
-            raise ValueError(f"Attempted to get other_vertices property before "
-                             f"calling bind_aliases_self on {self}")
-        return self._other_vertices
-
-
 class LessThanPredicate(BinaryPredicate):
     """
     Implementation of the Gremlin `lt()` predicate.
@@ -125,7 +90,7 @@ class LessThanPredicate(BinaryPredicate):
 
     def __init__(self, other: str):
         """
-        :param other: Name of the second vertex to compare against
+        :param other: Name of the second field to compare against
         """
         BinaryPredicate.__init__(self, other)
 
@@ -134,10 +99,46 @@ class LessThanPredicate(BinaryPredicate):
         # Pandas indexes to prevent the lt operation below from matching pairs
         # of rows by (unused) index
         left_series = vertices[self._left_col].reset_index(drop=True)
-        right_series = self.other_vertices[self._right_col].reset_index(
+        right_series = self.target_vertices[self._right_col].reset_index(
             drop=True)
         result_series = left_series.lt(right_series)
         return result_series.values
+
+
+class OverlapsPredicate(BinaryPredicate):
+    """
+    *Extension to Gremlin.* A binary predicate that returns True if the
+    two input spans overlap.
+    """
+
+    def __init__(self, other: str):
+        """
+        :param other: Name of the second field to compare against
+        """
+        BinaryPredicate.__init__(self, other)
+
+    def __call__(self, vertices: pd.DataFrame) -> np.ndarray:
+        # The inputs are views on the vertices tables, so we need to reset the
+        # Pandas indexes to prevent the operation below from matching pairs
+        # of rows by (unused) index
+        left_series = vertices[self._left_col].reset_index(drop=True)
+        right_series = self.target_vertices[self._right_col].reset_index(
+            drop=True)
+        result_array = left_series.values.overlaps(right_series.values)
+        return result_array
+
+
+class NotBinaryPredicate(BinaryPredicate):
+    """
+    Invert a binary predicate
+    """
+    def __init__(self, child: BinaryPredicate):
+        BinaryPredicate.__init__(self, child.target_alias, child)
+        self._child = child
+
+    def __call__(self, vertices: pd.DataFrame) -> np.ndarray:
+        return ~self._child(vertices)
+
 
 ########################################################
 # Syntactic sugar to keep pep8 happy about class names
@@ -153,6 +154,17 @@ def without(*args):
 
 def lt(other):
     return LessThanPredicate(other)
+
+
+def overlaps(other):
+    return OverlapsPredicate(other)
+
+
+def not_(other):
+    if isinstance(other, BinaryPredicate):
+        return NotBinaryPredicate(other)
+    else:
+        raise NotImplementedError("not_() over unary predicate not yet implemented")
 
 # End syntactic sugar
 ########################################################

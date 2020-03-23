@@ -17,6 +17,7 @@
 #
 # Abstract base classes for predicates.
 from abc import ABC
+from typing import Iterator
 
 import pandas as pd
 import numpy as np
@@ -106,3 +107,45 @@ class ColumnPredicate(VertexPredicate, ABC):
         :returns: Name of the column on which this predicate will be applied.
         """
         return self._target_col
+
+
+class BinaryPredicate(VertexPredicate, ABC):
+    """
+    Abstract base class for Gremlin binary predicates.
+    """
+
+    def __init__(self, target_alias: str, *children: "BinaryPredicate"):
+        """
+        :param target_alias: Name of the second vertex to compare against.
+        :param *children: Optional set of child predicates for propagating bindings
+        """
+        VertexPredicate.__init__(self, *children)
+        self._target_alias = target_alias
+        self._target_vertices = None  # Type: pd.DataFrame
+        self._left_col = None  # Type: str
+        self._right_col = None  # Type: str
+
+    def bind_aliases_self(self, parent: GraphTraversal) -> None:
+        self._target_vertices = parent.alias_to_vertices(self._target_alias)
+
+    def modulate_self(self, modulator: Iterator[str]) -> None:
+        self._left_col = next(modulator)
+        self._right_col = next(modulator)
+
+    @property
+    def target_alias(self) -> str:
+        """
+        :return: Name of the alias that the
+        """
+        return self._target_alias
+
+    @property
+    def target_vertices(self) -> pd.DataFrame:
+        """
+        :return: The current set of vertices in the second argument of this
+        predicate.
+        """
+        if self._target_vertices is None:
+            raise ValueError(f"Attempted to get other_vertices property before "
+                             f"calling bind_aliases_self on {self}")
+        return self._target_vertices
