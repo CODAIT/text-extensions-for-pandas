@@ -73,19 +73,15 @@ class TensorType(pd.api.extensions.ExtensionDtype):
 
 class TensorArray(pd.api.extensions.ExtensionArray):
     """
-    A Pandas `ExtensionArray` that represents a column of character-based spans
-    over a single target text.
-
-    Spans are represented as `[begin, end)` intervals, where `begin` and `end`
-    are character offsets into the target text.
+    A Pandas `ExtensionArray` that represents a column of `numpy.ndarray`s
+    where the outer dimension is the count of ndarrays in the column.
     """
 
     def __init__(self, values: Union[np.ndarray, List[np.ndarray]],
-                 make_contiguous: bool=True):
+                 make_contiguous: bool = True):
         """
-        :param text: Target text from which the spans of this array are drawn
-        :param begins: Begin offsets of spans (closed)
-        :param ends: End offsets (open)
+        :param values: A `numpy.ndarray` or list of `numpy.ndarray`s
+        :param make_contiguous: force values to be contiguous in memory
         """
         if isinstance(values, list):
             self._tensor = np.stack(values, axis=0)
@@ -208,25 +204,6 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         for information about this method.
         """
         raise NotImplementedError("not implemented")
-
-    '''
-    @property
-    def values(self) -> np.ndarray:
-        return self._tensor
-    '''
-
-    '''
-    def as_frame(self) -> pd.DataFrame:
-        """
-        Returns a dataframe representation of this column based on Python
-        atomic types.
-        """
-        return pd.DataFrame({
-            "begin": self.begin,
-            "end": self.end,
-            "covered_text": self.covered_text
-        })
-    '''
 
     def _repr_html_(self) -> str:
         """
