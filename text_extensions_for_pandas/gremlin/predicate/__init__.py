@@ -95,14 +95,10 @@ class LessThanPredicate(BinaryPredicate):
         BinaryPredicate.__init__(self, other)
 
     def __call__(self, vertices: pd.DataFrame) -> np.ndarray:
-        # The inputs are views on the vertices tables, so we need to reset the
-        # Pandas indexes to prevent the lt operation below from matching pairs
-        # of rows by (unused) index
-        left_series = vertices[self._left_col].reset_index(drop=True)
-        right_series = self.target_vertices[self._right_col].reset_index(
-            drop=True)
-        result_series = left_series.lt(right_series)
-        return result_series.values
+        left_series = self.left_input(vertices)
+        right_series = self.right_input()
+        result_array = left_series.values < right_series.values
+        return result_array
 
 
 class OverlapsPredicate(BinaryPredicate):
@@ -118,12 +114,8 @@ class OverlapsPredicate(BinaryPredicate):
         BinaryPredicate.__init__(self, other)
 
     def __call__(self, vertices: pd.DataFrame) -> np.ndarray:
-        # The inputs are views on the vertices tables, so we need to reset the
-        # Pandas indexes to prevent the operation below from matching pairs
-        # of rows by (unused) index
-        left_series = vertices[self._left_col].reset_index(drop=True)
-        right_series = self.target_vertices[self._right_col].reset_index(
-            drop=True)
+        left_series = self.left_input(vertices)
+        right_series = self.right_input()
         result_array = left_series.values.overlaps(right_series.values)
         return result_array
 

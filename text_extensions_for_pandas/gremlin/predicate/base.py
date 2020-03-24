@@ -121,31 +121,54 @@ class BinaryPredicate(VertexPredicate, ABC):
         """
         VertexPredicate.__init__(self, *children)
         self._target_alias = target_alias
-        self._target_vertices = None  # Type: pd.DataFrame
         self._left_col = None  # Type: str
         self._right_col = None  # Type: str
+        self._right_input = None  # Type: pd.Series
 
     def bind_aliases_self(self, parent: GraphTraversal) -> None:
-        self._target_vertices = parent.alias_to_vertices(self._target_alias)
+        if self._right_col is not None:
+            vertices = parent.alias_to_vertices(self._target_alias)
+            self._right_input = vertices[self._right_col]
+        else:
+            # self._target_alias references a scalar-valued step
+            _, self._right_input = parent.alias_to_step(self._target_alias)
+        # The inputs are views on the vertices tables, so we need to reset the
+        # Pandas indexes to prevent any vectorized operations in the subclass
+        # from matching rows based on misaligned indexes.
+        self._right_input = self._right_input.reset_index(drop=True)
 
     def modulate_self(self, modulator: Iterator[str]) -> None:
         self._left_col = next(modulator)
         self._right_col = next(modulator)
 
+        if self._left_col is None:
+            raise ValueError(f"Attempted to modulate first input column of {self} to "
+                             f"`None`. Currently only string values are supported, "
+                             f"because the first (left) input of a binary predicate "
+                             f"must be of type vertex.")
+
+    def left_input(self, vertices: pd.DataFrame) -> pd.Series:
+        """
+        :param vertices: DataFrame of vertices on which to apply the predicate,
+         same as eponymous argument to `VertexPredicate.__call__()`.
+        :return: First input to the binary predicate, taking into account any `by`
+         modulators applied to this predicate.
+        """
+        return vertices[self._left_col]
+
+    def right_input(self) -> pd.Series:
+        """
+        :return: Second input to the binary predicate, taking into account the
+         values of `self.target_alias` and any `by` modulators applied to this
+         predicate.
+        """
+        return self._right_input
+
     @property
     def target_alias(self) -> str:
         """
-        :return: Name of the alias that the
+        :return: Name of the alias that the predicate uses to acquire the second
+         argument to the binary predicate
         """
         return self._target_alias
 
-    @property
-    def target_vertices(self) -> pd.DataFrame:
-        """
-        :return: The current set of vertices in the second argument of this
-        predicate.
-        """
-        if self._target_vertices is None:
-            raise ValueError(f"Attempted to get other_vertices property before "
-                             f"calling bind_aliases_self on {self}")
-        return self._target_vertices
