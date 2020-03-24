@@ -69,7 +69,7 @@ class WherePredicateTraversal(UnaryTraversal):
         self._pred = pred
         self._by_args = []
 
-    def by(self, arg: str):
+    def by(self, arg: str = None):
         """
         `by` modulator for passing in additional arguments to the `where`
         step's predicate.
@@ -81,9 +81,9 @@ class WherePredicateTraversal(UnaryTraversal):
 
         :return: this step, modified in place to have the additional argument.
         """
-        if not isinstance(arg, str):
+        if arg is not None and not isinstance(arg, str):
             raise ValueError("The by() modulator to where() currently only "
-                             "supports a single string argument. "
+                             "supports a single string argument or None. "
                              "Got '{}' of type '{}'."
                              "".format(arg, type(arg)))
         self._by_args.append(arg)
@@ -97,6 +97,10 @@ class WherePredicateTraversal(UnaryTraversal):
         self._pred.bind_aliases(self.parent)
         vertices_to_check = self.parent.last_vertices()
         mask = self._pred(vertices_to_check)
+        if len(mask) != len(vertices_to_check.index):
+            raise ValueError(f"Predicate {self._pred} returned {len(mask)} "
+                             f"boolean values when fed "
+                             f"{len(vertices_to_check.index)} vertices.")
         filtered_paths = self.parent.paths[mask]
         self._set_attrs(paths=filtered_paths)
 
