@@ -89,8 +89,10 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         """
         if isinstance(values, list):
             self._tensor = np.stack(values, axis=0)
-        else:
+        elif isinstance(values, np.ndarray):
             self._tensor = values
+        else:
+            raise TypeError("Expected a numpy.ndarray or list of numpy.ndarray")
         
         if not self._tensor.flags.c_contiguous:
             if make_contiguous:
@@ -151,7 +153,7 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         return len(self._tensor)
 
     def __eq__(self, other):
-        return self._tensor == other._tensor
+        return TensorArray(self._tensor == other._tensor)
 
     def __lt__(self, other):
         """
@@ -163,16 +165,16 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         :return: Returns a boolean mask indicating which rows are less than
          `other`. span1 < span2 if span1.end <= span2.begin.
         """
-        return self._tensor < other._tensor
+        return TensorArray(self._tensor < other._tensor)
 
     def __gt__(self, other):
-        return self._tensor > other._tensor
+        return TensorArray(self._tensor > other._tensor)
 
     def __le__(self, other):
-        return self._tensor <= other._tensor
+        return TensorArray(self._tensor <= other._tensor)
 
     def __ge__(self, other):
-        return self._tensor >= other._tensor
+        return TensorArray(self._tensor >= other._tensor)
 
     def __getitem__(self, item) -> "TensorArray":
         """

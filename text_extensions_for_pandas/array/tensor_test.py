@@ -22,15 +22,40 @@ from text_extensions_for_pandas.array.tensor import *
 
 class TensorTest(unittest.TestCase):
     def test_create(self):
-        x = np.random.rand(10, 3)
-        a = TensorArray(x)
+        x = np.ones([5, 2, 3])
+        s = TensorArray(x)
+        self.assertEqual(len(s), 5)
 
-        #self.assertEqual(s1.covered_text, "This")
+        x = [np.ones([2, 3])] * 5
+        s = TensorArray(x)
+        self.assertEqual(len(s), 5)
 
-        b = a[1]
-        c = a[2:4]
+        x = [np.ones([2, 3]), np.ones([3, 2])]
+        with self.assertRaises(ValueError):
+            TensorArray(x)
 
-        df = pd.DataFrame({'i': list(range(10)), 'a': a})
+        with self.assertRaises(TypeError):
+            TensorArray("foobar")
+
+    def test_operations(self):
+        x = np.ones([5, 3])
+
+        s1 = TensorArray(x)
+        s2 = TensorArray(x)
+        self.assertTrue(np.all(s1 == s2))
+
+        s2 = TensorArray(x * 2)
+        self.assertTrue(np.all(s1 < s2))
+        self.assertFalse(np.any(s1 > s2))
+
+
+    def test_repr(self):
+        x = np.ones([5, 3])
+
+        s = TensorArray(x)
+        b = s[1]
+        c = s[2:4]
+        df = pd.DataFrame({'i': list(range(len(x))), 's': s})
         print(df)
 
     '''
