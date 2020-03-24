@@ -73,8 +73,8 @@ class TensorType(pd.api.extensions.ExtensionDtype):
 
 class TensorArray(pd.api.extensions.ExtensionArray):
     """
-    A Pandas `ExtensionArray` that represents a column of `numpy.ndarray`s
-    where the outer dimension is the count of ndarrays in the column.
+    A Pandas `ExtensionArray` that represents a column of `numpy.ndarray`s,
+    or tensors, where the outer dimension is the count of tensors in the column.
     """
 
     def __init__(self, values: Union[np.ndarray, List[np.ndarray]],
@@ -205,6 +205,9 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         for information about this method.
         """
         return self._tensor.__repr__()
+
+    def __str__(self):
+        return self._tensor.__str__()
 
     def _reduce(self, name, skipna=True, **kwargs):
         """
