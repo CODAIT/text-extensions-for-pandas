@@ -146,11 +146,14 @@ class SelectTraversal(UnaryTraversal):
 
             self._paths_tail = pd.DataFrame(df_contents)
             col_type = "r"  # Record
-        self._set_attrs(
-            step_types=self.parent.step_types + [col_type]
-        )
-        # self._set_attrs() will set self._paths to self.parent.paths
+        # The contents of self._paths are generated lazily, something that the
+        # parent's _set_attrs() method isn't designed for.
+        # Instead of calling _set_attrs(), set the individual fields manually.
         self._paths = None
+        self._step_types = self.parent.step_types + [col_type]
+        self._aliases = self.parent.aliases
+        self._vertices = self.parent.vertices
+        self._edges = self.parent.edges
 
     def by(self, field_name: str = None) -> "SelectTraversal":
         """
