@@ -145,6 +145,14 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         """
         return TensorType()
 
+    def to_numpy(self, dtype=None, copy=False, na_value=pd.api.extensions.no_default):
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        # TODO options
+        return self._tensor
+
     def __len__(self) -> int:
         return len(self._tensor)
 
@@ -174,7 +182,7 @@ class TensorArray(pd.api.extensions.ExtensionArray):
 
     def __getitem__(self, item) -> "TensorArray":
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in `Extension   Array` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
         # TODO pandas converts series with np.asarray, then applied a function e.g. map_infer(array, is_float) to format strings etc.
@@ -210,11 +218,3 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         HTML pretty-printing of a series of spans for Jupyter notebooks.
         """
         return util.pretty_print_html(self)
-
-    def to_numpy(self, dtype=None, copy=False, na_value=pd.api.extensions.no_default):
-        """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
-        for information about this method.
-        """
-        # TODO options
-        return self._tensor
