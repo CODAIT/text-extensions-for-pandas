@@ -200,6 +200,7 @@ class GroupByTraversal(UnaryTraversal):
             pd.DataFrame(df_cols)
             .groupby(self._groups)
             .aggregate(agg_args)
+            .reset_index(drop=True)  # No group keys in index
         )
         # Renumber old aliases and add new ones
         new_aliases = {
@@ -211,8 +212,16 @@ class GroupByTraversal(UnaryTraversal):
             self._aggregates[i][2]: i + len(self._groups)
             for i in range(len(self._aggregates))
         })
+        # Compute the step type metadata for the paths
+        new_step_types = [
+            self.parent.step_types[self.parent.alias_to_step(g)[0]]
+            for g in self._groups
+        ] + [
+            self.parent.step_types[self.parent.alias_to_step(in_alias)[0]]
+            for in_alias, _, _ in self._aggregates
+        ]
         self._set_attrs(
-            paths=new_paths, aliases=new_aliases
+            paths=new_paths, aliases=new_aliases, step_types=new_step_types
         )
 
 
