@@ -33,7 +33,7 @@ class GraphTraversalBase(ABC):
         # See property getters below for the meanings of these attributes.
         self._vertices = None
         self._edges = None
-        self._paths = None
+        self._paths = None  # Type: pd.DataFrame
         self._step_types = None
         self._aliases = None
         self._is_computed = False
@@ -613,6 +613,16 @@ class UnaryTraversal(GraphTraversal, ABC):
         # them may not be valid until after its' compute method is called.
         self._vertices = self.parent.vertices
         self._edges = self.parent.edges
+
+        # Catch bugs in computing step type metadata as close to the root
+        # cause as possible.
+        if len(self._step_types) != len(self._paths.columns):
+            raise ValueError(
+                f"Length of step_types ({len(self._step_types)}) "
+                f"doesn't match number of columns in paths "
+                f"({len(self._paths.columns)}) for {self}.\n"
+                f"step_types: {self._step_types}\n"
+                f"paths:\n{self._paths}")
 
     def _parent_path_plus_elements(self, next_elements: Any) -> pd.DataFrame:
         """
