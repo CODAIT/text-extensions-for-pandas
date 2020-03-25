@@ -252,8 +252,8 @@ class TokenSpanArray(CharSpanArray):
     def __init__(
         self,
         tokens: CharSpanArray,
-        begin_tokens: Union[np.ndarray, List[int]] = None,
-        end_tokens: Union[np.ndarray, List[int]] = None,
+        begin_tokens: Union[np.ndarray, Sequence[int]] = None,
+        end_tokens: Union[np.ndarray, Sequence[int]] = None,
     ):
         """
         :param tokens: Character-level span information about the underlying

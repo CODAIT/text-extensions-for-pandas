@@ -196,8 +196,8 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
     """
 
     def __init__(self, text: str,
-                 begins: Union[np.ndarray, List[int]],
-                 ends: Union[np.ndarray, List[int]]):
+                 begins: Union[np.ndarray, Sequence[int]],
+                 ends: Union[np.ndarray, Sequence[int]]):
         """
         :param text: Target text from which the spans of this array are drawn
         :param begins: Begin offsets of spans (closed)
