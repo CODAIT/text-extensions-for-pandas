@@ -17,7 +17,7 @@ import numpy as np
 import unittest
 import textwrap
 
-from text_extensions_for_pandas.io import *
+from text_extensions_for_pandas.io.spacy import *
 
 import spacy
 
@@ -123,49 +123,6 @@ class IOTest(unittest.TestCase):
             ],
         }
         self.assertDictEqual(json, expected)
-
-    def test_iob_to_spans(self):
-        df = make_tokens_and_features(
-            textwrap.dedent(
-                """\
-            The Bermuda Triangle got tired of warm weather. 
-            It moved to Alaska. Now Santa Claus is missing.
-            -- Steven Wright"""
-            ),
-            _SPACY_LANGUAGE_MODEL,
-        )
-        spans = iob_to_spans(df)
-        # print(f"****{spans}****")
-        self.assertEqual(
-            str(spans),
-            textwrap.dedent(
-                """\
-                                    token_span ent_type
-                0           [61, 67): 'Alaska'      GPE
-                1      [73, 84): 'Santa Claus'      GPE
-                2  [100, 113): 'Steven Wright'   PERSON"""
-            ),
-        )
-
-    def test_load_dict(self):
-        from spacy.lang.en import English
-        nlp = English()
-        tokenizer = nlp.Defaults.create_tokenizer(nlp)
-        df = load_dict("test_data/test_io/test.dict", tokenizer)
-        # print(f"***{df}***")
-        self.assertEqual(
-            str(df),
-            textwrap.dedent(
-                """\
-                       toks_0 toks_1  toks_2   toks_3 toks_4   toks_5 toks_6
-                0  dictionary  entry    None     None   None     None   None
-                1       entry   None    None     None   None     None   None
-                2        help     me       !        i     am  trapped   None
-                3          in      a   haiku  factory      !     None   None
-                4        save     me  before     they   None     None   None
-                5        None   None    None     None   None     None   None"""
-            )
-        )
 
 
 if __name__ == "__main__":
