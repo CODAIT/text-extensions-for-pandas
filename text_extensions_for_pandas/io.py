@@ -53,9 +53,7 @@ def make_tokens(target_text: str, tokenizer: spacy.tokenizer.Tokenizer) -> pd.Se
 
 
 def make_tokens_and_features(
-    target_text: str,
-    language_model: spacy.language.Language,
-    add_left_and_right=False,
+    target_text: str, language_model: spacy.language.Language, add_left_and_right=False,
 ) -> pd.DataFrame:
     """
     :param target_text: Text to analyze
@@ -130,8 +128,8 @@ def _make_sentences_series(spacy_doc: spacy.tokens.doc.Doc, tokens: CharSpanArra
     begin_tokens = np.full(shape=num_toks, fill_value=-1, dtype=np.int)
     end_tokens = np.full(shape=num_toks, fill_value=-1, dtype=np.int)
     for sent in spacy_doc.sents:
-        begin_tokens[sent.start: sent.end] = sent.start
-        end_tokens[sent.start: sent.end] = sent.end
+        begin_tokens[sent.start : sent.end] = sent.start
+        end_tokens[sent.start : sent.end] = sent.end
     return pd.Series(TokenSpanArray(tokens, begin_tokens, end_tokens))
 
 
@@ -249,12 +247,19 @@ def iob_to_spans(
         entity_types = np.zeros(len(first_tokens))
     else:
         entity_types = token_features[begin_mask][entity_type_col_name]
+
+    # Add an extra "O" tag to the end of the IOB column to simplify the logic
+    # for handling the case where the document ends with an entity.
+    iob_series = (
+        token_features[iob_col_name].append(pd.Series(["O"])).reset_index(drop=True)
+    )
+
     entity_prefixes = pd.DataFrame(
         {
             "ent_type": entity_types,
             "begin": first_tokens,  # Inclusive
             "end": first_tokens + 1,  # Exclusive
-            "next_tag": token_features.iloc[first_tokens + 1][iob_col_name].values,
+            "next_tag": iob_series.iloc[first_tokens + 1].values,
         }
     )
 
@@ -270,9 +275,9 @@ def iob_to_spans(
         complete_entities = entity_prefixes[complete_mask]
         incomplete_entities = entity_prefixes[~complete_mask].copy()
         incomplete_entities["end"] = incomplete_entities["end"] + 1
-        incomplete_entities["next_tag"] = token_features.iloc[
+        incomplete_entities["next_tag"] = iob_series.iloc[
             incomplete_entities["end"]
-        ][iob_col_name].values
+        ].values
         df_list.append(complete_entities)
         entity_prefixes = incomplete_entities
     all_entities = pd.concat(df_list)
