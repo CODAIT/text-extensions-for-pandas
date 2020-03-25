@@ -21,15 +21,15 @@
 
 import numpy as np
 import pandas as pd
-import textwrap
-import json
-
 import spacy
-import spacy.tokens.doc
-from spacy.tokenizer import Tokenizer
-from spacy.lang.en import English
+import spacy.tokenizer
 
-from text_extensions_for_pandas.array import *
+from text_extensions_for_pandas.array import (
+    CharSpanArray,
+    TokenSpanArray,
+    CharSpanType,
+    TokenSpanType,
+)
 
 # Set to True to use sparse storage for tokens 2-n of n-token dictionary
 # entries. First token is always stored dense, of course.
@@ -39,8 +39,7 @@ from text_extensions_for_pandas.array import *
 _SPARSE_DICT_ENTRIES = False
 
 
-def make_tokens(target_text: str,
-                tokenizer: spacy.tokenizer.Tokenizer) -> pd.Series:
+def make_tokens(target_text: str, tokenizer: spacy.tokenizer.Tokenizer) -> pd.Series:
     """
     :param target_text: Text to tokenize
     :param tokenizer: Preconfigured tokenizer object
@@ -53,9 +52,11 @@ def make_tokens(target_text: str,
     return pd.Series(CharSpanArray(target_text, tok_begins, tok_ends))
 
 
-def make_tokens_and_features(target_text: str,
-                             language_model: spacy.language.Language,
-                             add_left_and_right=False) -> pd.DataFrame:
+def make_tokens_and_features(
+    target_text: str,
+    language_model: spacy.language.Language,
+    add_left_and_right=False,
+) -> pd.DataFrame:
     """
     :param target_text: Text to analyze
 
@@ -99,7 +100,7 @@ def make_tokens_and_features(target_text: str,
         "ent_type": pd.Categorical([str(t.ent_type_) for t in spacy_doc]),
         "is_alpha": np.array([t.is_alpha for t in spacy_doc]),
         "is_stop": np.array([t.is_stop for t in spacy_doc]),
-        "sentence": _make_sentences_series(spacy_doc, tokens_array)
+        "sentence": _make_sentences_series(spacy_doc, tokens_array),
     }
     if add_left_and_right:
         # Use nullable int type because these columns contain nulls
@@ -112,8 +113,7 @@ def make_tokens_and_features(target_text: str,
     return pd.DataFrame(df_cols)
 
 
-def _make_sentences_series(spacy_doc: spacy.tokens.doc.Doc,
-                           tokens: CharSpanArray):
+def _make_sentences_series(spacy_doc: spacy.tokens.doc.Doc, tokens: CharSpanArray):
     """
     Subroutine of `make_tokens_and_features()`
 
@@ -130,15 +130,17 @@ def _make_sentences_series(spacy_doc: spacy.tokens.doc.Doc,
     begin_tokens = np.full(shape=num_toks, fill_value=-1, dtype=np.int)
     end_tokens = np.full(shape=num_toks, fill_value=-1, dtype=np.int)
     for sent in spacy_doc.sents:
-        begin_tokens[sent.start:sent.end] = sent.start
-        end_tokens[sent.start:sent.end] = sent.end
+        begin_tokens[sent.start: sent.end] = sent.start
+        end_tokens[sent.start: sent.end] = sent.end
     return pd.Series(TokenSpanArray(tokens, begin_tokens, end_tokens))
 
 
-def token_features_to_tree(token_features: pd.DataFrame,
-                           text_col: str = "token_span",
-                           tag_col: str = "tag",
-                           label_col: str = "dep"):
+def token_features_to_tree(
+    token_features: pd.DataFrame,
+    text_col: str = "token_span",
+    tag_col: str = "tag",
+    label_col: str = "dep",
+):
     """
     Convert a DataFrame in the format returned by `make_tokens_and_features()`
     to the public input format of displaCy's dependency tree renderer.
@@ -176,52 +178,50 @@ def token_features_to_tree(token_features: pd.DataFrame,
             return series.astype(str)
 
     # Renumber the head column to a dense range starting from zero
-    tok_map = {token_features.index[i]: i
-               for i in range(len(token_features.index))}
+    tok_map = {token_features.index[i]: i for i in range(len(token_features.index))}
     # Note that we turn any links to tokens not in our input rows into
     # self-links, which will get removed later on.
     head_tok = token_features["head"].values
     remapped_head_tok = []
     for i in range(len(token_features.index)):
-        remapped_head_tok.append(
-            tok_map[head_tok[i]] if head_tok[i] in tok_map
-            else i
-        )
+        remapped_head_tok.append(tok_map[head_tok[i]] if head_tok[i] in tok_map else i)
 
-    words_df = pd.DataFrame({
-        "text": _get_text(text_col),
-        "tag": _get_text(tag_col)
-    })
-    edges_df = pd.DataFrame({
-        "from": range(len(token_features.index)),
-        "to": remapped_head_tok,
-        "label": _get_text(label_col),
-    })
+    words_df = pd.DataFrame({"text": _get_text(text_col), "tag": _get_text(tag_col)})
+    edges_df = pd.DataFrame(
+        {
+            "from": range(len(token_features.index)),
+            "to": remapped_head_tok,
+            "label": _get_text(label_col),
+        }
+    )
     # displaCy requires all arcs to have their start and end be in
     # numeric order. An additional attribute "dir" tells which way
     # (left or right) each arc goes.
-    arcs_df = pd.DataFrame({
-        "start": edges_df[["from", "to"]].min(axis=1),
-        "end": edges_df[["from", "to"]].max(axis=1),
-        "label": edges_df["label"],
-        "dir": "left"
-    })
-    arcs_df["dir"].mask(edges_df["from"] > edges_df["to"], "right",
-                        inplace=True)
+    arcs_df = pd.DataFrame(
+        {
+            "start": edges_df[["from", "to"]].min(axis=1),
+            "end": edges_df[["from", "to"]].max(axis=1),
+            "label": edges_df["label"],
+            "dir": "left",
+        }
+    )
+    arcs_df["dir"].mask(edges_df["from"] > edges_df["to"], "right", inplace=True)
 
     # Don't render self-links
     arcs_df = arcs_df[arcs_df["start"] != arcs_df["end"]]
 
     return {
         "words": words_df.to_dict(orient="records"),
-        "arcs": arcs_df.to_dict(orient="records")
+        "arcs": arcs_df.to_dict(orient="records"),
     }
 
 
-def iob_to_spans(token_features: pd.DataFrame,
-                 iob_col_name: str = "ent_iob",
-                 char_span_col_name: str = "char_span",
-                 entity_type_col_name: str = "ent_type"):
+def iob_to_spans(
+    token_features: pd.DataFrame,
+    iob_col_name: str = "ent_iob",
+    char_span_col_name: str = "char_span",
+    entity_type_col_name: str = "ent_type",
+):
     """
     Convert token tags in Inside–Outside–Beginning (IOB) format to a series of
     `TokenSpan`s of entities.
@@ -249,12 +249,14 @@ def iob_to_spans(token_features: pd.DataFrame,
         entity_types = np.zeros(len(first_tokens))
     else:
         entity_types = token_features[begin_mask][entity_type_col_name]
-    entity_prefixes = pd.DataFrame({
-        "ent_type": entity_types,
-        "begin": first_tokens,  # Inclusive
-        "end": first_tokens + 1,  # Exclusive
-        "next_tag": token_features.iloc[first_tokens + 1][iob_col_name].values
-    })
+    entity_prefixes = pd.DataFrame(
+        {
+            "ent_type": entity_types,
+            "begin": first_tokens,  # Inclusive
+            "end": first_tokens + 1,  # Exclusive
+            "next_tag": token_features.iloc[first_tokens + 1][iob_col_name].values,
+        }
+    )
 
     df_list = []  # Type: pd.DataFrame
 
@@ -268,8 +270,9 @@ def iob_to_spans(token_features: pd.DataFrame,
         complete_entities = entity_prefixes[complete_mask]
         incomplete_entities = entity_prefixes[~complete_mask].copy()
         incomplete_entities["end"] = incomplete_entities["end"] + 1
-        incomplete_entities["next_tag"] = \
-            token_features.iloc[incomplete_entities["end"]][iob_col_name].values
+        incomplete_entities["next_tag"] = token_features.iloc[
+            incomplete_entities["end"]
+        ][iob_col_name].values
         df_list.append(complete_entities)
         entity_prefixes = incomplete_entities
     all_entities = pd.concat(df_list)
@@ -278,23 +281,28 @@ def iob_to_spans(token_features: pd.DataFrame,
     all_entities.sort_values("begin", inplace=True)
 
     # Convert [begin, end) pairs to spans
-    entity_spans_array = (
-        TokenSpanArray(token_features[char_span_col_name].values,
-                       all_entities["begin"].values,
-                       all_entities["end"].values))
+    entity_spans_array = TokenSpanArray(
+        token_features[char_span_col_name].values,
+        all_entities["begin"].values,
+        all_entities["end"].values,
+    )
     if entity_type_col_name is None:
         return pd.DataFrame({"token_span": entity_spans_array})
     else:
-        return pd.DataFrame({
-            "token_span": entity_spans_array,
-            entity_type_col_name: all_entities["ent_type"].values
-        })
+        return pd.DataFrame(
+            {
+                "token_span": entity_spans_array,
+                entity_type_col_name: all_entities["ent_type"].values,
+            }
+        )
 
 
-def render_parse_tree(token_features: pd.DataFrame,
-                      text_col: str = "token_span",
-                      tag_col: str = "tag",
-                      label_col: str = "dep"):
+def render_parse_tree(
+    token_features: pd.DataFrame,
+    text_col: str = "token_span",
+    tag_col: str = "tag",
+    label_col: str = "dep",
+):
     """
     Display a DataFrame in the format returned by `make_tokens_and_features()`
     using displaCy's dependency tree renderer.
@@ -320,10 +328,12 @@ def render_parse_tree(token_features: pd.DataFrame,
     suitable to pass to `displacy.render(manual=True ...)`
     See https://spacy.io/usage/visualizers for the specification of this format.
     """
-    return spacy.displacy.render(token_features_to_tree(token_features,
-                                                        text_col, tag_col,
-                                                        label_col),
-                                 manual=True)
+    import spacy
+
+    return spacy.displacy.render(
+        token_features_to_tree(token_features, text_col, tag_col, label_col),
+        manual=True,
+    )
 
 
 def load_dict(file_name: str, tokenizer: spacy.tokenizer.Tokenizer):
@@ -341,8 +351,9 @@ def load_dict(file_name: str, tokenizer: spacy.tokenizer.Tokenizer):
     :return: a `pd.DataFrame` with the normalized entries.
     """
     with open(file_name, "r") as f:
-        lines = [line.strip() for line in f.readlines() if len(line) > 0
-                 and line[0] != "#"]
+        lines = [
+            line.strip() for line in f.readlines() if len(line) > 0 and line[0] != "#"
+        ]
 
     # Tokenize with SpaCy. Produces a SpaCy document object per line.
     tokenized_entries = [tokenizer(line.lower()) for line in lines]
@@ -355,11 +366,11 @@ def load_dict(file_name: str, tokenizer: spacy.tokenizer.Tokenizer):
     cols_dict = {}
     for i in range(max_num_toks + 1):
         # Extract token i from every entry that has a token i
-        toks_list = [e[i].text if len(e) > i else None for e in
-                     tokenized_entries]
+        toks_list = [e[i].text if len(e) > i else None for e in tokenized_entries]
         cols_dict["toks_{}".format(i)] = (
             # Sparse storage for tokens 2 and onward
-            toks_list if i == 0 or not _SPARSE_DICT_ENTRIES
+            toks_list
+            if i == 0 or not _SPARSE_DICT_ENTRIES
             else pd.SparseArray(toks_list)
         )
 
