@@ -34,19 +34,18 @@ import text_extensions_for_pandas.util as util
 @pd.api.extensions.register_extension_dtype
 class TensorType(pd.api.extensions.ExtensionDtype):
     """
-    Panda datatype for a span that represents a range of characters within a
-    target string.
+    Pandas data type for a column of tensors with the same shape.
     """
 
     @property
     def type(self):
-        # The type for a single row of a column of type CharSpan
+        """The type for a single row of a TensorArray column."""
         return np.ndarray
 
     @property
     def name(self) -> str:
         """A string representation of the dtype."""
-        return "Tensor"
+        return "TensorType"
 
     @classmethod
     def construct_from_string(cls, string: str):
@@ -75,26 +74,24 @@ class TensorArray(pd.api.extensions.ExtensionArray):
     """
     A Pandas `ExtensionArray` that represents a column of `numpy.ndarray`s,
     or tensors, where the outer dimension is the count of tensors in the column.
+    Each tensor must have the same shape.
     """
 
-    def __init__(self, values: Union[np.ndarray, List[np.ndarray]],
+    def __init__(self, values: Union[np.ndarray, Sequence[np.ndarray]],
                  make_contiguous: bool = True):
         """
-        :param values: A `numpy.ndarray` or list of `numpy.ndarray`s
+        :param values: A `numpy.ndarray` or sequence of `numpy.ndarray`s of equal shape.
         :param make_contiguous: force values to be contiguous in memory
         """
-        if isinstance(values, list):
+        if isinstance(values, Sequence):
             self._tensor = np.stack(values, axis=0)
         elif isinstance(values, np.ndarray):
             self._tensor = values
         else:
             raise TypeError("Expected a numpy.ndarray or list of numpy.ndarray")
         
-        if not self._tensor.flags.c_contiguous:
-            if make_contiguous:
-                self._tensor = np.ascontiguousarray(self._tensor)
-            else:
-                raise ValueError("Input ndarray is not contiguous")
+        if not self._tensor.flags.c_contiguous and make_contiguous:
+            self._tensor = np.ascontiguousarray(self._tensor)
 
     @classmethod
     def _concat_same_type(
@@ -104,7 +101,7 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        return TensorArray([a._tensor for a in to_concat])
+        return TensorArray((a._tensor for a in to_concat))
 
     def isna(self) -> np.array:
         """
@@ -120,7 +117,7 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         for information about this method.
         """
         ret = TensorArray(
-            self._tensor,
+            self._tensor.copy(),
         )
         # TODO: Copy cached properties too
         return ret
@@ -133,7 +130,10 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        # TODO if allow_fill:
+        if allow_fill:
+            raise NotImplementedError("allow_fill not currently supported")
+        if fill_value is not None:
+            raise NotImplementedError("fill_value is not currently supported")
         values = self._tensor.take(indices, axis=0)
         return TensorArray(values)
 
@@ -160,15 +160,6 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         return TensorArray(self._tensor == other._tensor)
 
     def __lt__(self, other):
-        """
-        Pandas-style array/series comparison function.
-
-        :param other: Second operand of a Pandas "<" comparison with the series
-        that wraps this TokenSpanArray.
-
-        :return: Returns a boolean mask indicating which rows are less than
-         `other`. span1 < span2 if span1.end <= span2.begin.
-        """
         return TensorArray(self._tensor < other._tensor)
 
     def __gt__(self, other):

@@ -13,10 +13,12 @@
 #  limitations under the License.
 #
 
+import textwrap
+import unittest
+
 import numpy as np
 import numpy.testing as npt
 import pandas as pd
-import unittest
 
 from text_extensions_for_pandas.array.tensor import TensorArray
 
@@ -37,7 +39,7 @@ class TensorTest(unittest.TestCase):
             TensorArray(x)
 
         with self.assertRaises(TypeError):
-            TensorArray("foobar")
+            TensorArray(2112)
 
     def test_operations(self):
         x = np.ones([5, 3])
@@ -56,6 +58,12 @@ class TensorTest(unittest.TestCase):
 array([[1, 2],
        [3, 4],
        [5, 6]])"""
+        expected = textwrap.dedent(
+            """\
+        array([[1, 2],
+               [3, 4],
+               [5, 6]])"""
+        )
         s = TensorArray(x)
         result = s.__repr__()
         self.assertEqual(expected, result)
@@ -91,6 +99,7 @@ class TensorArrayDataFrameTests(unittest.TestCase):
 
     def test_create(self):
         x = np.array([[1, 2], [3, 4], [5, 6]])
-        df = pd.DataFrame({'i': list(range(len(x))), 'x': x})
+        s = TensorArray(x)
+        df = pd.DataFrame({'i': list(range(len(x))), 'tensor': s})
         # TODO
         print(df)
