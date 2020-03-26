@@ -35,6 +35,7 @@ from text_extensions_for_pandas.array import (
 # the collection.
 _CONLL_DOC_SEPARATOR = "-DOCSTART-"
 
+
 def _parse_conll_file(input_file: str) -> List[List[Dict[str, List[str]]]]:
     """
     Parse the CoNLL-2003 file format for training/test data to Python
@@ -52,7 +53,7 @@ def _parse_conll_file(input_file: str) -> List[List[Dict[str, List[str]]]]:
      * `token`: List of surface forms of tokens
      * `iob`: List of IOB tags as strings. This function does **NOT**
        correct for the silly way that CoNLL-format uses "B" tags. See
-       `fix_iob_tags()` for that correction.
+       `_fix_iob_tags()` for that correction.
      * `entity`: List of entity tags where `iob` contains I's or B's.
        `None` everywhere else.
     """
@@ -120,19 +121,104 @@ def _parse_conll_file(input_file: str) -> List[List[Dict[str, List[str]]]]:
     return docs
 
 
-def _fix_iob_tags(iobs: np.ndarray, entities: np.ndarray):
+def _parse_conll_output_file(doc_dfs: List[pd.DataFrame],
+                             input_file: str) -> List[Dict[str, List[str]]]:
+    """
+    Parse the CoNLL-2003 file format for output data to Python
+    objects. This format is similar to the format that `_parse_conll_file`
+    produces, but without the token and document boundary information.
+
+    :param doc_dfs: List of `pd.DataFrame`s of token information from the
+     corresponding training data file, one `DataFrame` per document.
+     Used for determining document boundaries, which are not encoded in
+     CoNLL-2003 output file format.
+    :param input_file: Location of the file to read
+    :returns: A list of dicts. The top list has one entry per
+     document. The next level contains lists under the following keys:
+     * `iob`: List of IOB tags as strings. This function does **NOT**
+       correct for the silly way that CoNLL-format uses "B" tags. See
+       `_fix_iob_tags()` for that correction.
+     * `entity`: List of entity tags where `iob` contains I's or B's.
+       `None` everywhere else.
+    """
+    with open(input_file, "r") as f:
+        lines = f.readlines()
+
+    # Build up a list of document metadata as Python objects
+    docs = []  # Type: List[Dict[str, List[str]]]
+
+    # Position in the corpus
+    doc_num = 0
+    num_tokens_in_doc = len(doc_dfs[doc_num].index)
+    token_num = 0
+
+    # Information about the current document's tokens
+    iobs = []  # Type: List[str]
+    entities = []  # Type: List[str]
+
+    for i in range(len(lines)):
+        l = lines[i].strip()
+        if 0 == len(l):
+            # Blank line is the sentence separator.
+            continue
+        if " " in l:
+            raise ValueError(f"Line {i} contains unexpected space character.\n"
+                             f"Line was: '{l}'")
+        raw_tag = l
+        if raw_tag.startswith("I") or raw_tag.startswith("B"):
+            # Tokens that are entities are tagged with tags like
+            # "I-PER" or "B-MISC".
+            tag, entity = raw_tag.split("-")
+        elif raw_tag == "O":
+            tag = raw_tag
+            entity = None
+        else:
+            raise ValueError(f"Unexpected tag {raw_tag} at line {i}.\n"
+                             f"Line was: '{l}'")
+        iobs.append(tag)
+        entities.append(entity)
+        token_num += 1
+        if token_num == num_tokens_in_doc:
+            # End of current document, advance to next
+            docs.append({
+                "iob": iobs,
+                "entity": entities
+            })
+            iobs = []
+            entities = []
+            doc_num += 1
+            token_num = 0
+            if doc_num < len(doc_dfs):
+                num_tokens_in_doc = len(doc_dfs[doc_num].index)
+
+    if doc_num < len(doc_dfs):
+        raise ValueError(f"Corpus has {len(doc_dfs)} documents, but"
+                         f"only found outputs for {doc_num} of them.")
+
+    return docs
+
+
+def _fix_iob_tags(df: pd.DataFrame) -> pd.DataFrame:
     """
     In CoNLL-2003 format, the first token of an entity is only tagged
     "B" when there are two entities of the same type back-to-back.
     Correct for that silliness by always tagging the first token
     with a "B"
 
-    Applies corrections in place to `iobs`
+    :param df: A `pd.DataFrame` that must contain the following two
+     columns:
+     * `ent_iob`: IOB tags (to be corrected)
+     * `ent_type`: Entity type strings or `None` if a token is not
+       an entity
+     * `sentence`: Sentence spans
 
-    :param iobs: Array of IOB tags as strings. **Modified in place.**
-    :param entities; Array of entity tags, with `None` for the token
-     offsets with no entities.
+    :returns: A version of `df` with corrected IOB tags in the `ent_iob`
+     column. The original dataframe is not modified.
     """
+    iobs = df["ent_iob"].values.copy()  # Modified in place
+    entities = df["ent_type"].values
+    sentence_begins = df["sentence"].values.begin_token
+
     # Special-case the first one
     if iobs[0] == "I":
         iobs[0] = "B"
@@ -145,8 +231,41 @@ def _fix_iob_tags(iobs: np.ndarray, entities: np.ndarray):
                 or (prev_tag in ("I", "B")
                     and entities[i] != entities[i - 1]
             )  # Previous token a different type of entity
+                or (sentence_begins[i] != sentence_begins[i-1]
+            )  # Start of new sentence
             ):
                 iobs[i] = "B"
+    ret = df.copy()
+    ret["ent_iob"] = iobs
+    return ret
+
+# def _fix_iob_tags__(iobs: np.ndarray, entities: np.ndarray):
+#     """
+#     In CoNLL-2003 format, the first token of an entity is only tagged
+#     "B" when there are two entities of the same type back-to-back.
+#     Correct for that silliness by always tagging the first token
+#     with a "B"
+#
+#     Applies corrections in place to `iobs`
+#
+#     :param iobs: Array of IOB tags as strings. **Modified in place.**
+#     :param entities; Array of entity tags, with `None` for the token
+#      offsets with no entities.
+#     """
+#     # Special-case the first one
+#     if iobs[0] == "I":
+#         iobs[0] = "B"
+#     for i in range(1, len(iobs)):
+#         tag = iobs[i]
+#         prev_tag = iobs[i - 1]
+#         if tag == "I":
+#             if (
+#                 prev_tag == "O"  # Previous token not an entity
+#                 or (prev_tag in ("I", "B")
+#                     and entities[i] != entities[i - 1]
+#             )  # Previous token a different type of entity
+#             ):
+#                 iobs[i] = "B"
 
 
 def _doc_to_df(doc: List[Dict[str, List[str]]]) -> pd.DataFrame:
@@ -162,43 +281,101 @@ def _doc_to_df(doc: List[Dict[str, List[str]]]) -> pd.DataFrame:
       a single string with one sentence per line.
     * `token_span`: Span of each token, with token offsets.
       Backed by the contents of the `char_span` column.
-    * `ent_iob`: IOB-format tags of tokens, corrected so that every
-      entity begins with a "B" tag.
+    * `ent_iob`: IOB-format tags of tokens, exactly as they appeared
+      in the original file, with no corrections applied.
     * `ent_type`: Entity type names for tokens tagged "I" or "B" in
       the `ent_iob` column; `None` everywhere else.
     """
-    begins_list = []
-    ends_list = []
-    sentences_list = []
-    position = 0
-    iobs_list = []
-    entities_list = []
+    begins_list = []  # Type: List[np.ndarray]
+    ends_list = []  # Type: List[np.ndarray]
+    sentences_list = []  # Type: List[np.ndarray]
+    iobs_list = []  # Type: List[np.ndarray]
+    entities_list = []  # Type: List[np.ndarray]
+    sentence_begins_list = []  # Type: List[np.ndarray]
+    sentence_ends_list = []  # Type: List[np.ndarray]
+
+    char_position = 0
+    token_position = 0
     for sentence in doc:
-        sentences_list.append(" ".join(sentence["token"]))
+        sentence_text = " ".join(sentence["token"])
+        sentences_list.append(sentence_text)
         lengths = np.array([len(t) for t in sentence["token"]])
+
         # Calculate begin and end offsets of tokens assuming 1 space
         # between them.
         e = np.cumsum(lengths + 1) - 1
         b = np.concatenate([[0], (e)[:-1] + 1])
-        begins_list.append(b + position)
-        ends_list.append(e + position)
         iobs = np.array(sentence["iob"])
         entities = np.array(sentence["entity"])
-        _fix_iob_tags(iobs, entities)
+        sentence_begin_token = token_position
+        sentence_end_token = token_position + len(e)
+        sentence_begins = np.repeat(sentence_begin_token, len(e))
+        sentence_ends = np.repeat(sentence_end_token, len(e))
+
+        begins_list.append(b + char_position)
+        ends_list.append(e + char_position)
         iobs_list.append(iobs)
         entities_list.append(entities)
-        position += e[-1] + 1  # "+ 1" to account for newline
+        sentence_begins_list.append(sentence_begins)
+        sentence_ends_list.append(sentence_ends)
+
+        char_position += e[-1] + 1  # "+ 1" to account for newline
+        token_position += len(e)
+
     begins = np.concatenate(begins_list)
     ends = np.concatenate(ends_list)
     doc_text = "\n".join(sentences_list)
     char_spans = CharSpanArray(doc_text, begins, ends)
     token_begins = np.arange(len(begins))
     token_spans = TokenSpanArray(char_spans, token_begins, token_begins + 1)
+    sentence_spans = TokenSpanArray(char_spans,
+                                    np.concatenate(sentence_begins_list),
+                                    np.concatenate(sentence_ends_list))
     return pd.DataFrame(
         {"char_span": char_spans,
          "token_span": token_spans,
          "ent_iob": np.concatenate(iobs_list),
-         "ent_type": np.concatenate(entities_list)})
+         "ent_type": np.concatenate(entities_list),
+         "sentence": sentence_spans})
+
+
+def _output_doc_to_df(tokens: pd.DataFrame,
+                      outputs: Dict[str, List[str]],
+                      copy_tokens: bool) -> pd.DataFrame:
+    """
+    Convert the "Python objects" representation of a document from a
+    CoNLL-2003 file into a `pd.DataFrame` of token metadata.
+
+    :param tokens: `pd.DataFrame` containing metadata about the tokens
+     of this document, as returned by `conll_2003_to_dataframe`
+    :param outputs: Dictionary containing outputs for this document,
+     with fields "iob" and "entity".
+    :param copy_tokens: `True` if token information should be deep-copied.
+    :return: DataFrame with four columns:
+    * `char_span`: Span of each token, with character offsets.
+      Backed by the concatenation of the tokens in the document into
+      a single string with one sentence per line.
+    * `token_span`: Span of each token, with token offsets.
+      Backed by the contents of the `char_span` column.
+    * `ent_iob`: IOB-format tags of tokens, corrected so that every
+      entity begins with a "B" tag.
+    * `ent_type`: Entity type names for tokens tagged "I" or "B" in
+      the `ent_iob` column; `None` everywhere else.
+    """
+    if copy_tokens:
+        return pd.DataFrame(
+            {"char_span": tokens["char_span"].copy(),
+             "token_span": tokens["token_span"].copy(),
+             "ent_iob": np.array(outputs["iob"]),
+             "ent_type": np.array(outputs["entity"]),
+             "sentence": tokens["sentence"].copy()})
+    else:
+        return pd.DataFrame(
+            {"char_span": tokens["char_span"],
+             "token_span": tokens["token_span"],
+             "ent_iob": np.array(outputs["iob"]),
+             "ent_type": np.array(outputs["entity"]),
+             "sentence": tokens["sentence"]})
 
 
 #####################################################
@@ -328,6 +505,54 @@ def conll_2003_to_dataframes(input_file: str) -> List[pd.DataFrame]:
     * `ent_type`: Entity type names for tokens tagged "I" or "B" in
       the `ent_iob` column; `None` everywhere else.
     """
-    return [_doc_to_df(d) for d in _parse_conll_file(input_file)]
+    return [_fix_iob_tags(_doc_to_df(d))
+            for d in _parse_conll_file(input_file)]
+
+
+def conll_2003_output_to_dataframes(doc_dfs: List[pd.DataFrame],
+                                    input_file: str,
+                                    copy_tokens: bool = False) -> List[pd.DataFrame]:
+    """
+    Parse a file in CoNLL-2003 output format into a DataFrame.
+
+    CoNLL-2003 output format looks like this:
+    ```
+    O
+    O
+    I-LOC
+    O
+    O
+
+    I-PER
+    I-PER
+    ```
+    Note the lack of any information about the tokens themselves. Note
+    also the lack of any information about document boundaries.
+
+    :param doc_dfs: List of `pd.DataFrame`s of token information, as
+     returned by `conll_2003_to_dataframes`. This is needed because
+     CoNLL-2003 output format does not include any information about
+     document boundaries.
+    :param input_file: Location of input file to read.
+    :param copy_tokens: If True, deep-copy token series from the
+     elements of `doc_dfs` instead of using pointers.
+    :return: A list containing, for each document in the input file,
+    a separate `pd.DataFrame` of four columns:
+    * `char_span`: Span of each token, with character offsets.
+      Backed by the concatenation of the tokens in the document into
+      a single string with one sentence per line.
+    * `token_span`: Span of each token, with token offsets.
+      Backed by the contents of the `char_span` column.
+    * `ent_iob`: IOB-format tags of tokens, corrected so that every
+      entity begins with a "B" tag.
+    * `ent_type`: Entity type names for tokens tagged "I" or "B" in
+      the `ent_iob` column; `None` everywhere else.
+    """
+    docs_list = _parse_conll_output_file(doc_dfs, input_file)
+    return [
+        _fix_iob_tags(_output_doc_to_df(tokens, outputs, copy_tokens))
+        for tokens, outputs in zip(doc_dfs, docs_list)
+    ]
+
 
 
