@@ -30,7 +30,7 @@ class IOTest(unittest.TestCase):
         from spacy.lang.en import English
         nlp = English()
         tokenizer = nlp.Defaults.create_tokenizer(nlp)
-        df = load_dict("test_data/test_io/test.dict", tokenizer)
+        df = load_dict("test_data/io/test_systemt/test.dict", tokenizer)
         # print(f"***{df}***")
         self.assertEqual(
             str(df),
