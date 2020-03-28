@@ -1,0 +1,28 @@
+eng.testa
+processed 51578 tokens with 5942 phrases; found: 5846 phrases; correct: 5280.
+accuracy:  98.07%; precision:  90.32%; recall:  88.86%; FB1:  89.58
+              LOC: precision:  93.27%; recall:  93.58%; FB1:  93.42
+             MISC: precision:  88.51%; recall:  81.02%; FB1:  84.60
+              ORG: precision:  84.67%; recall:  83.59%; FB1:  84.13
+              PER: precision:  92.26%; recall:  91.91%; FB1:  92.09
+eng.testb
+processed 46666 tokens with 5648 phrases; found: 5548 phrases; correct: 4698.
+accuracy:  96.80%; precision:  84.68%; recall:  83.18%; FB1:  83.92
+              LOC: precision:  86.44%; recall:  89.81%; FB1:  88.09
+             MISC: precision:  78.35%; recall:  73.22%; FB1:  75.70
+              ORG: precision:  80.27%; recall:  76.16%; FB1:  78.16
+              PER: precision:  89.77%; recall:  87.88%; FB1:  88.81
+deu.testa
+processed 51645 tokens with 4833 phrases; found: 3986 phrases; correct: 2956.
+accuracy:  95.19%; precision:  74.16%; recall:  61.16%; FB1:  67.04
+              LOC: precision:  72.23%; recall:  71.13%; FB1:  71.67
+             MISC: precision:  66.08%; recall:  44.95%; FB1:  53.51
+              ORG: precision:  71.90%; recall:  56.49%; FB1:  63.27
+              PER: precision:  82.77%; recall:  68.59%; FB1:  75.02
+deu.testb
+processed 52098 tokens with 3673 phrases; found: 3133 phrases; correct: 2344.
+accuracy:  96.18%; precision:  74.82%; recall:  63.82%; FB1:  68.88
+              LOC: precision:  69.06%; recall:  69.66%; FB1:  69.36
+             MISC: precision:  66.52%; recall:  46.27%; FB1:  54.58
+              ORG: precision:  68.84%; recall:  53.17%; FB1:  60.00
+              PER: precision:  87.91%; recall:  75.48%; FB1:  81.22
