@@ -89,27 +89,32 @@ def _parse_conll_file(input_file: str) -> List[List[Dict[str, List[str]]]]:
                 raise ValueError(f"Line {i} is not space-delimited.\n"
                                  f"Line was: '{l}'")
             token, raw_tag = line_elems
-            if token == _CONLL_DOC_SEPARATOR:
-                # End of previous document ==> start of next one
+
+            if raw_tag.startswith("I") or raw_tag.startswith("B"):
+                # Tokens that are entities are tagged with tags like
+                # "I-PER" or "B-MISC".
+                tag, entity = raw_tag.split("-")
+            elif raw_tag == "O":
+                tag = raw_tag
+                entity = None
+            else:
+                raise ValueError(f"Unexpected tag {raw_tag} at line {i}.\n"
+                                 f"Line was: '{l}'")
+
+            tokens.append(token)
+            iobs.append(tag)
+            entities.append(entity)
+
+            if token == _CONLL_DOC_SEPARATOR and i > 0:
+                # End of document.
+
+                # Note that the special "end of document" token is considered part
+                # of the document. If you do not follow this convention, the
+                # result sets from CoNLL 2003 won't line up.
+
+                # Wrap up this document and start a new one.
                 docs.append(sentences)
                 sentences = []
-            else:
-                # Not at the end of a sentence or a document. Must be
-                # in the middle of a sentence.
-                if raw_tag.startswith("I") or raw_tag.startswith("B"):
-                    # Tokens that are entities are tagged with tags like
-                    # "I-PER" or "B-MISC".
-                    tag, entity = raw_tag.split("-")
-                elif raw_tag == "O":
-                    tag = raw_tag
-                    entity = None
-                else:
-                    raise ValueError(f"Unexpected tag {raw_tag} at line {i}.\n"
-                                     f"Line was: '{l}'")
-
-                tokens.append(token)
-                iobs.append(tag)
-                entities.append(entity)
 
     # Close out the last token, sentence, and document, if needed
     if len(tokens) > 0:
@@ -192,8 +197,10 @@ def _parse_conll_output_file(doc_dfs: List[pd.DataFrame],
                 num_tokens_in_doc = len(doc_dfs[doc_num].index)
 
     if doc_num < len(doc_dfs):
-        raise ValueError(f"Corpus has {len(doc_dfs)} documents, but"
-                         f"only found outputs for {doc_num} of them.")
+        print(f"WARNING: Corpus has {len(doc_dfs)} documents, but "
+              f"only found outputs for {doc_num} of them.")
+        # raise ValueError(f"Corpus has {len(doc_dfs)} documents, but "
+        #                  f"only found outputs for {doc_num} of them.")
 
     return docs
 

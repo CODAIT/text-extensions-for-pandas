@@ -63,7 +63,7 @@ class IOTest(unittest.TestCase):
         )
         self.assertEqual(
             dfs[1]["char_span"].values.target_text,
-            "I'd kill for a Nobel Peace Prize ."
+            "-DOCSTART-\nI'd kill for a Nobel Peace Prize ."
         )
         # print(f"***{repr(dfs[0])}***")
         self.assertEqual(
@@ -106,15 +106,16 @@ class IOTest(unittest.TestCase):
             repr(dfs[1]),
             textwrap.dedent(
                 """\
-                           char_span         token_span ent_iob ent_type                                       sentence
-                0      [0, 3): 'I'd'      [0, 3): 'I'd'       O     None  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                1     [4, 8): 'kill'     [4, 8): 'kill'       O     None  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                2     [9, 12): 'for'     [9, 12): 'for'       O     None  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                3      [13, 14): 'a'      [13, 14): 'a'       O     None  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                4  [15, 20): 'Nobel'  [15, 20): 'Nobel'       B     MISC  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                5  [21, 26): 'Peace'  [21, 26): 'Peace'       I     MISC  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                6  [27, 32): 'Prize'  [27, 32): 'Prize'       I     MISC  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                7      [33, 34): '.'      [33, 34): '.'       O     None  [0, 34): 'I'd kill for a Nobel Peace Prize .'"""
+                               char_span             token_span ent_iob ent_type                                        sentence
+                0  [0, 10): '-DOCSTART-'  [0, 10): '-DOCSTART-'       O     None                           [0, 10): '-DOCSTART-'
+                1        [11, 14): 'I'd'        [11, 14): 'I'd'       O     None  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                2       [15, 19): 'kill'       [15, 19): 'kill'       O     None  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                3        [20, 23): 'for'        [20, 23): 'for'       O     None  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                4          [24, 25): 'a'          [24, 25): 'a'       O     None  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                5      [26, 31): 'Nobel'      [26, 31): 'Nobel'       B     MISC  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                6      [32, 37): 'Peace'      [32, 37): 'Peace'       I     MISC  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                7      [38, 43): 'Prize'      [38, 43): 'Prize'       I     MISC  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                8          [44, 45): '.'          [44, 45): '.'       O     None  [11, 45): 'I'd kill for a Nobel Peace Prize .'"""
             )
         )
 
@@ -133,7 +134,7 @@ class IOTest(unittest.TestCase):
         )
         self.assertEqual(
             output_dfs[1]["char_span"].values.target_text,
-            "I'd kill for a Nobel Peace Prize ."
+            "-DOCSTART-\nI'd kill for a Nobel Peace Prize ."
         )
         # print(f"***{repr(output_dfs[0])}***")
         self.assertEqual(
@@ -176,15 +177,16 @@ class IOTest(unittest.TestCase):
             repr(output_dfs[1]),
             textwrap.dedent(
                 """\
-                           char_span         token_span ent_iob ent_type                                       sentence
-                0      [0, 3): 'I'd'      [0, 3): 'I'd'       O     None  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                1     [4, 8): 'kill'     [4, 8): 'kill'       O     None  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                2     [9, 12): 'for'     [9, 12): 'for'       O     None  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                3      [13, 14): 'a'      [13, 14): 'a'       O     None  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                4  [15, 20): 'Nobel'  [15, 20): 'Nobel'       O     None  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                5  [21, 26): 'Peace'  [21, 26): 'Peace'       B     MISC  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                6  [27, 32): 'Prize'  [27, 32): 'Prize'       O     None  [0, 34): 'I'd kill for a Nobel Peace Prize .'
-                7      [33, 34): '.'      [33, 34): '.'       B     MISC  [0, 34): 'I'd kill for a Nobel Peace Prize .'"""
+                               char_span             token_span ent_iob ent_type                                        sentence
+                0  [0, 10): '-DOCSTART-'  [0, 10): '-DOCSTART-'       O     None                           [0, 10): '-DOCSTART-'
+                1        [11, 14): 'I'd'        [11, 14): 'I'd'       O     None  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                2       [15, 19): 'kill'       [15, 19): 'kill'       O     None  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                3        [20, 23): 'for'        [20, 23): 'for'       O     None  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                4          [24, 25): 'a'          [24, 25): 'a'       O     None  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                5      [26, 31): 'Nobel'      [26, 31): 'Nobel'       B     MISC  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                6      [32, 37): 'Peace'      [32, 37): 'Peace'       O     None  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                7      [38, 43): 'Prize'      [38, 43): 'Prize'       B     MISC  [11, 45): 'I'd kill for a Nobel Peace Prize .'
+                8          [44, 45): '.'          [44, 45): '.'       O     None  [11, 45): 'I'd kill for a Nobel Peace Prize .'"""
             )
         )
 
