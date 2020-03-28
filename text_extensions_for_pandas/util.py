@@ -48,6 +48,22 @@ def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"]) -> str:
             text_pieces.append("</span>")
         if text[i] == "\n":
             text_pieces.append("<br>")
+        elif text[i] == "&":
+            text_pieces.append("&amp;")
+        elif text[i] == "<":
+            text_pieces.append("&lt;")
+        elif text[i] == ">":
+            text_pieces.append("&gt;")
+        elif text[i] == "\"":
+            # Not strictly necessary, but just in case.
+            text_pieces.append("&quot;")
+        elif text[i] == "'":
+            # Not strictly necessary, but just in case.
+            text_pieces.append("&#39;")
+        elif text[i] == "$":
+            # Dollar sign messes up Jupyter's JavaScript UI.
+            text_pieces.append("&#36;")
+
         text_pieces.append(text[i])
 
     # TODO: Use CSS here instead of embedding formatting into the
