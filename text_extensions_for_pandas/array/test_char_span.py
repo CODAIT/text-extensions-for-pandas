@@ -132,6 +132,19 @@ class CharSpanTest(unittest.TestCase):
         self.assertTrue(s2.contains(s3))
         self.assertFalse(s3.contains(s4))
 
+    def test_context(self):
+        test_text = "This is a test."
+        s1 = CharSpan(test_text, 5, 7)
+        s2 = CharSpan(test_text, 0, 4)
+        s3 = CharSpan(test_text, 10, 15)
+
+        self.assertEqual(s1.context(), "This [is] a test.")
+        self.assertEqual(s1.context(2), "...s [is] a...")
+        self.assertEqual(s2.context(), "[This] is a test.")
+        self.assertEqual(s2.context(3), "[This] is...")
+        self.assertEqual(s3.context(), "This is a [test.]")
+        self.assertEqual(s3.context(3), "... a [test.]")
+
 
 class ArrayTestBase(TestBase):
     """

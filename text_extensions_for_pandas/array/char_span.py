@@ -145,6 +145,23 @@ class CharSpan:
         """
         return other.begin >= self.begin and other.end <= self.end
 
+    def context(self, num_chars: int = 40) -> str:
+        """
+        Show the location of this span in the context of the target string.
+
+        :param num_chars: How many characters on either side to display
+        :return: A string in the form:
+         ```<text before>[<text inside>]<text after>```
+         describing the text within and around the span.
+        """
+        before_text = self.target_text[self.begin - num_chars:self.begin]
+        after_text = self.target_text[self.end:self.end + num_chars]
+        if self.begin > num_chars:
+            before_text = "..." + before_text
+        if self.end + num_chars < len(self.target_text):
+            after_text = after_text + "..."
+        return f"{before_text}[{self.covered_text}]{after_text}"
+
 
 @pd.api.extensions.register_extension_dtype
 class CharSpanType(pd.api.extensions.ExtensionDtype):
