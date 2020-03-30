@@ -44,13 +44,36 @@ class TensorTest(unittest.TestCase):
     def test_operations(self):
         x = np.ones([5, 3])
 
+        # equal
         s1 = TensorArray(x)
         s2 = TensorArray(x)
         self.assertTrue(np.all(s1 == s2))
 
+        # less, greater
         s2 = TensorArray(x * 2)
         self.assertTrue(np.all(s1 < s2))
         self.assertFalse(np.any(s1 > s2))
+
+        # add TensorArrays
+        s1 = TensorArray(x * 2)
+        s2 = TensorArray(x * 3)
+        result = s1 + s2
+        self.assertTrue(isinstance(result, TensorArray))
+        npt.assert_equal(result.to_numpy().shape, [5, 3])
+        self.assertTrue(np.all(result == 5))
+
+        # multiply TensorArrays
+        s1 = TensorArray(x * 2)
+        s2 = TensorArray(x * 3)
+        result = s1 * s2
+        npt.assert_equal(result.to_numpy().shape, [5, 3])
+        self.assertTrue(np.all(result == 6))
+
+        # multiply scalar
+        s1 = TensorArray(x * 2)
+        result = s1 * 4
+        npt.assert_equal(result.to_numpy().shape, [5, 3])
+        self.assertTrue(np.all(result == 8))
 
     def test_repr(self):
         x = np.array([[1, 2], [3, 4], [5, 6]])

@@ -25,7 +25,8 @@ from typing import *
 
 import numpy as np
 import pandas as pd
-from memoized_property import memoized_property
+from pandas.compat import set_function_name
+from pandas.core import ops
 
 # Internal imports
 import text_extensions_for_pandas.util as util
@@ -70,7 +71,27 @@ class TensorType(pd.api.extensions.ExtensionDtype):
         return TensorArray
 
 
-class TensorArray(pd.api.extensions.ExtensionArray):
+class TensorOpsMixin(pd.api.extensions.ExtensionScalarOpsMixin):
+    """
+    Mixin to provide operators on underlying ndarray.
+    TODO: would be better to derive from ExtensionOpsMixin, but not available
+    """
+
+    @classmethod
+    def _create_method(cls, op, coerce_to_dtype=True):
+        # NOTE: this overrides, but coerce_to_dtype might not be needed
+
+        def _binop(self, other):
+            lvalues = self._tensor
+            rvalues = other._tensor if isinstance(other, TensorArray) else other
+            res = op(lvalues, rvalues)
+            return TensorArray(res)
+
+        op_name = ops._get_op_name(op, True)
+        return set_function_name(_binop, op_name, cls)
+
+
+class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     """
     A Pandas `ExtensionArray` that represents a column of `numpy.ndarray`s,
     or tensors, where the outer dimension is the count of tensors in the column.
@@ -156,21 +177,6 @@ class TensorArray(pd.api.extensions.ExtensionArray):
     def __len__(self) -> int:
         return len(self._tensor)
 
-    def __eq__(self, other):
-        return TensorArray(self._tensor == other._tensor)
-
-    def __lt__(self, other):
-        return TensorArray(self._tensor < other._tensor)
-
-    def __gt__(self, other):
-        return TensorArray(self._tensor > other._tensor)
-
-    def __le__(self, other):
-        return TensorArray(self._tensor <= other._tensor)
-
-    def __ge__(self, other):
-        return TensorArray(self._tensor >= other._tensor)
-
     def __getitem__(self, item) -> "TensorArray":
         """
         See docstring in `Extension   Array` class in `pandas/core/arrays/base.py`
@@ -212,3 +218,8 @@ class TensorArray(pd.api.extensions.ExtensionArray):
         HTML pretty-printing of a series of spans for Jupyter notebooks.
         """
         return util.pretty_print_html(self)
+
+
+# Add operators from the mixin to the class
+TensorArray._add_arithmetic_ops()
+TensorArray._add_comparison_ops()
