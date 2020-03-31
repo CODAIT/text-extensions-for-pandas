@@ -20,6 +20,8 @@
 
 import pandas as pd
 import numpy as np
+import regex
+import string
 
 from typing import *
 
@@ -34,6 +36,9 @@ from text_extensions_for_pandas.array import (
 # Special token that CoNLL-2003 format uses to delineate the documents in
 # the collection.
 _CONLL_DOC_SEPARATOR = "-DOCSTART-"
+
+_PUNCT_REGEX = regex.compile(f"[{string.punctuation}]+")
+_PUNCT_MATCH_FN = np.vectorize(lambda s: _PUNCT_REGEX.fullmatch(s) is not None)
 
 
 def _parse_conll_file(input_file: str) -> List[List[Dict[str, List[str]]]]:
@@ -246,42 +251,17 @@ def _fix_iob_tags(df: pd.DataFrame) -> pd.DataFrame:
     ret["ent_iob"] = iobs
     return ret
 
-# def _fix_iob_tags__(iobs: np.ndarray, entities: np.ndarray):
-#     """
-#     In CoNLL-2003 format, the first token of an entity is only tagged
-#     "B" when there are two entities of the same type back-to-back.
-#     Correct for that silliness by always tagging the first token
-#     with a "B"
-#
-#     Applies corrections in place to `iobs`
-#
-#     :param iobs: Array of IOB tags as strings. **Modified in place.**
-#     :param entities; Array of entity tags, with `None` for the token
-#      offsets with no entities.
-#     """
-#     # Special-case the first one
-#     if iobs[0] == "I":
-#         iobs[0] = "B"
-#     for i in range(1, len(iobs)):
-#         tag = iobs[i]
-#         prev_tag = iobs[i - 1]
-#         if tag == "I":
-#             if (
-#                 prev_tag == "O"  # Previous token not an entity
-#                 or (prev_tag in ("I", "B")
-#                     and entities[i] != entities[i - 1]
-#             )  # Previous token a different type of entity
-#             ):
-#                 iobs[i] = "B"
 
-
-def _doc_to_df(doc: List[Dict[str, List[str]]]) -> pd.DataFrame:
+def _doc_to_df(doc: List[Dict[str, List[str]]],
+               space_before_punct: bool) -> pd.DataFrame:
     """
     Convert the "Python objects" representation of a document from a
     CoNLL-2003 file into a `pd.DataFrame` of token metadata.
 
     :param doc: Tree of Python objects that represents the document,
      List with one dictionary per sentence.
+    :param space_before_punct: If `True`, add whitespace before
+     punctuation characters when reconstructing the text of the document.
     :return: DataFrame with four columns:
     * `char_span`: Span of each token, with character offsets.
       Backed by the concatenation of the tokens in the document into
@@ -304,14 +284,25 @@ def _doc_to_df(doc: List[Dict[str, List[str]]]) -> pd.DataFrame:
     char_position = 0
     token_position = 0
     for sentence in doc:
-        sentence_text = " ".join(sentence["token"])
-        sentences_list.append(sentence_text)
-        lengths = np.array([len(t) for t in sentence["token"]])
+        tokens = sentence["token"]
 
-        # Calculate begin and end offsets of tokens assuming 1 space
-        # between them.
-        e = np.cumsum(lengths + 1) - 1
-        b = np.concatenate([[0], (e)[:-1] + 1])
+        # Don't put spaces before punctuation in the reconstituted string.
+        no_space_mask = (
+            np.zeros(len(tokens), dtype=np.bool) if space_before_punct
+            else _PUNCT_MATCH_FN(tokens))
+        no_space_mask[0] = True  # No space before first token
+        prefixes = np.where(no_space_mask, "", " ")
+        string_parts = np.ravel((prefixes, tokens), order='F')
+        sentence_text = "".join(string_parts)
+        sentences_list.append(sentence_text)
+
+        lengths = np.array([len(t) for t in tokens])
+        prefix_lengths = np.array([len(p) for p in prefixes])
+
+        # Begin and end offsets, accounting for which tokens have spaces
+        # before them.
+        e = np.cumsum(lengths + prefix_lengths)
+        b = e - lengths
         iobs = np.array(sentence["iob"])
         entities = np.array(sentence["entity"])
         sentence_begin_token = token_position
@@ -471,7 +462,9 @@ def iob_to_spans(
         )
 
 
-def conll_2003_to_dataframes(input_file: str) -> List[pd.DataFrame]:
+def conll_2003_to_dataframes(input_file: str,
+                             space_before_punct: bool = False)\
+        -> List[pd.DataFrame]:
     """
     Parse a file in CoNLL-2003 training/test format into a DataFrame.
 
@@ -500,6 +493,8 @@ def conll_2003_to_dataframes(input_file: str) -> List[pd.DataFrame]:
     of the lines.
 
     :param input_file: Location of input file to read.
+    :param space_before_punct: If `True`, add whitespace before
+     punctuation characters when reconstructing the text of the document.
     :return: A list containing, for each document in the input file,
     a separate `pd.DataFrame` of four columns:
     * `char_span`: Span of each token, with character offsets.
@@ -512,7 +507,7 @@ def conll_2003_to_dataframes(input_file: str) -> List[pd.DataFrame]:
     * `ent_type`: Entity type names for tokens tagged "I" or "B" in
       the `ent_iob` column; `None` everywhere else.
     """
-    return [_fix_iob_tags(_doc_to_df(d))
+    return [_fix_iob_tags(_doc_to_df(d, space_before_punct))
             for d in _parse_conll_file(input_file)]
 
 
