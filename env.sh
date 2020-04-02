@@ -1,14 +1,16 @@
 #! /bin/bash
 
 
-
-# Create conda environment "pd" to run the notebooks in this directory.
+# Create conda environment to run the notebooks in this directory.
+# 
+# By default, the environment will be called "pd". To use a different name,
+# pass the name as the first argument to this script, i.e.
+#
+# $ ./env.sh my_environment_name
 
 # Use Python 3.7 for now because TensorFlow and JupyterLab don't support 3.8
 # yet.
 PYTHON_VERSION=3.7
-
-ENV_NAME="pd"
 
 ############################
 # HACK ALERT *** HACK ALERT 
@@ -32,6 +34,14 @@ fi
 # END HACK
 ############################
 
+# Check whether the user specified an environment name.
+if [ "$1" != "" ]; then
+    ENV_NAME=$1
+else
+    ENV_NAME="pd"
+fi
+echo "Creating an Anaconda environment called '${ENV_NAME}'"
+
 
 # Remove the detrius of any previous runs of this script
 conda env remove -n ${ENV_NAME}
@@ -46,19 +56,25 @@ conda install -y \
     tensorflow \
     jupyterlab \
     pandas \
-    regex
-
+    regex \
+    matplotlib \
+    cython \
+    grpcio-tools
 
 ################################################################################
 # Second-best way to install packages: conda-forge
 conda install -y -c conda-forge \
     spacy \
     pyarrow \
-    fastparquet
+    fastparquet \
+    plotly
 
 ################################################################################
 # Third-best way to install packages: pip
 pip install memoized-property
+
+# Watson tooling requires pyyaml to be installed this way.
+pip install pyyaml
 
 ################################################################################
 # Least-preferred install method: Custom
@@ -66,7 +82,16 @@ pip install memoized-property
 # spaCy language models for English
 python -m spacy download en_core_web_sm
 
-
+# Plotly for JupyterLab
+# Currently disabled because the install takes 5-10 minutes. 
+echo "Not installing jupyterlab-plotly because the install takes 5-10 minutes."
+echo "To install manually, activate the '${ENV_NAME}' environment and run the "
+echo "following command:"
+echo "   jupyter labextension install jupyterlab-plotly"
+#jupyter labextension install jupyterlab-plotly
 
 conda deactivate
+
+echo "Anaconda environment '${ENV_NAME}' successfully created."
+echo "To use, type 'conda activate ${ENV_NAME}'."
 
