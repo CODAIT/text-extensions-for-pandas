@@ -83,14 +83,20 @@ We have not yet posted a release of this project, but you can install by
 building a `pip` package or by directly importing the contents of the
 `text_extensions_for_pandas` source tree.
 
-To build a pip package:
+To build a pip package from your local copy:
 1. (optional) Activate the `pd` environment that `env.sh` creates
 1. `python3 setup.py sdist bdist_wheel`
 1. The package's `.whl` file will appear under the `dist` directory.
 
+To build and install a pip package from the head of the master branch:
+```
+pip install git+https://github.com/frreiss/text-extensions-for-pandas
+```
+
 To directly import the contents of the `text_extensions_for_pandas` source tree 
 as a Python package:
-
+1. Add the root directory of your local copy of this repository to the
+   front of 
 ```python
 import text_extensions_for_pandas as tp
 ```
