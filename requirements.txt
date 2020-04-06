@@ -1,0 +1,7 @@
+numpy>=1.17
+pandas>=1.0.1
+# TODO: add version ranges for the following:
+regex
+pyarrow
+fastparquet
+

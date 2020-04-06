@@ -21,8 +21,13 @@
 import numpy as np
 import pandas as pd
 
-import spacy.tokenizer
-import spacy.tokens
+# To avoid creating an unnecessary dependency on SpaCy for non-SpaCy
+# applications, we do NOT `import spacy` at the top level of this file,
+# and we do NOT include type hints for SpaCy types in the function
+# signatures below.
+# import spacy
+# import spacy.tokenizer
+# import spacy.tokens
 
 from text_extensions_for_pandas.array import (
     CharSpanArray,
@@ -32,10 +37,10 @@ from text_extensions_for_pandas.array import (
 )
 
 
-def make_tokens(target_text: str, tokenizer: spacy.tokenizer.Tokenizer) -> pd.Series:
+def make_tokens(target_text: str, tokenizer) -> pd.Series:
     """
     :param target_text: Text to tokenize
-    :param tokenizer: Preconfigured tokenizer object
+    :param tokenizer: Preconfigured `spacy.tokenizer.Tokenizer` object
     :return: The tokens (and underlying text) as a Pandas Series wrapped around
         a `CharSpanArray` value.
     """
@@ -46,12 +51,13 @@ def make_tokens(target_text: str, tokenizer: spacy.tokenizer.Tokenizer) -> pd.Se
 
 
 def make_tokens_and_features(
-    target_text: str, language_model: spacy.language.Language, add_left_and_right=False,
+    target_text: str, language_model, add_left_and_right=False,
 ) -> pd.DataFrame:
     """
     :param target_text: Text to analyze
 
-    :param language_model: Preconfigured spaCy language model object
+    :param language_model: Preconfigured spaCy language model (`spacy.language.Language`)
+     object
 
     :param add_left_and_right: If `True`, add columns "left" and "right"
     containing references to previous and next tokens.
@@ -104,11 +110,12 @@ def make_tokens_and_features(
     return pd.DataFrame(df_cols)
 
 
-def _make_sentences_series(spacy_doc: spacy.tokens.doc.Doc, tokens: CharSpanArray):
+def _make_sentences_series(spacy_doc, tokens: CharSpanArray):
     """
     Subroutine of `make_tokens_and_features()`
 
-    :param spacy_doc: parsed document from a spaCy language model
+    :param spacy_doc: parsed document (`spacy.tokens.doc.Doc`) from a spaCy language
+     model
 
     :param tokens: Token information for the current document as a
     `CharSpanArray` object. Must contain the same tokens as `spacy_doc`.
@@ -233,7 +240,7 @@ def render_parse_tree(
     suitable to pass to `displacy.render(manual=True ...)`
     See https://spacy.io/usage/visualizers for the specification of this format.
     """
-    import spacy
+    import spacy.displacy
 
     return spacy.displacy.render(
         token_features_to_tree(token_features, text_col, tag_col, label_col),
