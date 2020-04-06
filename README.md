@@ -79,7 +79,17 @@ This project aims to create the extensions that will turn Pandas into this unive
 
 ### Installation instructions
 
-We have not yet implemented scripts to build `pip` packages, but you can directly import the contents of the `text_extensions_for_pandas` source tree as a Python package:
+We have not yet posted a release of this project, but you can install by
+building a `pip` package or by directly importing the contents of the
+`text_extensions_for_pandas` source tree.
+
+To build a pip package:
+1. (optional) Activate the `pd` environment that `env.sh` creates
+1. `python3 setup.py sdist bdist_wheel`
+1. The package's `.whl` file will appear under the `dist` directory.
+
+To directly import the contents of the `text_extensions_for_pandas` source tree 
+as a Python package:
 
 ```python
 import text_extensions_for_pandas as tp
