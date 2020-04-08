@@ -98,13 +98,13 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     Each tensor must have the same shape.
     """
 
-    def __init__(self, values: Union[np.ndarray, Sequence[np.ndarray]],
+    def __init__(self, values: Union[np.ndarray, Iterable[np.ndarray]],
                  make_contiguous: bool = True):
         """
         :param values: A `numpy.ndarray` or sequence of `numpy.ndarray`s of equal shape.
         :param make_contiguous: force values to be contiguous in memory
         """
-        if isinstance(values, Sequence):
+        if isinstance(values, Iterable):
             self._tensor = np.stack(values, axis=0)
         elif isinstance(values, np.ndarray):
             self._tensor = values
@@ -124,7 +124,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        return TensorArray((a._tensor for a in to_concat))
+        return TensorArray(np.concatenate([a._tensor for a in to_concat]))
 
     def isna(self) -> np.array:
         """
@@ -214,12 +214,6 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         for information about this method.
         """
         raise NotImplementedError("not implemented")
-
-    def _repr_html_(self) -> str:
-        """
-        HTML pretty-printing of a series of spans for Jupyter notebooks.
-        """
-        return util.pretty_print_html(self)
 
 
 # Add operators from the mixin to the class

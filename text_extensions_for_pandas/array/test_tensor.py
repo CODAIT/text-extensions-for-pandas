@@ -23,7 +23,14 @@ import pandas as pd
 from text_extensions_for_pandas.array.tensor import TensorArray
 
 
-class TensorTest(unittest.TestCase):
+class TestTensor(unittest.TestCase):
+
+    def setUp(self):
+        # Ensure that diffs are consistent
+        pd.set_option("display.max_columns", 250)
+
+    def tearDown(self):
+        pd.reset_option("display.max_columns")
 
     def test_create(self):
         x = np.ones([5, 2, 3])
@@ -93,6 +100,41 @@ class TensorTest(unittest.TestCase):
         s = TensorArray(x)
         result = str(s)
         self.assertEqual(expected, result)
+
+    def test_concat(self):
+        x = np.arange(6).reshape((3, 2))
+        y = np.arange(6, 12).reshape((3, 2))
+        x_arr = TensorArray(x)
+        y_arr = TensorArray(y)
+        concat_arr = TensorArray._concat_same_type((x_arr, y_arr))
+        result = str(concat_arr)
+        self.assertEqual(
+            result,
+            textwrap.dedent(
+                """\
+                [[ 0  1]
+                 [ 2  3]
+                 [ 4  5]
+                 [ 6  7]
+                 [ 8  9]
+                 [10 11]]""")
+        )
+
+    def test_series_to_str(self):
+        x = np.arange(50).reshape((10, 5))
+        a = TensorArray(x)
+        s = pd.Series(a)
+        result = s.to_string(max_rows=4)
+        self.assertEqual(
+            result,
+            textwrap.dedent(
+                                """\
+                0        [0 1 2 3 4]
+                1        [5 6 7 8 9]
+                          ...       
+                8   [40 41 42 43 44]
+                9   [45 46 47 48 49]""")
+        )
 
     def test_slice(self):
         x = np.array([[1, 2], [3, 4], [5, 6]])
