@@ -109,7 +109,9 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         elif isinstance(values, np.ndarray):
             self._tensor = values
         else:
-            raise TypeError("Expected a numpy.ndarray or list of numpy.ndarray")
+            raise TypeError(f"Expected a numpy.ndarray or list of numpy.ndarray, "
+                            f"but received {values} "
+                            f"of type '{type(values)}' instead.")
         
         if not self._tensor.flags.c_contiguous and make_contiguous:
             self._tensor = np.ascontiguousarray(self._tensor)
