@@ -153,11 +153,16 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        if allow_fill:
-            raise NotImplementedError("allow_fill not currently supported")
-        if fill_value is not None:
-            raise NotImplementedError("fill_value is not currently supported")
         values = self._tensor.take(indices, axis=0)
+        if allow_fill:
+            # From API docs: "[If allow_fill == True, then] negative values in
+            # `indices` indicate missing values. These values are set to
+            # `fill_value`.
+            for i in range(len(indices)):
+                if indices[i] < 0:
+                    # Note that Numpy will broadcast the fill value to the shape
+                    # of each row.
+                    values[i] = fill_value
         return TensorArray(values)
 
     @property
