@@ -222,6 +222,14 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         """
         begins = np.array(begins) if isinstance(begins, list) else begins
         ends = np.array(ends) if isinstance(ends, list) else ends
+
+        if not np.issubdtype(begins.dtype, np.integer):
+            raise TypeError(f"Begins array is of dtype {begins.dtype}, "
+                            f"which is not an integer type.")
+        if not np.issubdtype(ends.dtype, np.integer):
+            raise TypeError(f"Ends array is of dtype {begins.dtype}, "
+                            f"which is not an integer type.")
+
         self._text = text  # Type: str
         self._begins = begins  # Type: np.ndarray
         self._ends = ends  # Type: np.ndarray
@@ -240,6 +248,9 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
 
         # Cached hash value of this array
         self._hash = None
+
+    ##########################################
+    # Overrides of superclass methods go here.
 
     @property
     def dtype(self) -> pd.api.extensions.ExtensionDtype:
@@ -475,7 +486,6 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         )
         return CharSpanArray(self.target_text, begins, ends)
 
-
     def __lt__(self, other):
         """
         Pandas-style array/series comparison function.
@@ -517,6 +527,28 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         else:
             raise TypeError(f"'{name}' aggregation not supported on a series "
                             f"backed by a CharSpanArray")
+
+    ####################################################
+    # Methods that don't override the superclass go here
+
+    @classmethod
+    def make_array(cls, o) -> "CharSpanArray":
+        """
+        Make a `CharSpanArray` object out of any of several types of input.
+
+        :param o: a CharSpanArray object represented as a `pd.Series`, a list
+        of `TokenSpan` objects, or maybe just an actual `CharSpanArray`
+        (or `TokenSpanArray`) object.
+
+        :return: CharSpanArray version of `o`, which may be a pointer to `o` or
+        one of its fields.
+        """
+        if isinstance(o, CharSpanArray):
+            return o
+        elif isinstance(o, pd.Series):
+            return cls.make_array(o.values)
+        elif isinstance(o, Iterable):
+            return cls._from_sequence(o)
 
     @property
     def target_text(self) -> str:

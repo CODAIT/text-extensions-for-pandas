@@ -274,6 +274,7 @@ class TokenSpanArray(CharSpanArray):
         # Cached hash value
         self._hash = None
 
+    ##########################################
     # Overrides of superclass methods go here.
 
     @property
@@ -458,7 +459,7 @@ class TokenSpanArray(CharSpanArray):
         """
         # From API docs: "[If allow_fill == True, then] negative values in
         # `indices` indicate missing values. These values are set to
-        # `fill_value`.  Any other negative values raise a ``ValueError``."
+        # `fill_value`.
         if fill_value is None or np.math.isnan(fill_value):
             # Replace with a "nan span"
             fill_value = TokenSpan(
@@ -574,6 +575,69 @@ class TokenSpanArray(CharSpanArray):
             return cls.make_array(o.values)
         elif isinstance(o, Iterable):
             return cls._from_sequence(o)
+
+    @classmethod
+    def align_to_tokens(cls, tokens: Any, spans: Any):
+        """
+        Align a set of character or token-based spans to a specified
+        tokenization, producing a `TokenSpanArray` of token-based spans.
+
+        :param tokens: The tokens to align to, as any type that
+         `CharSpanArray.make_array()` accepts.
+        :param spans: The spans to align.
+        :return: An array of `TokenSpan`s aligned to the tokens of `tokens`.
+         Raises `ValueError` if any of the spans in `spans` doesn't start and
+         end on a token boundary.
+        """
+        tokens = CharSpanArray.make_array(tokens)
+        spans = CharSpanArray.make_array(spans)
+
+        # Create and join temporary dataframes
+        tokens_df = pd.DataFrame({
+            "token_index": np.arange(len(tokens)),
+            "token_begin": tokens.begin,
+            "token_end": tokens.end
+        })
+        spans_df = pd.DataFrame({
+            "span_index": np.arange(len(spans)),
+            "span_begin": spans.begin,
+            "span_end": spans.end
+        })
+
+        begin_matches = pd.merge(tokens_df, spans_df,
+                                 left_on="token_begin",
+                                 right_on="span_begin",
+                                 how="right", indicator=True)
+
+        mismatched = begin_matches[begin_matches["_merge"] == "right_only"]
+        if len(mismatched.index) > 0:
+            raise ValueError(
+                f"The following span(s) did not align with the begin offset\n"
+                f"of any token:\n"
+                f"{mismatched[['span_index', 'span_begin', 'span_end']]}")
+
+        end_matches = pd.merge(tokens_df, spans_df,
+                               left_on="token_end",
+                               right_on="span_end",
+                               how="right", indicator=True)
+
+        mismatched = end_matches[end_matches["_merge"] == "right_only"]
+        if len(mismatched.index) > 0:
+            raise ValueError(
+                f"The following span(s) did not align with the end offset\n"
+                f"of any token:\n"
+                f"{mismatched[['span_index', 'span_begin', 'span_end']]}")
+
+            # Join on span index to get (begin, end) pairs.
+        begins_and_ends = pd.merge(
+            begin_matches[["token_index", "span_index"]],
+            end_matches[["token_index", "span_index"]],
+            on="span_index", suffixes=("_begin", "_end"),
+            sort=True)
+
+        return TokenSpanArray(tokens,
+                              begins_and_ends["token_index_begin"],
+                              begins_and_ends["token_index_end"] + 1)
 
     @property
     def tokens(self) -> CharSpanArray:
