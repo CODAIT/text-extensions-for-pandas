@@ -604,6 +604,10 @@ class TokenSpanArray(CharSpanArray):
             "span_end": spans.end
         })
 
+        # Ignore zero-length tokens
+        # TODO: Is this the right thing to do?
+        tokens_df = tokens_df[tokens_df["token_begin"] != tokens_df["token_end"]]
+
         begin_matches = pd.merge(tokens_df, spans_df,
                                  left_on="token_begin",
                                  right_on="span_begin",
@@ -628,7 +632,7 @@ class TokenSpanArray(CharSpanArray):
                 f"of any token:\n"
                 f"{mismatched[['span_index', 'span_begin', 'span_end']]}")
 
-            # Join on span index to get (begin, end) pairs.
+        # Join on span index to get (begin, end) pairs.
         begins_and_ends = pd.merge(
             begin_matches[["token_index", "span_index"]],
             end_matches[["token_index", "span_index"]],
