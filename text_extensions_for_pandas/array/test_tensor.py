@@ -82,6 +82,12 @@ class TestTensor(unittest.TestCase):
         npt.assert_equal(result.to_numpy().shape, [5, 3])
         self.assertTrue(np.all(result == 8))
 
+    def test_setitem(self):
+        x = np.array([[1, 2], [3, 4], [5, 6]])
+        a = TensorArray(x)
+        a[1] = np.array([42, 42])
+        npt.assert_equal(a[1], [42, 42])
+
     def test_repr(self):
         x = np.array([[1, 2], [3, 4], [5, 6]])
         expected = textwrap.dedent(

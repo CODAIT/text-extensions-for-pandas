@@ -168,7 +168,7 @@ class CharSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(arr.covered_text, ["This", "is", "a", "test"])
 
     def test_dtype(self):
-        arr = CharSpanArray("", np.array([]), np.array([]))
+        arr = CharSpanArray("", np.array([0],), np.array([0]))
         self.assertTrue(isinstance(arr.dtype, CharSpanType))
 
     def test_len(self):
