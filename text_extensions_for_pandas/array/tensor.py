@@ -201,7 +201,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        if isinstance(key, int):
+        if isinstance(key, (int, slice)):
             self._tensor[key] = value
         else:
             raise NotImplementedError(f"__setitem__ with key type '{type(key)}' "
