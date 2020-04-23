@@ -22,3 +22,4 @@
 from text_extensions_for_pandas.io.conll import *
 from text_extensions_for_pandas.io.spacy import *
 from text_extensions_for_pandas.io.systemt import *
+from text_extensions_for_pandas.io.tokenization import *
