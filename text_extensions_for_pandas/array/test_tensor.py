@@ -270,10 +270,8 @@ class TensorArrayIOTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as dirpath:
             filename = os.path.join(dirpath, 'tensor_array_test.feather')
-
             df.to_feather(filename)
             df_read = pd.read_feather(filename)
-
             pd.testing.assert_frame_equal(df, df_read)
 
     @unittest.skip("TODO: error when reading parquet back")
@@ -284,8 +282,6 @@ class TensorArrayIOTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as dirpath:
             filename = os.path.join(dirpath, 'tensor_array_test.parquet')
-
             df.to_parquet(filename)
             df_read = pd.read_parquet(filename)
-
             pd.testing.assert_frame_equal(df, df_read)
