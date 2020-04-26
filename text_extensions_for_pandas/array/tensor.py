@@ -222,7 +222,10 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        raise NotImplementedError("not implemented")
+        if name == "sum":
+            return TensorArray(np.sum(self._tensor, axis=0))
+        else:
+            raise NotImplementedError(f"'{name}' aggregate not implemented.")
 
 
 # Add operators from the mixin to the class
