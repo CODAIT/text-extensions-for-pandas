@@ -100,12 +100,62 @@ class TestTensor(unittest.TestCase):
         result = s.__repr__()
         self.assertEqual(expected, result)
 
+        result = repr(pd.Series(s))
+        expected = textwrap.dedent(
+            """\
+            0   [1 2]
+            1   [3 4]
+            2   [5 6]
+            dtype: TensorType"""
+        )
+        self.assertEqual(expected, result)
+
+        # The following currently doesn't work, due to
+        # https://github.com/pandas-dev/pandas/issues/33770
+        # TODO: Re-enable when a version of Pandas with a fix is released.
+        # y = np.array([[True, False], [False, True], [False, False]])
+        # s = TensorArray(y)
+        # result = s.__repr__()
+        # expected = textwrap.dedent(
+        #     """\
+        #     array([[ True, False],
+        #            [False,  True],
+        #            [False, False]])"""
+        # )
+        # self.assertEqual(expected, result)
+        #
+        # series = pd.Series(s)
+        # result = repr(series)
+        # expected = textwrap.dedent(
+        #     """\
+        #     0   [ True False]
+        #     1   [False  True]
+        #     2   [False False]
+        #     dtype: TensorType"""
+        # )
+        # # self.assertEqual(expected, result)
+        # print(f"***{result}***")
+
     def test_to_str(self):
         x = np.array([[1, 2], [3, 4], [5, 6]])
         expected = '[[1 2]\n [3 4]\n [5 6]]'
         s = TensorArray(x)
         result = str(s)
         self.assertEqual(expected, result)
+
+        # The following currently doesn't work, due to
+        # https://github.com/pandas-dev/pandas/issues/33770
+        # TODO: Re-enable when a version of Pandas with a fix is released.
+        # y = np.array([[True, False], [False, True], [False, False]])
+        # s = TensorArray(y)
+        # result = str(s)
+        # expected = textwrap.dedent(
+        #     """\
+        #     [[ True False]
+        #      [False  True]
+        #      [False False]]"""
+        # )
+        # self.assertEqual(expected, result)
 
     def test_concat(self):
         x = np.arange(6).reshape((3, 2))
