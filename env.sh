@@ -76,6 +76,9 @@ pip install memoized-property
 # Watson tooling requires pyyaml to be installed this way.
 pip install pyyaml
 
+# Huggingface transformers library is currently only on PyPI
+pip install transformers
+
 ################################################################################
 # Least-preferred install method: Custom
 
