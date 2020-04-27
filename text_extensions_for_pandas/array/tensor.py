@@ -70,6 +70,11 @@ class TensorType(pd.api.extensions.ExtensionDtype):
         """
         return TensorArray
 
+    def __from_arrow__(self, extension_array):
+        from text_extensions_for_pandas.array.arrow_compat import ArrowTensorArray
+        values = ArrowTensorArray.to_numpy(extension_array)
+        return TensorArray(values)
+
 
 class TensorOpsMixin(pd.api.extensions.ExtensionScalarOpsMixin):
     """
@@ -226,6 +231,10 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             return TensorArray(np.sum(self._tensor, axis=0))
         else:
             raise NotImplementedError(f"'{name}' aggregate not implemented.")
+
+    def __arrow_array__(self, type=None):
+        from text_extensions_for_pandas.array.arrow_compat import ArrowTensorArray
+        return ArrowTensorArray.from_numpy(self._tensor)
 
 
 # Add operators from the mixin to the class

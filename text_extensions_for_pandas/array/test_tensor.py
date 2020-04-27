@@ -13,6 +13,8 @@
 #  limitations under the License.
 #
 
+import os
+import tempfile
 import textwrap
 import unittest
 
@@ -257,3 +259,29 @@ class TensorArrayDataFrameTests(unittest.TestCase):
                 b    [[1, 1], [1, 1]]
                 c    [[3, 3], [3, 3]]""")
         )
+
+
+class TensorArrayIOTests(unittest.TestCase):
+
+    def test_feather(self):
+        x = np.arange(10).reshape(5, 2)
+        s = TensorArray(x)
+        df = pd.DataFrame({'i': list(range(len(x))), 'tensor': s})
+
+        with tempfile.TemporaryDirectory() as dirpath:
+            filename = os.path.join(dirpath, 'tensor_array_test.feather')
+            df.to_feather(filename)
+            df_read = pd.read_feather(filename)
+            pd.testing.assert_frame_equal(df, df_read)
+
+    @unittest.skip("TODO: error when reading parquet back")
+    def test_parquet(self):
+        x = np.arange(10).reshape(5, 2)
+        s = TensorArray(x)
+        df = pd.DataFrame({'i': list(range(len(x))), 'tensor': s})
+
+        with tempfile.TemporaryDirectory() as dirpath:
+            filename = os.path.join(dirpath, 'tensor_array_test.parquet')
+            df.to_parquet(filename)
+            df_read = pd.read_parquet(filename)
+            pd.testing.assert_frame_equal(df, df_read)
