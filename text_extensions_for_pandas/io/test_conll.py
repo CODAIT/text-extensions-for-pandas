@@ -34,7 +34,6 @@ class IOTest(unittest.TestCase):
     def tearDown(self):
         pd.reset_option("display.max_columns")
 
-
     def test_iob_to_spans(self):
         df = make_tokens_and_features(
             textwrap.dedent(
@@ -57,6 +56,23 @@ class IOTest(unittest.TestCase):
                 2  [100, 113): 'Steven Wright'   PERSON"""
             ),
         )
+
+    def test_spans_to_iob(self):
+        df = make_tokens_and_features(
+            textwrap.dedent(
+                """\
+            The Bermuda Triangle got tired of warm weather. 
+            It moved to Alaska. Now Santa Claus is missing.
+            -- Steven Wright"""
+            ),
+            _SPACY_LANGUAGE_MODEL,
+        )
+        spans = iob_to_spans(df)
+        self.assertTrue('ent_iob' in df.columns)
+        self.assertTrue('token_span' in spans.columns)
+        df_result = spans_to_iob(spans)
+        self.assertTrue('ent_iob' in df_result.columns)
+        pd.testing.assert_series_equal(df['ent_iob'], df_result['ent_iob'])
 
     def test_conll_2003_to_dataframes(self):
         dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt")
