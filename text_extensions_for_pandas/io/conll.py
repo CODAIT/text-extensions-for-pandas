@@ -462,6 +462,46 @@ def iob_to_spans(
         )
 
 
+def spans_to_iob(
+    span_frame: pd.DataFrame,
+    token_span_col_name: str = "token_span"
+):
+    """
+    Convert a series of `TokenSpan`s of entities to token tags in
+    Inside–Outside–Beginning (IOB) format.
+    :param span_frame: DataFrame with a `TokenSpanArray` column.
+    :param token_span_col_name: Name of a column in `token_features` that contains the
+     IOB tags as strings, "I", "O", or "B".
+    :return: A `pd.DataFrame` with the following columns:
+    * `ent_iob`: entity type in IOB format.
+    """
+    token_spans = span_frame[token_span_col_name]
+
+    # Define the IOB categorical type with 'B'==0, 'I'==1, 'O'==2
+    dtype = pd.CategoricalDtype(['B', 'I', 'O'], ordered=False)
+
+    # Handle an empty token span array
+    if len(token_spans) == 0:
+        return pd.DataFrame({'ent_iob': pd.Categorical([], dtype)})
+
+    # Initialize an IOB series with all 'O' entities
+    iob_data = np.ones(len(token_spans[0].tokens), dtype='int64') * 2
+    iob_series = pd.Categorical.from_codes(codes=iob_data, dtype=dtype)
+
+    # Assign the begin entities
+    iob_series[token_spans.values.begin_token] = 'B'
+
+    # Fill in the remaining inside entities
+    i_lengths = token_spans.values.end_token - (token_spans.values.begin_token + 1)
+    i_mask = i_lengths > 0
+    i_begins = token_spans.values.begin_token[i_mask] + 1
+    i_ends = token_spans.values.end_token[i_mask]
+    for begin, end in zip(i_begins, i_ends):
+        iob_series[begin:end] = 'I'
+
+    return pd.DataFrame({'ent_iob': iob_series})
+
+
 def conll_2003_to_dataframes(input_file: str,
                              space_before_punct: bool = False)\
         -> List[pd.DataFrame]:
