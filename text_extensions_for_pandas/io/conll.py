@@ -56,7 +56,7 @@ def _parse_conll_file(input_file: str) -> List[List[Dict[str, List[str]]]]:
      document. The next level lists have one entry per sentence.
      Each sentence's dict contains lists under the following keys:
      * `token`: List of surface forms of tokens
-     * `iob`: List of IOB tags as strings. This function does **NOT**
+     * `iob`: List of IOB2 tags as strings. This function does **NOT**
        correct for the silly way that CoNLL-format uses "B" tags. See
        `_fix_iob_tags()` for that correction.
      * `entity`: List of entity tags where `iob` contains I's or B's.
@@ -145,7 +145,7 @@ def _parse_conll_output_file(doc_dfs: List[pd.DataFrame],
     :param input_file: Location of the file to read
     :returns: A list of dicts. The top list has one entry per
      document. The next level contains lists under the following keys:
-     * `iob`: List of IOB tags as strings. This function does **NOT**
+     * `iob`: List of IOB2 tags as strings. This function does **NOT**
        correct for the silly way that CoNLL-format uses "B" tags. See
        `_fix_iob_tags()` for that correction.
      * `entity`: List of entity tags where `iob` contains I's or B's.
@@ -215,16 +215,18 @@ def _fix_iob_tags(df: pd.DataFrame) -> pd.DataFrame:
     In CoNLL-2003 format, the first token of an entity is only tagged
     "B" when there are two entities of the same type back-to-back.
     Correct for that silliness by always tagging the first token
-    with a "B"
+    with a "B". This conforms with the IOB2 format, see
+    https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)
+    for details.
 
     :param df: A `pd.DataFrame` that must contain the following two
      columns:
-     * `ent_iob`: IOB tags (to be corrected)
+     * `ent_iob`: IOB2 tags (to be corrected)
      * `ent_type`: Entity type strings or `None` if a token is not
        an entity
      * `sentence`: Sentence spans
 
-    :returns: A version of `df` with corrected IOB tags in the `ent_iob`
+    :returns: A version of `df` with corrected IOB2 tags in the `ent_iob`
      column. The original dataframe is not modified.
     """
     iobs = df["ent_iob"].values.copy()  # Modified in place
@@ -268,7 +270,7 @@ def _doc_to_df(doc: List[Dict[str, List[str]]],
       a single string with one sentence per line.
     * `token_span`: Span of each token, with token offsets.
       Backed by the contents of the `char_span` column.
-    * `ent_iob`: IOB-format tags of tokens, exactly as they appeared
+    * `ent_iob`: IOB2-format tags of tokens, exactly as they appeared
       in the original file, with no corrections applied.
     * `ent_type`: Entity type names for tokens tagged "I" or "B" in
       the `ent_iob` column; `None` everywhere else.
@@ -355,7 +357,7 @@ def _output_doc_to_df(tokens: pd.DataFrame,
       a single string with one sentence per line.
     * `token_span`: Span of each token, with token offsets.
       Backed by the contents of the `char_span` column.
-    * `ent_iob`: IOB-format tags of tokens, corrected so that every
+    * `ent_iob`: IOB2-format tags of tokens, corrected so that every
       entity begins with a "B" tag.
     * `ent_type`: Entity type names for tokens tagged "I" or "B" in
       the `ent_iob` column; `None` everywhere else.
@@ -386,12 +388,14 @@ def iob_to_spans(
     entity_type_col_name: str = "ent_type",
 ):
     """
-    Convert token tags in Inside–Outside–Beginning (IOB) format to a series of
-    `TokenSpan`s of entities.
+    Convert token tags in Inside–Outside–Beginning (IOB2) format to a series of
+    `TokenSpan`s of entities. See https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)
+    for more information on IOB2 format.
+
     :param token_features: DataFrame of token features in the format returned by
      `make_tokens_and_features`.
     :param iob_col_name: Name of a column in `token_features` that contains the
-     IOB tags as strings, "I", "O", or "B".
+     IOB2 tags as strings, "I", "O", or "B".
     :param char_span_col_name: Name of a column in `token_features` that
      contains the tokens as a `CharSpanArray`.
     :param entity_type_col_name: Optional name of a column in `token_features`
@@ -468,12 +472,14 @@ def spans_to_iob(
 ):
     """
     Convert a series of `TokenSpan`s of entities to token tags in
-    Inside–Outside–Beginning (IOB) format.
+    Inside–Outside–Beginning (IOB2) format. See https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)
+    for more information on IOB2 format.
+
     :param span_frame: DataFrame with a `TokenSpanArray` column.
     :param token_span_col_name: Name of a column in `token_features` that contains the
-     IOB tags as strings, "I", "O", or "B".
+     IOB2 tags as strings, "I", "O", or "B".
     :return: A `pd.DataFrame` with the following columns:
-    * `ent_iob`: entity type in IOB format.
+    * `ent_iob`: entity type in IOB2 format.
     """
     token_spans = span_frame[token_span_col_name]
 
@@ -542,7 +548,7 @@ def conll_2003_to_dataframes(input_file: str,
       a single string with one sentence per line.
     * `token_span`: Span of each token, with token offsets.
       Backed by the contents of the `char_span` column.
-    * `ent_iob`: IOB-format tags of tokens, corrected so that every
+    * `ent_iob`: IOB2-format tags of tokens, corrected so that every
       entity begins with a "B" tag.
     * `ent_type`: Entity type names for tokens tagged "I" or "B" in
       the `ent_iob` column; `None` everywhere else.
@@ -585,7 +591,7 @@ def conll_2003_output_to_dataframes(doc_dfs: List[pd.DataFrame],
       a single string with one sentence per line.
     * `token_span`: Span of each token, with token offsets.
       Backed by the contents of the `char_span` column.
-    * `ent_iob`: IOB-format tags of tokens, corrected so that every
+    * `ent_iob`: IOB2-format tags of tokens, corrected so that every
       entity begins with a "B" tag.
     * `ent_type`: Entity type names for tokens tagged "I" or "B" in
       the `ent_iob` column; `None` everywhere else.
