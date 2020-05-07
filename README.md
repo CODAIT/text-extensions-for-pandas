@@ -90,7 +90,7 @@ To build a pip package from your local copy:
 
 To build and install a pip package from the head of the master branch:
 ```
-pip install git+https://github.com/frreiss/text-extensions-for-pandas
+pip install git+https://github.com/CODAIT/text-extensions-for-pandas
 ```
 
 To directly import the contents of the `text_extensions_for_pandas` source tree 
@@ -103,7 +103,7 @@ import text_extensions_for_pandas as tp
 
 ## Contributing
 
-This project is an IBM open source project. We are developing the code in the open under the [Apache License](https://github.com/frreiss/text-extensions-for-pandas/blob/master/LICENSE), and we welcome contributions from both inside and outside IBM. 
+This project is an IBM open source project. We are developing the code in the open under the [Apache License](https://github.com/CODAIT/text-extensions-for-pandas/blob/master/LICENSE), and we welcome contributions from both inside and outside IBM. 
 
 To contribute, just open a Github issue or submit a pull request. Be sure to include a copy of the [Developer's Certificate of Origin 1.1](https://elinux.org/Developer_Certificate_Of_Origin) along with your pull request.
 
