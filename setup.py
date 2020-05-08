@@ -18,6 +18,10 @@ import setuptools
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+# read requirements from file
+with open('requirements.txt') as fh:
+    requirements = fh.read().splitlines()
+
 setuptools.setup(
     name="text_extensions_for_pandas",
     version="0.0.1_prealpha",
@@ -28,6 +32,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     # Note that this URL is where the project *will* be, not where it currently is.
     url="https://github.com/IBM/text-extensions-for-pandas",
+    install_requires=requirements,
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
