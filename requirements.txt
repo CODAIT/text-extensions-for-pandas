@@ -1,8 +1,8 @@
 numpy>=1.17
-pandas>=1.0.1
-# TODO: add version ranges for the following:
+pandas>=1.0.3
+pyarrow>=0.17.0
 regex
-pyarrow
 fastparquet
+# TODO: The following dependency should go away when we switch to Python 3.8.
 memoized-property
 
