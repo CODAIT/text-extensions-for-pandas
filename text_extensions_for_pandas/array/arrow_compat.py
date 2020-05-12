@@ -49,24 +49,11 @@ class ArrowCharSpanType(pa.PyExtensionType):
         # Store target text as field metadata
         metadata = {self.TARGET_TEXT_KEY: target_text}
 
-        '''
-        fields = [
-            pa.field('CharSpan', pa.struct(data_fields), nullable=False, metadata=metadata)
-        ]
-        '''
         fields = [
             pa.field(self.BEGINS_NAME, index_dtype, metadata=metadata),
             pa.field(self.ENDS_NAME, index_dtype)
         ]
-        '''
-        data_fields = [
-            ('begin', pa.int32()),
-            ('end', pa.int32())
-        ]
-        fields = [Deserialize
-            ('CharSpan', pa.struct(data_fields))
-        ]
-        '''
+
         pa.PyExtensionType.__init__(self, pa.struct(fields))
 
     def __reduce__(self):
@@ -83,19 +70,6 @@ def char_span_to_arrow(char_span):
     :param char_span: A CharSpanArray to be converted
     :return: pyarrow.ExtensionArray containing CharSpan data
     """
-
-    # Store begins as an offset array, offset length is 1 more than value count
-    #offsets = np.append(self._begins, self._begins[-1])
-
-    '''
-    offsets = np.full(len(self._begins) + 1, len(self._text), dtype='int32')
-    offsets_buf = pa.py_buffer(offsets)
-
-    # Create string array for the target text
-    text_buf = pa.py_buffer(self._text.encode('utf-8'))
-    text_array = pa.Array.from_buffers(pa.string(), len(self._begins), [None, offsets_buf, text_buf])
-    '''
-
     # Create array for begins, ends
     begins_array = pa.array(char_span.begin)
     ends_array = pa.array(char_span.end)
@@ -104,9 +78,6 @@ def char_span_to_arrow(char_span):
     data_fields = list(typ.storage_type)
 
     storage = pa.StructArray.from_arrays([begins_array, ends_array], fields=data_fields)
-
-    #data_array = pa.StructArray.from_arrays([begins_array, ends_array], fields=data_fields)
-    #storage = pa.StructArray.from_arrays([data_array], fields=fields)
 
     return pa.ExtensionArray.from_storage(typ, storage)
 
