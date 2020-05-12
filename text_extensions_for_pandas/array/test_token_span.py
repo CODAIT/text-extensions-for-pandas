@@ -14,6 +14,8 @@
 #
 
 import numpy as np
+import os
+import tempfile
 import unittest
 
 from text_extensions_for_pandas.array.test_char_span import ArrayTestBase
@@ -290,6 +292,19 @@ class TokenSpanArrayTest(ArrayTestBase):
             df.columns, ["begin", "end", "begin_token", "end_token", "covered_text"]
         )
         self.assertEqual(len(df), len(arr))
+
+
+class TokenSpanArrayIOTests(ArrayTestBase):
+
+    def test_feather(self):
+        arr = self._make_spans_of_tokens()
+        df = pd.DataFrame({'TokenSpan': arr})
+
+        with tempfile.TemporaryDirectory() as dirpath:
+            filename = os.path.join(dirpath, 'token_span_array_test.feather')
+            df.to_feather(filename)
+            df_read = pd.read_feather(filename)
+            pd.testing.assert_frame_equal(df, df_read)
 
 
 if __name__ == "__main__":

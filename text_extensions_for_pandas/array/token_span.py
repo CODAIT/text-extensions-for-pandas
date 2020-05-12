@@ -197,13 +197,13 @@ class TokenSpanType(CharSpanType):
 
     @property
     def type(self):
-        # The type for a single row of a column of type CharSpan
+        # The type for a single row of a column of type TokenSpan
         return TokenSpan
 
     @property
     def name(self) -> str:
         """:return: A string representation of the dtype."""
-        return "CharSpan"
+        return "TokenSpanType"
 
     @classmethod
     def construct_array_type(cls):
@@ -212,6 +212,14 @@ class TokenSpanType(CharSpanType):
         for information about this method.
         """
         return TokenSpanArray
+
+    def __from_arrow__(self, extension_array):
+        """
+        Convert the given extension array of type ArrowTokenSpanType to a
+        TokenSpanArray.
+        """
+        from text_extensions_for_pandas.array.arrow_compat import arrow_to_token_span
+        return arrow_to_token_span(extension_array)
 
 
 class TokenSpanArray(CharSpanArray):
@@ -772,3 +780,12 @@ class TokenSpanArray(CharSpanArray):
             if hasattr(self, attr_name):
                 delattr(self, attr_name)
         self._hash = None
+
+    def __arrow_array__(self, type=None):
+        """
+        Conversion of this Array to a pyarrow.ExtensionArray.
+        :param type: Optional type passed to arrow for conversion, not used
+        :return: pyarrow.ExtensionArray of type ArrowTokenSpanType
+        """
+        from text_extensions_for_pandas.array.arrow_compat import token_span_to_arrow
+        return token_span_to_arrow(self)

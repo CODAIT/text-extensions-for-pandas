@@ -24,7 +24,7 @@
 import numpy as np
 import pyarrow as pa
 
-from text_extensions_for_pandas.array import CharSpanArray
+from text_extensions_for_pandas.array import CharSpanArray, TokenSpanArray
 
 
 class ArrowCharSpanType(pa.PyExtensionType):
@@ -33,8 +33,8 @@ class ArrowCharSpanType(pa.PyExtensionType):
     """
 
     TARGET_TEXT_KEY = b"target_text"  # metadata key/value gets serialized to bytes
-    BEGINS_NAME = "begins"
-    ENDS_NAME = "ends"
+    BEGINS_NAME = "char_begins"
+    ENDS_NAME = "char_ends"
 
     def __init__(self, index_dtype, target_text):
         """
@@ -57,7 +57,46 @@ class ArrowCharSpanType(pa.PyExtensionType):
         pa.PyExtensionType.__init__(self, pa.struct(fields))
 
     def __reduce__(self):
-        return ArrowCharSpanType, ()
+        index_dtype = self.storage_type[self.BEGINS_NAME].type
+        metadata = self.storage_type[self.BEGINS_NAME].metadata
+        return ArrowCharSpanType, (index_dtype, metadata)
+
+
+class ArrowTokenSpanType(pa.PyExtensionType):
+    """
+    PyArrow extension type definition for conversions to/from CharSpan columns
+    """
+
+    TARGET_TEXT_KEY = ArrowCharSpanType.TARGET_TEXT_KEY
+    BEGINS_NAME = "token_begins"
+    ENDS_NAME = "token_ends"
+
+    def __init__(self, index_dtype, target_text):
+        """
+        Create an instance of a CharSpan data type with given index type and
+        target text that will be stored in Field metadata.
+
+        :param index_dtype:
+        :param target_text:
+        """
+        assert pa.types.is_integer(index_dtype)
+
+        # Store target text as field metadata
+        metadata = {self.TARGET_TEXT_KEY: target_text}
+
+        fields = [
+            pa.field(self.BEGINS_NAME, index_dtype),
+            pa.field(self.ENDS_NAME, index_dtype),
+            pa.field(ArrowCharSpanType.BEGINS_NAME, index_dtype, metadata=metadata),
+            pa.field(ArrowCharSpanType.ENDS_NAME, index_dtype)
+        ]
+
+        pa.PyExtensionType.__init__(self, pa.struct(fields))
+
+    def __reduce__(self):
+        index_dtype = self.storage_type[self.BEGINS_NAME].type
+        metadata = self.storage_type[ArrowCharSpanType.BEGINS_NAME].metadata
+        return ArrowTokenSpanType, (index_dtype, metadata)
 
 
 def char_span_to_arrow(char_span):
@@ -75,9 +114,9 @@ def char_span_to_arrow(char_span):
     ends_array = pa.array(char_span.end)
 
     typ = ArrowCharSpanType(begins_array.type, char_span.target_text)
-    data_fields = list(typ.storage_type)
+    fields = list(typ.storage_type)
 
-    storage = pa.StructArray.from_arrays([begins_array, ends_array], fields=data_fields)
+    storage = pa.StructArray.from_arrays([begins_array, ends_array], fields=fields)
 
     return pa.ExtensionArray.from_storage(typ, storage)
 
@@ -112,6 +151,69 @@ def arrow_to_char_span(extension_array):
     ends = ends_array.to_numpy()
 
     return CharSpanArray(target_text, begins, ends)
+
+
+def token_span_to_arrow(token_span):
+    """
+    Convert a TokenSpanArray to a pyarrow.ExtensionArray with a type
+    of ArrowTokenSpanType and struct as the storage type. The resulting
+    extension array can be serialized and transferred with standard
+    Arrow protocols.
+
+    :param token_span: A TokenSpanArray to be converted
+    :return: pyarrow.ExtensionArray containing TokenSpan data
+    """
+    # Create array for begins, ends
+    token_begins_array = pa.array(token_span.begin_token)
+    token_ends_array = pa.array(token_span.end_token)
+    char_begins_array = pa.array(token_span.begin)
+    char_ends_array = pa.array(token_span.end)
+
+    typ = ArrowTokenSpanType(token_begins_array.type, token_span.target_text)
+    fields = list(typ.storage_type)
+
+    storage = pa.StructArray.from_arrays([token_begins_array, token_ends_array, char_begins_array,
+                                          char_ends_array], fields=fields)
+
+    return pa.ExtensionArray.from_storage(typ, storage)
+
+
+def arrow_to_token_span(extension_array):
+    """
+    Convert a pyarrow.ExtensionArray with type ArrowTokenSpanType to
+    a TokenSpanArray.
+
+    :param extension_array: pyarrow.ExtensionArray with type ArrowTokenSpanType
+    :return: TokenSpanArray
+    """
+    if isinstance(extension_array, pa.ChunkedArray):
+        if extension_array.num_chunks > 1:
+            raise ValueError("Only pyarrow.Array with a single chunk is supported")
+        extension_array = extension_array.chunk(0)
+
+    assert pa.types.is_struct(extension_array.storage.type)
+
+    # Get target text from the begins field metadata and decode string
+    metadata = extension_array.storage.type[ArrowCharSpanType.BEGINS_NAME].metadata
+    target_text = metadata[ArrowCharSpanType.TARGET_TEXT_KEY]
+    if isinstance(target_text, bytes):
+        target_text = target_text.decode()
+
+    # Get the begins/ends pyarrow arrays
+    token_begins_array = extension_array.storage.field(ArrowTokenSpanType.BEGINS_NAME)
+    token_ends_array = extension_array.storage.field(ArrowTokenSpanType.ENDS_NAME)
+    char_begins_array = extension_array.storage.field(ArrowCharSpanType.BEGINS_NAME)
+    char_ends_array = extension_array.storage.field(ArrowCharSpanType.ENDS_NAME)
+
+    # Zero-copy convert arrays to numpy
+    token_begins = token_begins_array.to_numpy()
+    token_ends = token_ends_array.to_numpy()
+    begins = char_begins_array.to_numpy()
+    ends = char_ends_array.to_numpy()
+
+    # Create the CharSpanArray, then the TokenSpanArray
+    char_span = CharSpanArray(target_text, begins, ends)
+    return TokenSpanArray(char_span, token_begins, token_ends)
 
 
 class ArrowTensorType(pa.PyExtensionType):
