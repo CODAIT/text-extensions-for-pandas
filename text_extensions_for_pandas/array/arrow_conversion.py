@@ -14,7 +14,7 @@
 #
 
 #
-# arrow_compat.py
+# arrow_conversion.py
 #
 # Part of text_extensions_for_pandas
 #
@@ -64,7 +64,7 @@ class ArrowCharSpanType(pa.PyExtensionType):
 
 class ArrowTokenSpanType(pa.PyExtensionType):
     """
-    PyArrow extension type definition for conversions to/from CharSpan columns
+    PyArrow extension type definition for conversions to/from TokenSpan columns
     """
 
     TARGET_TEXT_KEY = ArrowCharSpanType.TARGET_TEXT_KEY
@@ -73,7 +73,7 @@ class ArrowTokenSpanType(pa.PyExtensionType):
 
     def __init__(self, index_dtype, target_text):
         """
-        Create an instance of a CharSpan data type with given index type and
+        Create an instance of a TokenSpan data type with given index type and
         target text that will be stored in Field metadata.
 
         :param index_dtype:

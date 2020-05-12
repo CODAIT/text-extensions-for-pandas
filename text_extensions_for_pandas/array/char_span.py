@@ -207,7 +207,7 @@ class CharSpanType(pd.api.extensions.ExtensionDtype):
         Convert the given extension array of type ArrowCharSpanType to a
         CharSpanArray.
         """
-        from text_extensions_for_pandas.array.arrow_compat import arrow_to_char_span
+        from text_extensions_for_pandas.array.arrow_conversion import arrow_to_char_span
         return arrow_to_char_span(extension_array)
 
 
@@ -698,5 +698,5 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         :param type: Optional type passed to arrow for conversion, not used
         :return: pyarrow.ExtensionArray of type ArrowCharSpanType
         """
-        from text_extensions_for_pandas.array.arrow_compat import char_span_to_arrow
+        from text_extensions_for_pandas.array.arrow_conversion import char_span_to_arrow
         return char_span_to_arrow(self)

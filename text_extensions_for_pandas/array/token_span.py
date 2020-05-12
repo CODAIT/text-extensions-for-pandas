@@ -218,7 +218,7 @@ class TokenSpanType(CharSpanType):
         Convert the given extension array of type ArrowTokenSpanType to a
         TokenSpanArray.
         """
-        from text_extensions_for_pandas.array.arrow_compat import arrow_to_token_span
+        from text_extensions_for_pandas.array.arrow_conversion import arrow_to_token_span
         return arrow_to_token_span(extension_array)
 
 
@@ -787,5 +787,5 @@ class TokenSpanArray(CharSpanArray):
         :param type: Optional type passed to arrow for conversion, not used
         :return: pyarrow.ExtensionArray of type ArrowTokenSpanType
         """
-        from text_extensions_for_pandas.array.arrow_compat import token_span_to_arrow
+        from text_extensions_for_pandas.array.arrow_conversion import token_span_to_arrow
         return token_span_to_arrow(self)
