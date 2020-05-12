@@ -24,6 +24,124 @@
 import numpy as np
 import pyarrow as pa
 
+from text_extensions_for_pandas.array import CharSpanArray
+
+
+class ArrowCharSpanType(pa.PyExtensionType):
+    """
+    PyArrow extension type definition for conversions to/from CharSpan columns
+    """
+
+    TARGET_TEXT_KEY = b"target_text"  # metadata key/value gets serialized to bytes
+    BEGINS_NAME = "begins"
+    ENDS_NAME = "ends"
+
+    def __init__(self, index_dtype, target_text):
+        """
+        Create an instance of a CharSpan data type with given index type and
+        target text that will be stored in Field metadata.
+
+        :param index_dtype:
+        :param target_text:
+        """
+        assert pa.types.is_integer(index_dtype)
+
+        # Store target text as field metadata
+        metadata = {self.TARGET_TEXT_KEY: target_text}
+
+        '''
+        fields = [
+            pa.field('CharSpan', pa.struct(data_fields), nullable=False, metadata=metadata)
+        ]
+        '''
+        fields = [
+            pa.field(self.BEGINS_NAME, index_dtype, metadata=metadata),
+            pa.field(self.ENDS_NAME, index_dtype)
+        ]
+        '''
+        data_fields = [
+            ('begin', pa.int32()),
+            ('end', pa.int32())
+        ]
+        fields = [Deserialize
+            ('CharSpan', pa.struct(data_fields))
+        ]
+        '''
+        pa.PyExtensionType.__init__(self, pa.struct(fields))
+
+    def __reduce__(self):
+        return ArrowCharSpanType, ()
+
+
+def char_span_to_arrow(char_span):
+    """
+    Convert a CharSpanArray to a pyarrow.ExtensionArray with a type
+    of ArrowCharSpanType and struct as the storage type. The resulting
+    extension array can be serialized and transferred with standard
+    Arrow protocols.
+
+    :param char_span: A CharSpanArray to be converted
+    :return: pyarrow.ExtensionArray containing CharSpan data
+    """
+
+    # Store begins as an offset array, offset length is 1 more than value count
+    #offsets = np.append(self._begins, self._begins[-1])
+
+    '''
+    offsets = np.full(len(self._begins) + 1, len(self._text), dtype='int32')
+    offsets_buf = pa.py_buffer(offsets)
+
+    # Create string array for the target text
+    text_buf = pa.py_buffer(self._text.encode('utf-8'))
+    text_array = pa.Array.from_buffers(pa.string(), len(self._begins), [None, offsets_buf, text_buf])
+    '''
+
+    # Create array for begins, ends
+    begins_array = pa.array(char_span.begin)
+    ends_array = pa.array(char_span.end)
+
+    typ = ArrowCharSpanType(begins_array.type, char_span.target_text)
+    data_fields = list(typ.storage_type)
+
+    storage = pa.StructArray.from_arrays([begins_array, ends_array], fields=data_fields)
+
+    #data_array = pa.StructArray.from_arrays([begins_array, ends_array], fields=data_fields)
+    #storage = pa.StructArray.from_arrays([data_array], fields=fields)
+
+    return pa.ExtensionArray.from_storage(typ, storage)
+
+
+def arrow_to_char_span(extension_array):
+    """
+    Convert a pyarrow.ExtensionArray with type ArrowCharSpanType to
+    a CharSpanArray.
+
+    :param extension_array: pyarrow.ExtensionArray with type ArrowCharSpanType
+    :return: CharSpanArray
+    """
+    if isinstance(extension_array, pa.ChunkedArray):
+        if extension_array.num_chunks > 1:
+            raise ValueError("Only pyarrow.Array with a single chunk is supported")
+        extension_array = extension_array.chunk(0)
+
+    assert pa.types.is_struct(extension_array.storage.type)
+
+    # Get target text from the begins field metadata and decode string
+    metadata = extension_array.storage.type[ArrowCharSpanType.BEGINS_NAME].metadata
+    target_text = metadata[ArrowCharSpanType.TARGET_TEXT_KEY]
+    if isinstance(target_text, bytes):
+        target_text = target_text.decode()
+
+    # Get the begins/ends pyarrow arrays
+    begins_array = extension_array.storage.field(ArrowCharSpanType.BEGINS_NAME)
+    ends_array = extension_array.storage.field(ArrowCharSpanType.ENDS_NAME)
+
+    # Zero-copy convert arrays to numpy
+    begins = begins_array.to_numpy()
+    ends = ends_array.to_numpy()
+
+    return CharSpanArray(target_text, begins, ends)
+
 
 class ArrowTensorType(pa.PyExtensionType):
     """

@@ -14,6 +14,8 @@
 #
 
 import numpy as np
+import os
+import tempfile
 import unittest
 
 from text_extensions_for_pandas.array.char_span import *
@@ -361,6 +363,19 @@ class CharSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(
             one_one_2_2.contains(CharSpan(test_text, 1, 1)), [True, False]
         )
+
+
+class CharSpanArrayIOTests(ArrayTestBase):
+
+    def test_feather(self):
+        arr = self._make_spans_of_tokens()
+        df = pd.DataFrame({'CharSpan': arr})
+
+        with tempfile.TemporaryDirectory() as dirpath:
+            filename = os.path.join(dirpath, 'char_span_array_test.feather')
+            df.to_feather(filename)
+            df_read = pd.read_feather(filename)
+            pd.testing.assert_frame_equal(df, df_read)
 
 
 if __name__ == "__main__":
