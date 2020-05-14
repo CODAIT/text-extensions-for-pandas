@@ -59,7 +59,8 @@ conda install -y \
     regex \
     matplotlib \
     cython \
-    grpcio-tools
+    grpcio-tools \
+    pytorch
 
 ################################################################################
 # Second-best way to install packages: conda-forge
@@ -67,7 +68,13 @@ conda install -y -c conda-forge \
     spacy \
     pyarrow \
     fastparquet \
-    plotly
+    plotly \
+    ipywidgets \
+
+# Post-install steps for ipywidgets on JupyterLab require Node
+conda install -y -c conda-forge \
+    nodejs
+
 
 ################################################################################
 # Third-best way to install packages: pip
@@ -92,6 +99,12 @@ echo "To install manually, activate the '${ENV_NAME}' environment and run the "
 echo "following command:"
 echo "   jupyter labextension install jupyterlab-plotly"
 #jupyter labextension install jupyterlab-plotly
+
+# Finish installation of ipywidgets from the "conda-forge" section above
+jupyter nbextension enable --py widgetsnbextension
+jupyter labextension install @jupyter-widgets/jupyterlab-manager
+
+#jupyter lab build
 
 conda deactivate
 
