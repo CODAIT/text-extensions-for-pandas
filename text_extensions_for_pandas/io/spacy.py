@@ -76,13 +76,16 @@ def make_tokens_and_features(
     tok_ends = np.array([t.idx + len(t) for t in spacy_doc])
     tokens_array = CharSpanArray(target_text, tok_begins, tok_ends)
     tokens_series = pd.Series(tokens_array)
-    # Also build token-based spans to make it easier to compose
+    # Also build single-token token-based spans to make it easier to build
+    # larger token-based spans.
     token_spans = TokenSpanArray.from_char_offsets(tokens_series.values)
     # spaCy identifies tokens by semi-arbitrary integer "indexes" (in practice,
     # the offset of the first character in the token). Translate from these
     # to a dense range of integer IDs that will correspond to the index of our
     # returned DataFrame.
     idx_to_id = {spacy_doc[i].idx: i for i in range(len(spacy_doc))}
+    # Define the IOB categorical type with "O" == 0, "B"==1, "I"==2
+    iob2_dtype = pd.CategoricalDtype(["O", "B", "I"], ordered=False)
     df_cols = {
         "id": range(len(tok_begins)),
         "char_span": tokens_series,
@@ -93,7 +96,8 @@ def make_tokens_and_features(
         "dep": pd.Categorical([str(t.dep_) for t in spacy_doc]),
         "head": np.array([idx_to_id[t.head.idx] for t in spacy_doc]),
         "shape": pd.Categorical([t.shape_ for t in spacy_doc]),
-        "ent_iob": pd.Categorical([str(t.ent_iob_) for t in spacy_doc]),
+        "ent_iob": pd.Categorical([str(t.ent_iob_) for t in spacy_doc],
+                                  dtype=iob2_dtype),
         "ent_type": pd.Categorical([str(t.ent_type_) for t in spacy_doc]),
         "is_alpha": np.array([t.is_alpha for t in spacy_doc]),
         "is_stop": np.array([t.is_stop for t in spacy_doc]),

@@ -25,7 +25,7 @@ import spacy
 _SPACY_LANGUAGE_MODEL = spacy.load("en_core_web_sm")
 
 
-class IOTest(unittest.TestCase):
+class CoNLLTest(unittest.TestCase):
 
     def setUp(self):
         # Ensure that diffs are consistent
@@ -68,11 +68,10 @@ class IOTest(unittest.TestCase):
             _SPACY_LANGUAGE_MODEL,
         )
         spans = iob_to_spans(df)
-        self.assertTrue('ent_iob' in df.columns)
-        self.assertTrue('token_span' in spans.columns)
-        df_result = spans_to_iob(spans)
-        self.assertTrue('ent_iob' in df_result.columns)
-        pd.testing.assert_series_equal(df['ent_iob'], df_result['ent_iob'])
+        self.assertTrue("ent_iob" in df.columns)
+        self.assertTrue("token_span" in spans.columns)
+        result = spans_to_iob(spans["token_span"])
+        pd.testing.assert_series_equal(df["ent_iob"], result)
 
     def test_conll_2003_to_dataframes(self):
         dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt")
