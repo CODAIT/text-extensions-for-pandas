@@ -26,7 +26,6 @@ from text_extensions_for_pandas.array.tensor import TensorArray
 
 
 class TestTensor(unittest.TestCase):
-
     def setUp(self):
         # Ensure that diffs are consistent
         pd.set_option("display.max_columns", 250)
@@ -140,7 +139,7 @@ class TestTensor(unittest.TestCase):
 
     def test_to_str(self):
         x = np.array([[1, 2], [3, 4], [5, 6]])
-        expected = '[[1 2]\n [3 4]\n [5 6]]'
+        expected = "[[1 2]\n [3 4]\n [5 6]]"
         s = TensorArray(x)
         result = str(s)
         self.assertEqual(expected, result)
@@ -175,7 +174,8 @@ class TestTensor(unittest.TestCase):
                  [ 4  5]
                  [ 6  7]
                  [ 8  9]
-                 [10 11]]""")
+                 [10 11]]"""
+            ),
         )
 
     def test_series_to_str(self):
@@ -186,12 +186,13 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(
             result,
             textwrap.dedent(
-                                """\
+                """\
                 0        [0 1 2 3 4]
                 1        [5 6 7 8 9]
                           ...       
                 8   [40 41 42 43 44]
-                9   [45 46 47 48 49]""")
+                9   [45 46 47 48 49]"""
+            ),
         )
 
     def test_slice(self):
@@ -215,21 +216,16 @@ class TestTensor(unittest.TestCase):
 
 
 class TensorArrayDataFrameTests(unittest.TestCase):
-
     def test_create(self):
         x = np.array([[1, 2], [3, 4], [5, 6]])
         s = TensorArray(x)
-        df = pd.DataFrame({'i': list(range(len(x))), 'tensor': s})
-        # TODO
-        print(df)
+        df = pd.DataFrame({"i": list(range(len(x))), "tensor": s})
+        self.assertEqual(len(df), len(x))
 
     def test_sum(self):
         keys = ["a", "a", "b", "c", "c", "c"]
         values = np.array([[1, 1]] * len(keys))
-        df = pd.DataFrame({
-            "key": keys,
-            "value": TensorArray(values)
-        })
+        df = pd.DataFrame({"key": keys, "value": TensorArray(values)})
         result_df = df.groupby("key").aggregate({"value": "sum"})
         self.assertEqual(
             repr(result_df),
@@ -239,15 +235,13 @@ class TensorArrayDataFrameTests(unittest.TestCase):
                 key        
                 a    [2, 2]
                 b    [1, 1]
-                c    [3, 3]""")
+                c    [3, 3]"""
+            ),
         )
 
         # 2D values
         values2 = np.array([[[1, 1], [1, 1]]] * len(keys))
-        df2 = pd.DataFrame({
-            "key": keys,
-            "value": TensorArray(values2)
-        })
+        df2 = pd.DataFrame({"key": keys, "value": TensorArray(values2)})
         result2_df = df2.groupby("key").aggregate({"value": "sum"})
         self.assertEqual(
             repr(result2_df),
@@ -257,19 +251,19 @@ class TensorArrayDataFrameTests(unittest.TestCase):
                 key                  
                 a    [[2, 2], [2, 2]]
                 b    [[1, 1], [1, 1]]
-                c    [[3, 3], [3, 3]]""")
+                c    [[3, 3], [3, 3]]"""
+            ),
         )
 
 
 class TensorArrayIOTests(unittest.TestCase):
-
     def test_feather(self):
         x = np.arange(10).reshape(5, 2)
         s = TensorArray(x)
-        df = pd.DataFrame({'i': list(range(len(x))), 'tensor': s})
+        df = pd.DataFrame({"i": list(range(len(x))), "tensor": s})
 
         with tempfile.TemporaryDirectory() as dirpath:
-            filename = os.path.join(dirpath, 'tensor_array_test.feather')
+            filename = os.path.join(dirpath, "tensor_array_test.feather")
             df.to_feather(filename)
             df_read = pd.read_feather(filename)
             pd.testing.assert_frame_equal(df, df_read)
@@ -278,10 +272,10 @@ class TensorArrayIOTests(unittest.TestCase):
     def test_parquet(self):
         x = np.arange(10).reshape(5, 2)
         s = TensorArray(x)
-        df = pd.DataFrame({'i': list(range(len(x))), 'tensor': s})
+        df = pd.DataFrame({"i": list(range(len(x))), "tensor": s})
 
         with tempfile.TemporaryDirectory() as dirpath:
-            filename = os.path.join(dirpath, 'tensor_array_test.parquet')
+            filename = os.path.join(dirpath, "tensor_array_test.parquet")
             df.to_parquet(filename)
             df_read = pd.read_parquet(filename)
             pd.testing.assert_frame_equal(df, df_read)

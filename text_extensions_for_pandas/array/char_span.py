@@ -213,15 +213,21 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
     """
 
     def __init__(self, text: str,
-                 begins: Union[np.ndarray, Sequence[int]],
-                 ends: Union[np.ndarray, Sequence[int]]):
+                 begins: Union[pd.Series, np.ndarray, Sequence[int]],
+                 ends: Union[pd.Series, np.ndarray, Sequence[int]]):
         """
         :param text: Target text from which the spans of this array are drawn
         :param begins: Begin offsets of spans (closed)
         :param ends: End offsets (open)
         """
-        begins = np.array(begins) if isinstance(begins, list) else begins
-        ends = np.array(ends) if isinstance(ends, list) else ends
+        if not isinstance(begins, (pd.Series, np.ndarray, list)):
+            raise TypeError(f"begins is of unsupported type {type(begins)}. "
+                            f"Supported types are Series, ndarray and List[int].")
+        if not isinstance(ends, (pd.Series, np.ndarray, list)):
+            raise TypeError(f"ends is of unsupported type {type(ends)}. "
+                            f"Supported types are Series, ndarray and List[int].")
+        begins = np.array(begins) if not isinstance(begins, np.ndarray) else begins
+        ends = np.array(ends) if not isinstance(ends, np.ndarray) else ends
 
         if not np.issubdtype(begins.dtype, np.integer):
             raise TypeError(f"Begins array is of dtype {begins.dtype}, "
