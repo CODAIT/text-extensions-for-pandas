@@ -167,6 +167,10 @@ class CharSpanArrayTest(ArrayTestBase):
         arr = self._make_spans_of_tokens()
         self._assertArrayEquals(arr.covered_text, ["This", "is", "a", "test"])
 
+        with self.assertRaises(TypeError):
+            CharSpanArray("", "Not a valid begins list", [42])
+
+
     def test_dtype(self):
         arr = CharSpanArray("", np.array([0],), np.array([0]))
         self.assertTrue(isinstance(arr.dtype, CharSpanType))

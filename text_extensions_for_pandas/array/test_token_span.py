@@ -124,6 +124,9 @@ class TokenSpanArrayTest(ArrayTestBase):
             ["This", "is", "a", "test", "This is", "a test", "This is a test"],
         )
 
+        with self.assertRaises(TypeError):
+            TokenSpanArray(self._make_spans_of_tokens(), "Not a valid begins list", [42])
+
     def test_dtype(self):
         arr = self._make_spans()
         self.assertTrue(isinstance(arr.dtype, TokenSpanType))

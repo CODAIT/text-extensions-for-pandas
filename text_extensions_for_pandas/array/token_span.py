@@ -252,8 +252,8 @@ class TokenSpanArray(CharSpanArray):
     def __init__(
         self,
         tokens: CharSpanArray,
-        begin_tokens: Union[np.ndarray, Sequence[int]] = None,
-        end_tokens: Union[np.ndarray, Sequence[int]] = None,
+        begin_tokens: Union[pd.Series, np.ndarray, Sequence[int]] = None,
+        end_tokens: Union[pd.Series, np.ndarray, Sequence[int]] = None,
     ):
         """
         :param tokens: Character-level span information about the underlying
@@ -262,11 +262,19 @@ class TokenSpanArray(CharSpanArray):
         :param begin_tokens: Array of begin offsets measured in tokens
         :param end_tokens: Array of end offsets measured in tokens
         """
+        if not isinstance(begin_tokens, (pd.Series, np.ndarray, list)):
+            raise TypeError(f"begin_tokens is of unsupported type {type(begin_tokens)}. "
+                            f"Supported types are Series, ndarray and List[int].")
+        if not isinstance(end_tokens, (pd.Series, np.ndarray, list)):
+            raise TypeError(f"end_tokens is of unsupported type {type(end_tokens)}. "
+                            f"Supported types are Series, ndarray and List[int].")
         begin_tokens = (
-            np.array(begin_tokens) if isinstance(begin_tokens, list) else begin_tokens
+            np.array(begin_tokens) if not isinstance(begin_tokens, np.ndarray)
+            else begin_tokens
         )
         end_tokens = (
-            np.array(end_tokens) if isinstance(end_tokens, list) else end_tokens
+            np.array(end_tokens) if not isinstance(end_tokens, np.ndarray)
+            else end_tokens
         )
         self._tokens = tokens  # Type: CharSpanArray
         self._begin_tokens = begin_tokens  # Type: np.ndarray
