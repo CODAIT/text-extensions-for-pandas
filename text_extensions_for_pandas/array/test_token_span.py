@@ -297,8 +297,9 @@ class TokenSpanArrayTest(ArrayTestBase):
 class TokenSpanArrayIOTests(ArrayTestBase):
 
     def test_feather(self):
-        arr = self._make_spans_of_tokens()
-        df = pd.DataFrame({'TokenSpan': arr})
+        toks = self._make_spans_of_tokens()
+        s1 = TokenSpanArray(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
+        df = pd.DataFrame({'s1': s1})
 
         with tempfile.TemporaryDirectory() as dirpath:
             filename = os.path.join(dirpath, 'token_span_array_test.feather')

@@ -23,6 +23,7 @@
 
 import numpy as np
 import pyarrow as pa
+from typing import Union
 
 from text_extensions_for_pandas.array import CharSpanArray, TokenSpanArray
 
@@ -99,7 +100,7 @@ class ArrowTokenSpanType(pa.PyExtensionType):
         return ArrowTokenSpanType, (index_dtype, metadata)
 
 
-def char_span_to_arrow(char_span):
+def char_span_to_arrow(char_span: CharSpanArray) -> pa.ExtensionArray:
     """
     Convert a CharSpanArray to a pyarrow.ExtensionArray with a type
     of ArrowCharSpanType and struct as the storage type. The resulting
@@ -121,7 +122,7 @@ def char_span_to_arrow(char_span):
     return pa.ExtensionArray.from_storage(typ, storage)
 
 
-def arrow_to_char_span(extension_array):
+def arrow_to_char_span(extension_array: pa.ExtensionArray) -> CharSpanArray:
     """
     Convert a pyarrow.ExtensionArray with type ArrowCharSpanType to
     a CharSpanArray.
@@ -153,7 +154,7 @@ def arrow_to_char_span(extension_array):
     return CharSpanArray(target_text, begins, ends)
 
 
-def token_span_to_arrow(token_span):
+def token_span_to_arrow(token_span: TokenSpanArray) -> Union[pa.ExtensionArray, pa.ChunkedArray]:
     """
     Convert a TokenSpanArray to a pyarrow.ExtensionArray with a type
     of ArrowTokenSpanType and struct as the storage type. The resulting
@@ -166,8 +167,42 @@ def token_span_to_arrow(token_span):
     # Create array for begins, ends
     token_begins_array = pa.array(token_span.begin_token)
     token_ends_array = pa.array(token_span.end_token)
-    char_begins_array = pa.array(token_span.begin)
-    char_ends_array = pa.array(token_span.end)
+    char_begins_array = pa.array(token_span.tokens.begin)
+    char_ends_array = pa.array(token_span.tokens.end)
+
+    # Pad arrays to equal length with zeros
+    if len(token_begins_array) > len(char_begins_array):
+        padding = np.zeros(len(token_begins_array) - len(char_begins_array),
+                           token_span.tokens.begin.dtype)
+        padding_array = pa.array(padding, mask=np.full(len(padding), True))
+
+        token_begins_chunk1 = token_begins_array[:len(char_begins_array)]
+        token_ends_chunk1 = token_ends_array[:len(char_ends_array)]
+        token_begins_chunk2 = token_begins_array[len(char_begins_array):]
+        token_ends_chunk2 = token_ends_array[len(char_ends_array):]
+
+        typ = ArrowTokenSpanType(token_begins_array.type, token_span.target_text)
+        fields = list(typ.storage_type)
+
+        storage1 = pa.StructArray.from_arrays([token_begins_chunk1, token_ends_chunk1, char_begins_array,
+                                              char_ends_array], fields=fields)
+
+        ext1 = pa.ExtensionArray.from_storage(typ, storage1)
+
+        typ = ArrowTokenSpanType(token_begins_array.type, '')
+        fields = list(typ.storage_type)
+
+        storage2 = pa.StructArray.from_arrays([token_begins_chunk2, token_ends_chunk2, padding_array, padding_array], fields=fields)
+        ext2 = pa.ExtensionArray.from_storage(typ, storage2)
+
+        return pa.chunked_array([ext1, ext2])
+
+    elif len(char_begins_array) < len(token_begins_array):
+        padding = np.zeros(len(char_begins_array) - len(token_begins_array),
+                           token_span.begin_token.dtype)
+        padding_array = pa.array(padding, mask=np.full(len(padding), True))
+        token_begins_array = pa.chunked_array([token_begins_array, padding_array])
+        token_ends_array = pa.chunked_array([token_ends_array, padding_array])
 
     typ = ArrowTokenSpanType(token_begins_array.type, token_span.target_text)
     fields = list(typ.storage_type)
@@ -178,7 +213,7 @@ def token_span_to_arrow(token_span):
     return pa.ExtensionArray.from_storage(typ, storage)
 
 
-def arrow_to_token_span(extension_array):
+def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
     """
     Convert a pyarrow.ExtensionArray with type ArrowTokenSpanType to
     a TokenSpanArray.
@@ -208,8 +243,8 @@ def arrow_to_token_span(extension_array):
     # Zero-copy convert arrays to numpy
     token_begins = token_begins_array.to_numpy()
     token_ends = token_ends_array.to_numpy()
-    begins = char_begins_array.to_numpy()
-    ends = char_ends_array.to_numpy()
+    char_begins = char_begins_array.to_numpy()
+    char_ends = char_ends_array.to_numpy()
 
     # Create the CharSpanArray, then the TokenSpanArray
     char_span = CharSpanArray(target_text, begins, ends)
