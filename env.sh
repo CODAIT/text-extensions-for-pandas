@@ -60,7 +60,8 @@ conda install -y \
     matplotlib \
     cython \
     grpcio-tools \
-    pytorch
+    pytorch \
+    black
 
 ################################################################################
 # Second-best way to install packages: conda-forge
