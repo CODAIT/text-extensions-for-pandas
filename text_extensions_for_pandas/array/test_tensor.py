@@ -207,6 +207,25 @@ class TestTensor(unittest.TestCase):
         expected = np.array([[3, 4], [5, 6]])
         npt.assert_array_equal(expected, result)
 
+    def test_bool_indexing(self):
+        s = TensorArray([[1, 2], [3, 4]])
+
+        result = s[[True, True]]
+        expected = np.array([[1, 2], [3, 4]])
+        npt.assert_array_equal(result, expected)
+
+        result = s[[True, False]]
+        expected = np.array([[1, 2]])
+        npt.assert_array_equal(result, expected)
+
+        result = s[[False, True]]
+        expected = np.array([[3, 4]])
+        npt.assert_array_equal(result, expected)
+
+        result = s[[False, False]]
+        expected = np.empty((0, 2))
+        npt.assert_array_equal(result, expected)
+
     def test_asarray(self):
         x = np.array([[1, 2], [3, 4], [5, 6]])
         s = TensorArray(x)

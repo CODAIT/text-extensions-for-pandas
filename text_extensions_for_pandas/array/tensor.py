@@ -195,11 +195,13 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         for information about this method.
         """
         # TODO pandas converts series with np.asarray, then applied a function e.g. map_infer(array, is_float) to format strings etc.
-        # If single element return as np.ndarray, if slice return TensorArray of slice
+        # For empty or single element return np.ndarray, if slice has multiple
+        # elements return TensorArray of slice
         if isinstance(item, int):
             return self._tensor[item]
         else:
-            return TensorArray(self._tensor[item])
+            values = self._tensor[item]
+            return values if len(values) <= 1 else TensorArray(values)
 
     def __setitem__(self, key: Union[int, np.ndarray], value: Any) -> None:
         """
