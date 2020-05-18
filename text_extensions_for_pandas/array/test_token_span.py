@@ -296,16 +296,34 @@ class TokenSpanArrayTest(ArrayTestBase):
 
 class TokenSpanArrayIOTests(ArrayTestBase):
 
-    def test_feather(self):
-        toks = self._make_spans_of_tokens()
-        s1 = TokenSpanArray(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
-        df = pd.DataFrame({'s1': s1})
-
+    def do_roundtrip(self, df):
         with tempfile.TemporaryDirectory() as dirpath:
             filename = os.path.join(dirpath, 'token_span_array_test.feather')
             df.to_feather(filename)
             df_read = pd.read_feather(filename)
             pd.testing.assert_frame_equal(df, df_read)
+
+    def test_feather(self):
+        toks = self._make_spans_of_tokens()
+
+        # Equal token spans to tokens
+        s0 = TokenSpanArray(toks, np.arange(len(toks)), np.arange(len(toks)) + 1)
+        df0 = pd.DataFrame({'s0': s0})
+        self.do_roundtrip(df0)
+
+        # More token spans than tokens
+        s1 = TokenSpanArray(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
+        df1 = pd.DataFrame({'s1': s1})
+        self.do_roundtrip(df1)
+
+        # Less token spans than tokens
+        s2 = TokenSpanArray(toks, [0, 3], [3, 4])
+        df2 = pd.DataFrame({'s2': s2})
+        self.do_roundtrip(df2)
+
+        df = pd.concat([df0, df1, df2], axis=1)
+        self.do_roundtrip(df)
+        x = 10
 
 
 if __name__ == "__main__":

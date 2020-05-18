@@ -23,7 +23,6 @@
 
 import numpy as np
 import pyarrow as pa
-from typing import Union
 
 from text_extensions_for_pandas.array import CharSpanArray, TokenSpanArray
 
@@ -154,7 +153,7 @@ def arrow_to_char_span(extension_array: pa.ExtensionArray) -> CharSpanArray:
     return CharSpanArray(target_text, begins, ends)
 
 
-def token_span_to_arrow(token_span: TokenSpanArray) -> Union[pa.ExtensionArray, pa.ChunkedArray]:
+def token_span_to_arrow(token_span: TokenSpanArray) -> pa.ExtensionArray:
     """
     Convert a TokenSpanArray to a pyarrow.ExtensionArray with a type
     of ArrowTokenSpanType and struct as the storage type. The resulting
@@ -164,45 +163,37 @@ def token_span_to_arrow(token_span: TokenSpanArray) -> Union[pa.ExtensionArray, 
     :param token_span: A TokenSpanArray to be converted
     :return: pyarrow.ExtensionArray containing TokenSpan data
     """
-    # Create array for begins, ends
-    token_begins_array = pa.array(token_span.begin_token)
-    token_ends_array = pa.array(token_span.end_token)
-    char_begins_array = pa.array(token_span.tokens.begin)
-    char_ends_array = pa.array(token_span.tokens.end)
+    # Create arrays for begins/ends and and to equal length with nulls
+    if len(token_span.begin_token) > len(token_span.tokens.begin):
+        token_begins_array = pa.array(token_span.begin_token)
+        token_ends_array = pa.array(token_span.end_token)
 
-    # Pad arrays to equal length with zeros
-    if len(token_begins_array) > len(char_begins_array):
-        padding = np.zeros(len(token_begins_array) - len(char_begins_array),
+        padding = np.zeros(len(token_span.begin_token) - len(token_span.tokens.begin),
                            token_span.tokens.begin.dtype)
-        padding_array = pa.array(padding, mask=np.full(len(padding), True))
 
-        token_begins_chunk1 = token_begins_array[:len(char_begins_array)]
-        token_ends_chunk1 = token_ends_array[:len(char_ends_array)]
-        token_begins_chunk2 = token_begins_array[len(char_begins_array):]
-        token_ends_chunk2 = token_ends_array[len(char_ends_array):]
+        isnull = np.append(np.full(len(token_span.tokens.begin), False), np.full(len(padding), True))
+        char_begins_padded = np.append(token_span.tokens.begin, padding)
+        char_ends_padded = np.append(token_span.tokens.end, padding)
+        char_begins_array = pa.array(char_begins_padded, mask=isnull)
+        char_ends_array = pa.array(char_ends_padded, mask=isnull)
 
-        typ = ArrowTokenSpanType(token_begins_array.type, token_span.target_text)
-        fields = list(typ.storage_type)
+    elif len(token_span.begin_token) < len(token_span.tokens.begin):
+        char_begins_array = pa.array(token_span.tokens.begin)
+        char_ends_array = pa.array(token_span.tokens.end)
 
-        storage1 = pa.StructArray.from_arrays([token_begins_chunk1, token_ends_chunk1, char_begins_array,
-                                              char_ends_array], fields=fields)
-
-        ext1 = pa.ExtensionArray.from_storage(typ, storage1)
-
-        typ = ArrowTokenSpanType(token_begins_array.type, '')
-        fields = list(typ.storage_type)
-
-        storage2 = pa.StructArray.from_arrays([token_begins_chunk2, token_ends_chunk2, padding_array, padding_array], fields=fields)
-        ext2 = pa.ExtensionArray.from_storage(typ, storage2)
-
-        return pa.chunked_array([ext1, ext2])
-
-    elif len(char_begins_array) < len(token_begins_array):
-        padding = np.zeros(len(char_begins_array) - len(token_begins_array),
+        padding = np.zeros(len(token_span.tokens.begin) - len(token_span.begin_token),
                            token_span.begin_token.dtype)
-        padding_array = pa.array(padding, mask=np.full(len(padding), True))
-        token_begins_array = pa.chunked_array([token_begins_array, padding_array])
-        token_ends_array = pa.chunked_array([token_ends_array, padding_array])
+
+        isnull = np.append(np.full(len(token_span.begin_token), False), np.full(len(padding), True))
+        token_begins_padded = np.append(token_span.begin_token, padding)
+        token_ends_padded = np.append(token_span.end_token, padding)
+        token_begins_array = pa.array(token_begins_padded, mask=isnull)
+        token_ends_array = pa.array(token_ends_padded, mask=isnull)
+    else:
+        token_begins_array = pa.array(token_span.begin_token)
+        token_ends_array = pa.array(token_span.end_token)
+        char_begins_array = pa.array(token_span.tokens.begin)
+        char_ends_array = pa.array(token_span.tokens.end)
 
     typ = ArrowTokenSpanType(token_begins_array.type, token_span.target_text)
     fields = list(typ.storage_type)
@@ -240,6 +231,14 @@ def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
     char_begins_array = extension_array.storage.field(ArrowCharSpanType.BEGINS_NAME)
     char_ends_array = extension_array.storage.field(ArrowCharSpanType.ENDS_NAME)
 
+    # Remove any trailing padding
+    if token_begins_array.null_count > 0:
+        token_begins_array = token_begins_array[:-token_begins_array.null_count]
+        token_ends_array = token_ends_array[:-token_ends_array.null_count]
+    if char_begins_array.null_count > 0:
+        char_begins_array = char_begins_array[:-char_begins_array.null_count]
+        char_ends_array = char_ends_array[:-char_ends_array.null_count]
+
     # Zero-copy convert arrays to numpy
     token_begins = token_begins_array.to_numpy()
     token_ends = token_ends_array.to_numpy()
@@ -247,7 +246,7 @@ def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
     char_ends = char_ends_array.to_numpy()
 
     # Create the CharSpanArray, then the TokenSpanArray
-    char_span = CharSpanArray(target_text, begins, ends)
+    char_span = CharSpanArray(target_text, char_begins, char_ends)
     return TokenSpanArray(char_span, token_begins, token_ends)
 
 
