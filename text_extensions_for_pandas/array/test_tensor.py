@@ -42,6 +42,12 @@ class TestTensor(unittest.TestCase):
         s = TensorArray(x)
         self.assertEqual(len(s), 5)
 
+        x = np.empty((0, 2))
+        s = TensorArray(x)
+        self.assertEqual(len(s), 0)
+        s = TensorArray([])
+        self.assertEqual(len(s), 0)
+
         x = [np.ones([2, 3]), np.ones([3, 2])]
         with self.assertRaises(ValueError):
             TensorArray(x)
@@ -273,6 +279,29 @@ class TensorArrayDataFrameTests(unittest.TestCase):
                 c    [[3, 3], [3, 3]]"""
             ),
         )
+
+    def test_bool_indexing(self):
+        s = TensorArray([[1, 2], [3, 4]])
+        df = pd.DataFrame({
+            "col1": s
+        })
+        result = df[[False, False]]
+        self.assertEqual(len(result), 0)
+
+        result = df[[True, True]]
+        pd.testing.assert_frame_equal(result, df)
+
+        result = df[[True, False]]
+        self.assertTrue(isinstance(result, pd.DataFrame))
+        self.assertEqual(len(result), 1)
+        expected = df.iloc[[0]]
+        pd.testing.assert_frame_equal(result, expected)
+
+        result = df[[False, True]]
+        self.assertTrue(isinstance(result, pd.DataFrame))
+        self.assertEqual(len(result), 1)
+        expected = df.iloc[[1]]
+        pd.testing.assert_frame_equal(result, expected)
 
 
 class TensorArrayIOTests(unittest.TestCase):

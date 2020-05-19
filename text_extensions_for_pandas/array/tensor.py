@@ -103,18 +103,18 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     Each tensor must have the same shape.
     """
 
-    def __init__(self, values: Union[np.ndarray, Iterable[np.ndarray]],
+    def __init__(self, values: Union[np.ndarray, Sequence[np.ndarray]],
                  make_contiguous: bool = True):
         """
         :param values: A `numpy.ndarray` or sequence of `numpy.ndarray`s of equal shape.
         :param make_contiguous: force values to be contiguous in memory
         """
-        if isinstance(values, Iterable):
-            self._tensor = np.stack(values, axis=0)
-        elif isinstance(values, np.ndarray):
+        if isinstance(values, np.ndarray):
             self._tensor = values
+        elif isinstance(values, Sequence):
+            self._tensor = np.stack(values, axis=0) if len(values) > 0 else np.array([])
         else:
-            raise TypeError(f"Expected a numpy.ndarray or list of numpy.ndarray, "
+            raise TypeError(f"Expected a numpy.ndarray or sequence of numpy.ndarray, "
                             f"but received {values} "
                             f"of type '{type(values)}' instead.")
         
