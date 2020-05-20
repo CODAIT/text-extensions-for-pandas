@@ -206,10 +206,12 @@ class TestTensor(unittest.TestCase):
         s = TensorArray(x)
 
         result = s[1]
+        self.assertTrue(isinstance(result, np.ndarray))
         expected = np.array([3, 4])
         npt.assert_array_equal(expected, result)
 
         result = s[1:3]
+        self.assertTrue(isinstance(result, TensorArray))
         expected = np.array([[3, 4], [5, 6]])
         npt.assert_array_equal(expected, result)
 
@@ -219,22 +221,22 @@ class TestTensor(unittest.TestCase):
         result = s[[True, True]]
         self.assertTrue(isinstance(result, TensorArray))
         expected = np.array([[1, 2], [3, 4]])
-        npt.assert_array_equal(result, expected)
+        npt.assert_array_equal(result.to_numpy(), expected)
 
         result = s[[True, False]]
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(isinstance(result, TensorArray))
         expected = np.array([[1, 2]])
-        npt.assert_array_equal(result, expected)
+        npt.assert_array_equal(result.to_numpy(), expected)
 
         result = s[[False, True]]
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(isinstance(result, TensorArray))
         expected = np.array([[3, 4]])
-        npt.assert_array_equal(result, expected)
+        npt.assert_array_equal(result.to_numpy(), expected)
 
         result = s[[False, False]]
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(isinstance(result, TensorArray))
         expected = np.empty((0, 2))
-        npt.assert_array_equal(result, expected)
+        npt.assert_array_equal(result.to_numpy(), expected)
 
     def test_asarray(self):
         x = np.array([[1, 2], [3, 4], [5, 6]])
@@ -312,6 +314,7 @@ class TensorArrayDataFrameTests(unittest.TestCase):
     def test_bool_indexing_series(self):
         s = pd.Series(TensorArray([[1, 2], [3, 4]]))
         result = s[[False, False]]
+        self.assertTrue(isinstance(result, pd.Series))
         self.assertEqual(len(result), 0)
 
         result = s[[True, True]]
@@ -319,16 +322,16 @@ class TensorArrayDataFrameTests(unittest.TestCase):
         pd.testing.assert_series_equal(result, s)
 
         result = s[[True, False]]
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(isinstance(result, pd.Series))
         self.assertEqual(len(result), 1)
         expected = s.iloc[[0]]
-        np.testing.assert_array_equal(result, expected)
+        pd.testing.assert_series_equal(result, expected)
 
         result = s[[False, True]]
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(isinstance(result, pd.Series))
         self.assertEqual(len(result), 1)
         expected = s.iloc[[1]]
-        np.testing.assert_array_equal(result, expected)
+        pd.testing.assert_series_equal(result, expected)
 
 
 class TensorArrayIOTests(unittest.TestCase):
