@@ -213,7 +213,7 @@ class TestTensor(unittest.TestCase):
         result = s[1:3]
         self.assertTrue(isinstance(result, TensorArray))
         expected = np.array([[3, 4], [5, 6]])
-        npt.assert_array_equal(expected, result)
+        npt.assert_array_equal(expected, result.to_numpy())
 
     def test_bool_indexing(self):
         s = TensorArray([[1, 2], [3, 4]])
