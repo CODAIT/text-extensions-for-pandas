@@ -71,7 +71,7 @@ class ArrowTokenSpanType(pa.PyExtensionType):
     BEGINS_NAME = "token_begins"
     ENDS_NAME = "token_ends"
 
-    def __init__(self, index_dtype, target_text):
+    def __init__(self, index_dtype, target_text, num_char_span_splits):
         """
         Create an instance of a TokenSpan data type with given index type and
         target text that will be stored in Field metadata.
@@ -80,23 +80,41 @@ class ArrowTokenSpanType(pa.PyExtensionType):
         :param target_text:
         """
         assert pa.types.is_integer(index_dtype)
+        self.num_char_span_splits = num_char_span_splits
 
         # Store target text as field metadata
         metadata = {self.TARGET_TEXT_KEY: target_text}
 
-        fields = [
-            pa.field(self.BEGINS_NAME, index_dtype),
+        token_span_fields = [
+            pa.field(self.BEGINS_NAME, index_dtype, metadata=metadata),
             pa.field(self.ENDS_NAME, index_dtype),
-            pa.field(ArrowCharSpanType.BEGINS_NAME, index_dtype, metadata=metadata),
-            pa.field(ArrowCharSpanType.ENDS_NAME, index_dtype)
         ]
+
+        # CharSpan arrays fit into single fields
+        if num_char_span_splits == 0:
+            char_span_fields = [
+                pa.field(ArrowCharSpanType.BEGINS_NAME, index_dtype),
+                pa.field(ArrowCharSpanType.ENDS_NAME, index_dtype)
+            ]
+        # Store splits of CharSpan as multiple fields
+        else:
+            char_span_fields = []
+            for i in range(num_char_span_splits):
+                n = "_{}".format(i)
+                begin_field = pa.field(ArrowCharSpanType.BEGINS_NAME + n, index_dtype)
+                end_field = pa.field(ArrowCharSpanType.ENDS_NAME + n, index_dtype)
+                char_span_fields.extend([begin_field, end_field])
+
+        fields = token_span_fields + char_span_fields
 
         pa.PyExtensionType.__init__(self, pa.struct(fields))
 
     def __reduce__(self):
         index_dtype = self.storage_type[self.BEGINS_NAME].type
-        metadata = self.storage_type[ArrowCharSpanType.BEGINS_NAME].metadata
-        return ArrowTokenSpanType, (index_dtype, metadata)
+        metadata = self.storage_type[self.BEGINS_NAME].metadata
+        target_text = metadata[self.TARGET_TEXT_KEY].decode()
+        num_char_span_splits = self.num_char_span_splits
+        return ArrowTokenSpanType, (index_dtype, target_text, num_char_span_splits)
 
 
 def char_span_to_arrow(char_span: CharSpanArray) -> pa.ExtensionArray:
@@ -163,10 +181,15 @@ def token_span_to_arrow(token_span: TokenSpanArray) -> pa.ExtensionArray:
     :param token_span: A TokenSpanArray to be converted
     :return: pyarrow.ExtensionArray containing TokenSpan data
     """
-    # Create arrays for begins/ends and and to equal length with nulls
+    # Create arrays for begins/ends
+    token_begins_array = pa.array(token_span.begin_token)
+    token_ends_array = pa.array(token_span.end_token)
+    token_span_arrays = [token_begins_array, token_ends_array]
+
+    num_char_span_splits = 0
+
+    # If TokenSpan arrays have greater length than CharSpan arrays, pad CharSpan
     if len(token_span.begin_token) > len(token_span.tokens.begin):
-        token_begins_array = pa.array(token_span.begin_token)
-        token_ends_array = pa.array(token_span.end_token)
 
         padding = np.zeros(len(token_span.begin_token) - len(token_span.tokens.begin),
                            token_span.tokens.begin.dtype)
@@ -176,30 +199,47 @@ def token_span_to_arrow(token_span: TokenSpanArray) -> pa.ExtensionArray:
         char_ends_padded = np.append(token_span.tokens.end, padding)
         char_begins_array = pa.array(char_begins_padded, mask=isnull)
         char_ends_array = pa.array(char_ends_padded, mask=isnull)
+        char_span_arrays = [char_begins_array, char_ends_array]
 
+    # If TokenSpan arrays have less length than CharSpan arrays, split CharSpan into multiple arrays
     elif len(token_span.begin_token) < len(token_span.tokens.begin):
+
         char_begins_array = pa.array(token_span.tokens.begin)
         char_ends_array = pa.array(token_span.tokens.end)
 
-        padding = np.zeros(len(token_span.tokens.begin) - len(token_span.begin_token),
-                           token_span.begin_token.dtype)
+        char_span_arrays = []
+        while len(char_begins_array) >= len(token_begins_array):
+            char_begins_split = char_begins_array[:len(token_begins_array)]
+            char_ends_split = char_ends_array[:len(token_ends_array)]
 
-        isnull = np.append(np.full(len(token_span.begin_token), False), np.full(len(padding), True))
-        token_begins_padded = np.append(token_span.begin_token, padding)
-        token_ends_padded = np.append(token_span.end_token, padding)
-        token_begins_array = pa.array(token_begins_padded, mask=isnull)
-        token_ends_array = pa.array(token_ends_padded, mask=isnull)
+            char_span_arrays.extend([char_begins_split, char_ends_split])
+            num_char_span_splits += 1
+
+            char_begins_array = char_begins_array[len(token_begins_array):]
+            char_ends_array = char_ends_array[len(token_ends_array):]
+
+        # Pad the final split
+        if len(char_begins_array) > 0:
+            padding = np.zeros(len(token_begins_array) - len(char_begins_array),
+                               token_span.tokens.begin.dtype)
+            isnull = np.append(np.full(len(char_begins_array), False), np.full(len(padding), True))
+            char_begins_padded = np.append(char_begins_array.to_numpy(), padding)
+            char_ends_padded = np.append(char_ends_array.to_numpy(), padding)
+            char_begins_split = pa.array(char_begins_padded, mask=isnull)
+            char_ends_split = pa.array(char_ends_padded, mask=isnull)
+            char_span_arrays.extend([char_begins_split, char_ends_split])
+            num_char_span_splits += 1
+
+    # TokenSpan arrays are equal length to CharSpan arrays
     else:
-        token_begins_array = pa.array(token_span.begin_token)
-        token_ends_array = pa.array(token_span.end_token)
         char_begins_array = pa.array(token_span.tokens.begin)
         char_ends_array = pa.array(token_span.tokens.end)
+        char_span_arrays = [char_begins_array, char_ends_array]
 
-    typ = ArrowTokenSpanType(token_begins_array.type, token_span.target_text)
+    typ = ArrowTokenSpanType(token_begins_array.type, token_span.target_text, num_char_span_splits)
     fields = list(typ.storage_type)
 
-    storage = pa.StructArray.from_arrays([token_begins_array, token_ends_array, char_begins_array,
-                                          char_ends_array], fields=fields)
+    storage = pa.StructArray.from_arrays(token_span_arrays + char_span_arrays, fields=fields)
 
     return pa.ExtensionArray.from_storage(typ, storage)
 
@@ -220,7 +260,7 @@ def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
     assert pa.types.is_struct(extension_array.storage.type)
 
     # Get target text from the begins field metadata and decode string
-    metadata = extension_array.storage.type[ArrowCharSpanType.BEGINS_NAME].metadata
+    metadata = extension_array.storage.type[ArrowTokenSpanType.BEGINS_NAME].metadata
     target_text = metadata[ArrowCharSpanType.TARGET_TEXT_KEY]
     if isinstance(target_text, bytes):
         target_text = target_text.decode()
@@ -228,13 +268,24 @@ def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
     # Get the begins/ends pyarrow arrays
     token_begins_array = extension_array.storage.field(ArrowTokenSpanType.BEGINS_NAME)
     token_ends_array = extension_array.storage.field(ArrowTokenSpanType.ENDS_NAME)
-    char_begins_array = extension_array.storage.field(ArrowCharSpanType.BEGINS_NAME)
-    char_ends_array = extension_array.storage.field(ArrowCharSpanType.ENDS_NAME)
+
+    # Check if CharSpans have been split
+    num_char_span_splits = extension_array.type.num_char_span_splits
+    if num_char_span_splits > 0:
+        char_begins_splits = []
+        char_ends_splits = []
+        for i in range(num_char_span_splits):
+            char_begins_splits.append(
+                extension_array.storage.field(ArrowCharSpanType.BEGINS_NAME + "_{}".format(i)))
+            char_ends_splits.append(
+                extension_array.storage.field(ArrowCharSpanType.ENDS_NAME + "_{}".format(i)))
+        char_begins_array = pa.concat_arrays(char_begins_splits)
+        char_ends_array = pa.concat_arrays(char_ends_splits)
+    else:
+        char_begins_array = extension_array.storage.field(ArrowCharSpanType.BEGINS_NAME)
+        char_ends_array = extension_array.storage.field(ArrowCharSpanType.ENDS_NAME)
 
     # Remove any trailing padding
-    if token_begins_array.null_count > 0:
-        token_begins_array = token_begins_array[:-token_begins_array.null_count]
-        token_ends_array = token_ends_array[:-token_ends_array.null_count]
     if char_begins_array.null_count > 0:
         char_begins_array = char_begins_array[:-char_begins_array.null_count]
         char_ends_array = char_ends_array[:-char_ends_array.null_count]

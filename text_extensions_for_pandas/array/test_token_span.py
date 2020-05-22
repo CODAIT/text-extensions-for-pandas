@@ -307,23 +307,33 @@ class TokenSpanArrayIOTests(ArrayTestBase):
         toks = self._make_spans_of_tokens()
 
         # Equal token spans to tokens
-        s0 = TokenSpanArray(toks, np.arange(len(toks)), np.arange(len(toks)) + 1)
-        df0 = pd.DataFrame({'s0': s0})
-        self.do_roundtrip(df0)
-
-        # More token spans than tokens
-        s1 = TokenSpanArray(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
-        df1 = pd.DataFrame({'s1': s1})
+        ts1 = TokenSpanArray(toks, np.arange(len(toks)), np.arange(len(toks)) + 1)
+        df1 = pd.DataFrame({"ts1": ts1})
         self.do_roundtrip(df1)
 
-        # Less token spans than tokens
-        s2 = TokenSpanArray(toks, [0, 3], [3, 4])
-        df2 = pd.DataFrame({'s2': s2})
+        # More token spans than tokens
+        ts2 = TokenSpanArray(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
+        df2 = pd.DataFrame({"ts2": ts2})
         self.do_roundtrip(df2)
 
-        df = pd.concat([df0, df1, df2], axis=1)
+        # Less token spans than tokens, 2 splits no padding
+        ts3 = TokenSpanArray(toks, [0, 3], [3, 4])
+        df3 = pd.DataFrame({"ts3": ts3})
+        self.do_roundtrip(df3)
+
+        # Less token spans than tokens, 1 split with padding
+        ts4 = TokenSpanArray(toks, [0, 2, 3], [2, 3, 4])
+        df4 = pd.DataFrame({"ts4": ts4})
+        self.do_roundtrip(df4)
+
+        # With a CharSpan column, TokenSpan padded to same length
+        df5 = pd.DataFrame({"cs": toks})
+        df5 = pd.concat([df3, df5], axis=1)
+        self.do_roundtrip(df5)
+
+        # All columns together, TokenSpan arrays padded as needed
+        df = pd.concat([df1, df2, df3, df4], axis=1)
         self.do_roundtrip(df)
-        x = 10
 
 
 if __name__ == "__main__":
