@@ -178,7 +178,7 @@ class CharSpanType(pd.api.extensions.ExtensionDtype):
     @property
     def name(self) -> str:
         """A string representation of the dtype."""
-        return "CharSpan"
+        return "CharSpanType"
 
     @classmethod
     def construct_from_string(cls, string: str):
@@ -201,6 +201,14 @@ class CharSpanType(pd.api.extensions.ExtensionDtype):
         for information about this method.
         """
         return CharSpanArray
+
+    def __from_arrow__(self, extension_array):
+        """
+        Convert the given extension array of type ArrowCharSpanType to a
+        CharSpanArray.
+        """
+        from text_extensions_for_pandas.array.arrow_conversion import arrow_to_char_span
+        return arrow_to_char_span(extension_array)
 
 
 class CharSpanArray(pd.api.extensions.ExtensionArray):
@@ -689,3 +697,12 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         HTML pretty-printing of a series of spans for Jupyter notebooks.
         """
         return util.pretty_print_html(self)
+
+    def __arrow_array__(self, type=None):
+        """
+        Conversion of this Array to a pyarrow.ExtensionArray.
+        :param type: Optional type passed to arrow for conversion, not used
+        :return: pyarrow.ExtensionArray of type ArrowCharSpanType
+        """
+        from text_extensions_for_pandas.array.arrow_conversion import char_span_to_arrow
+        return char_span_to_arrow(self)
