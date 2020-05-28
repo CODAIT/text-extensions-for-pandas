@@ -61,7 +61,8 @@ conda install -y \
     cython \
     grpcio-tools \
     pytorch \
-    black
+    black \
+    scikit-learn
 
 ################################################################################
 # Second-best way to install packages: conda-forge
