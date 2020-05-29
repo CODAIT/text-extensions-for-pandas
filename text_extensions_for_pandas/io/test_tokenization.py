@@ -88,19 +88,15 @@ class TestTokenize(unittest.TestCase):
                 raise ValueError("Before: {seq}; After: {seq_after}")
 
         for seqlen in range(200, 400):
-            # print(f"seqlen: {seqlen}")
             seq = np.arange(1, seqlen)
             windows = seq_to_windows(seq, 32, 64)
-            # print(f"input_ids: {windows['input_ids']}")
             seq_after = windows_to_seq(seq, windows["input_ids"], 32, 64)
             if np.any(seq != seq_after):
                 raise ValueError("Before: {seq}; After: {seq_after}")
 
         for seqlen in range(50, 100):
-            # print(f"seqlen: {seqlen}")
             seq = np.arange(1, seqlen)
             windows = seq_to_windows(seq, 32, 64)
-            # print(f"input_ids: {windows['input_ids']}")
             seq_after = windows_to_seq(seq, windows["input_ids"], 32, 64)
             if np.any(seq != seq_after):
                 raise ValueError("Before: {seq}; After: {seq_after}")
