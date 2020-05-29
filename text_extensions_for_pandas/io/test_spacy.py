@@ -47,7 +47,7 @@ class IOTest(unittest.TestCase):
                 8       [37, 41): 'hazy'
                 9        [42, 45): 'bog'
                 10       [45, 48): '...'
-                dtype: CharSpan"""
+                dtype: CharSpanType"""
             ),
         )
 
