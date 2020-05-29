@@ -16,9 +16,12 @@
 import unittest
 
 import pandas as pd
+import numpy as np
 from transformers import BertTokenizerFast
 
-from text_extensions_for_pandas.io.tokenization import make_bert_tokens
+from text_extensions_for_pandas.io.tokenization import (
+    make_bert_tokens, windows_to_seq, seq_to_windows
+)
 
 
 class TestTokenize(unittest.TestCase):
@@ -76,3 +79,24 @@ class TestTokenize(unittest.TestCase):
         char_span_text = [s.covered_text for s in char_span]
         token_span_text = [s.covered_text for s in token_span]
         self.assertListEqual(char_span_text, token_span_text)
+
+    def test_seq_to_windows(self):
+        for seqlen in range(1, 20):
+            seq = np.arange(1, seqlen)
+            seq_after = windows_to_seq(seq, seq_to_windows(seq, 2, 3)["input_ids"], 2, 3)
+            if np.any(seq != seq_after):
+                raise ValueError("Before: {seq}; After: {seq_after}")
+
+        for seqlen in range(200, 400):
+            seq = np.arange(1, seqlen)
+            windows = seq_to_windows(seq, 32, 64)
+            seq_after = windows_to_seq(seq, windows["input_ids"], 32, 64)
+            if np.any(seq != seq_after):
+                raise ValueError("Before: {seq}; After: {seq_after}")
+
+        for seqlen in range(50, 100):
+            seq = np.arange(1, seqlen)
+            windows = seq_to_windows(seq, 32, 64)
+            seq_after = windows_to_seq(seq, windows["input_ids"], 32, 64)
+            if np.any(seq != seq_after):
+                raise ValueError("Before: {seq}; After: {seq_after}")
