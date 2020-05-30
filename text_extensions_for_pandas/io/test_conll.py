@@ -26,7 +26,6 @@ _SPACY_LANGUAGE_MODEL = spacy.load("en_core_web_sm")
 
 
 class CoNLLTest(unittest.TestCase):
-
     def setUp(self):
         # Ensure that diffs are consistent
         pd.set_option("display.max_columns", 250)
@@ -71,7 +70,7 @@ class CoNLLTest(unittest.TestCase):
         self.assertTrue("ent_iob" in df.columns)
         self.assertTrue("token_span" in spans.columns)
         result = spans_to_iob(spans["token_span"])
-        pd.testing.assert_series_equal(df["ent_iob"], result)
+        pd.testing.assert_series_equal(df["ent_iob"], result["ent_iob"])
 
     def test_conll_2003_to_dataframes(self):
         dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt")
@@ -82,11 +81,11 @@ class CoNLLTest(unittest.TestCase):
                 """\
                 Who is General Failure and why is he reading my hard disk?
                 If Barbie is so popular, why do you have to buy her friends?"""
-            )
+            ),
         )
         self.assertEqual(
             dfs[1]["char_span"].values.target_text,
-            "-DOCSTART-\nI'd kill for a Nobel Peace Prize."
+            "-DOCSTART-\nI'd kill for a Nobel Peace Prize.",
         )
         # print(f"***{repr(dfs[0])}***")  # Uncomment to regenerate gold standard
         self.assertEqual(
@@ -154,7 +153,7 @@ class CoNLLTest(unittest.TestCase):
                 25  [59, 119): 'If Barbie is so popular, why do yo...  
                 26  [59, 119): 'If Barbie is so popular, why do yo...  
                 27  [59, 119): 'If Barbie is so popular, why do yo...  """
-            )
+            ),
         )
         # print(f"***{repr(dfs[1])}***")  # Uncomment to regenerate gold standard
         self.assertEqual(
@@ -184,13 +183,14 @@ class CoNLLTest(unittest.TestCase):
                 6  [11, 44): 'I'd kill for a Nobel Peace Prize.'  
                 7  [11, 44): 'I'd kill for a Nobel Peace Prize.'  
                 8  [11, 44): 'I'd kill for a Nobel Peace Prize.'  """
-            )
+            ),
         )
 
     def test_conll_2003_output_to_dataframes(self):
         doc_dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt")
         output_dfs = conll_2003_output_to_dataframes(
-            doc_dfs, "test_data/io/test_conll/conll03_output.txt")
+            doc_dfs, "test_data/io/test_conll/conll03_output.txt"
+        )
         self.assertEqual(len(output_dfs), 2)
         self.assertEqual(
             output_dfs[0]["char_span"].values.target_text,
@@ -198,11 +198,11 @@ class CoNLLTest(unittest.TestCase):
                 """\
                 Who is General Failure and why is he reading my hard disk?
                 If Barbie is so popular, why do you have to buy her friends?"""
-            )
+            ),
         )
         self.assertEqual(
             output_dfs[1]["char_span"].values.target_text,
-            "-DOCSTART-\nI'd kill for a Nobel Peace Prize."
+            "-DOCSTART-\nI'd kill for a Nobel Peace Prize.",
         )
         # print(f"***{repr(output_dfs[0])}***")  # Uncomment to regenerate gold standard
         self.assertEqual(
@@ -270,7 +270,7 @@ class CoNLLTest(unittest.TestCase):
                 25  [59, 119): 'If Barbie is so popular, why do yo...  
                 26  [59, 119): 'If Barbie is so popular, why do yo...  
                 27  [59, 119): 'If Barbie is so popular, why do yo...  """
-            )
+            ),
         )
         # print(f"***{repr(output_dfs[1])}***")  # Uncomment to regenerate gold standard
         self.assertEqual(
@@ -300,9 +300,39 @@ class CoNLLTest(unittest.TestCase):
                 6  [11, 44): 'I'd kill for a Nobel Peace Prize.'  
                 7  [11, 44): 'I'd kill for a Nobel Peace Prize.'  
                 8  [11, 44): 'I'd kill for a Nobel Peace Prize.'  """
-            )
+            ),
         )
 
+    def test_add_token_classes(self):
+        df = make_tokens_and_features(
+            textwrap.dedent(
+                """\
+                I had amnesia once or twice.
+                -- Steven Wright"""
+            ),
+            _SPACY_LANGUAGE_MODEL,
+        )
+        df_with_labels = add_token_classes(df)
+        relevant_cols = df_with_labels[["char_span", "token_class", "token_class_id"]]
+        # print(f"****{relevant_cols}****")
+        self.assertEqual(
+            str(relevant_cols),
+            textwrap.dedent(
+                """\
+                         char_span token_class  token_class_id
+            0          [0, 1): 'I'           O               0
+            1        [2, 5): 'had'           O               0
+            2   [6, 13): 'amnesia'           O               0
+            3     [14, 18): 'once'           O               0
+            4       [19, 21): 'or'           O               0
+            5    [22, 27): 'twice'           O               0
+            6        [27, 28): '.'           O               0
+            7         [28, 29): ''           O               0
+            8       [29, 31): '--'           O               0
+            9   [32, 38): 'Steven'    B-PERSON               1
+            10  [39, 45): 'Wright'    I-PERSON               2"""
+            ),
+        )
 
 
 if __name__ == "__main__":
