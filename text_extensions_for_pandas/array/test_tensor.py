@@ -357,3 +357,24 @@ class TensorArrayIOTests(unittest.TestCase):
             df.to_parquet(filename)
             df_read = pd.read_parquet(filename)
             pd.testing.assert_frame_equal(df, df_read)
+
+    def test_feather_chunked(self):
+        import pyarrow as pa
+        from pyarrow.feather import write_feather
+
+        x = np.arange(10).reshape(5, 2)
+        s = TensorArray(x)
+        df = pd.DataFrame({"i": list(range(len(s))), "tensor": s})
+
+        # Create a Table with 2 chunks
+        table = pa.Table.from_pandas(df)
+        table = pa.concat_tables([table, table])
+        self.assertEqual(table.column("tensor").num_chunks, 2)
+
+        # Write table to feather and read back as a DataFrame
+        with tempfile.TemporaryDirectory() as dirpath:
+            filename = os.path.join(dirpath, "tensor_array_chunked_test.feather")
+            write_feather(table, filename)
+            df_read = pd.read_feather(filename)
+            df_expected = pd.concat([df, df]).reset_index(drop=True)
+            pd.testing.assert_frame_equal(df_expected, df_read)
