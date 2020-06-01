@@ -400,13 +400,23 @@ class ArrowTensorArray(object):
 
     @staticmethod
     def to_numpy(pa_ext_array):
+
+        def make_numpy_array(ext_arr):
+            ext_type = ext_arr.type
+            ext_list_type = ext_arr.storage.type
+            assert pa.types.is_list(ext_list_type)
+            ext_dtype = ext_list_type.value_type.to_pandas_dtype()
+            buf = ext_arr.storage.buffers()[3]
+            return np.ndarray(ext_type.shape, buffer=buf, dtype=ext_dtype)
+
         if isinstance(pa_ext_array, pa.ChunkedArray):
             if pa_ext_array.num_chunks > 1:
-                raise ValueError("Only pyarrow.Column with single array chunk is supported")
-            pa_ext_array = pa_ext_array.chunk(0)
-        ext_type = pa_ext_array.type
-        ext_list_type = pa_ext_array.storage.type
-        # assert ext_list_type is pa.list_
-        ext_dtype = ext_list_type.value_type.to_pandas_dtype()
-        buf = pa_ext_array.storage.buffers()[3]
-        return np.ndarray(ext_type.shape, buffer=buf, dtype=ext_dtype)
+                # TODO: look into removing concat and constructing from list w/ shape
+                result = np.concatenate([make_numpy_array(chunk)
+                                         for chunk in pa_ext_array.iterchunks()])
+            else:
+                result = make_numpy_array(pa_ext_array.chunk(0))
+        else:
+            result = make_numpy_array(pa_ext_array)
+
+        return result
