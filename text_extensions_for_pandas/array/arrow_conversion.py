@@ -304,17 +304,21 @@ def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
 class ArrowTensorType(pa.PyExtensionType):
     """
     pyarrow ExtensionType definition for TensorType
+
+    :param element_shape: Fixed shape for each tensor element of the array, the
+                          outer dimension is the number of elements, or length,
+                          of the array.
     """
-    def __init__(self, shape, pyarrow_dtype):
-        self._shape = shape
+    def __init__(self, element_shape, pyarrow_dtype):
+        self._element_shape = element_shape
         pa.PyExtensionType.__init__(self, pa.list_(pyarrow_dtype))
 
     def __reduce__(self):
-        return ArrowTensorType, (self._shape, self.storage_type.value_type)
+        return ArrowTensorType, (self._element_shape, self.storage_type.value_type)
 
     @property
     def shape(self):
-        return self._shape
+        return self._element_shape
 
 
 class ArrowTensorArray(object):
@@ -358,8 +362,9 @@ class ArrowTensorArray(object):
                 obj = np.ascontiguousarray(obj)
             pa_dtype = pa.from_numpy_dtype(obj.dtype)
             batch_size = obj.shape[0]
+            element_shape = obj.shape[1:]
             total_num_elements = obj.size
-            num_elements = 1 if len(obj.shape) == 1 else np.prod(obj.shape[1:])
+            num_elements = 1 if len(obj.shape) == 1 else np.prod(element_shape)
 
             child_buf = pa.py_buffer(obj)
             child_array = pa.Array.from_buffers(pa_dtype, total_num_elements, [None, child_buf])
@@ -369,7 +374,7 @@ class ArrowTensorArray(object):
             storage = pa.Array.from_buffers(pa.list_(pa_dtype), batch_size,
                                             [None, offset_buf], children=[child_array])
 
-            typ = ArrowTensorType(obj.shape, pa_dtype)
+            typ = ArrowTensorType(element_shape, pa_dtype)
             return pa.ExtensionArray.from_storage(typ, storage)
 
         elif np.isscalar(obj):
@@ -403,11 +408,12 @@ class ArrowTensorArray(object):
 
         def make_numpy_array(ext_arr):
             ext_type = ext_arr.type
+            shape = (len(ext_arr),) + ext_type.shape
+            buf = ext_arr.storage.buffers()[3]
             ext_list_type = ext_arr.storage.type
             assert pa.types.is_list(ext_list_type)
             ext_dtype = ext_list_type.value_type.to_pandas_dtype()
-            buf = ext_arr.storage.buffers()[3]
-            return np.ndarray(ext_type.shape, buffer=buf, dtype=ext_dtype)
+            return np.ndarray(shape, buffer=buf, dtype=ext_dtype)
 
         if isinstance(pa_ext_array, pa.ChunkedArray):
             if pa_ext_array.num_chunks > 1:
