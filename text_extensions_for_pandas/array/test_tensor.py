@@ -364,11 +364,14 @@ class TensorArrayIOTests(unittest.TestCase):
 
         x = np.arange(10).reshape(5, 2)
         s = TensorArray(x)
-        df = pd.DataFrame({"i": list(range(len(s))), "tensor": s})
+        df1 = pd.DataFrame({"i": list(range(len(s))), "tensor": s})
 
         # Create a Table with 2 chunks
-        table = pa.Table.from_pandas(df)
-        table = pa.concat_tables([table, table])
+        table1 = pa.Table.from_pandas(df1)
+        df2 = df1.copy()
+        df2["tensor"] = df2["tensor"] * 10
+        table2 = pa.Table.from_pandas(df2)
+        table = pa.concat_tables([table1, table2])
         self.assertEqual(table.column("tensor").num_chunks, 2)
 
         # Write table to feather and read back as a DataFrame
@@ -376,5 +379,24 @@ class TensorArrayIOTests(unittest.TestCase):
             filename = os.path.join(dirpath, "tensor_array_chunked_test.feather")
             write_feather(table, filename)
             df_read = pd.read_feather(filename)
-            df_expected = pd.concat([df, df]).reset_index(drop=True)
+            df_expected = pd.concat([df1, df2]).reset_index(drop=True)
             pd.testing.assert_frame_equal(df_expected, df_read)
+
+    def test_feather_auto_chunked(self):
+        import pyarrow as pa
+        from pyarrow.feather import read_table, write_feather
+
+        x = np.arange(2048).reshape(1024, 2)
+        s = TensorArray(x)
+        df = pd.DataFrame({"i": list(range(len(s))), "tensor": s})
+
+        table = pa.Table.from_pandas(df)
+
+        # Write table to feather and read back as a DataFrame
+        with tempfile.TemporaryDirectory() as dirpath:
+            filename = os.path.join(dirpath, "tensor_array_chunked_test.feather")
+            write_feather(table, filename, chunksize=512)
+            table = read_table(filename)
+            self.assertGreaterEqual(table.column("tensor").num_chunks, 2)
+            df_read = pd.read_feather(filename)
+            pd.testing.assert_frame_equal(df, df_read)
