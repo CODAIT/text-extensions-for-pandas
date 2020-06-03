@@ -77,6 +77,10 @@ class CharSpan:
                 and self.end == other.end
                 and self.target_text == other.target_text)
 
+    def __hash__(self):
+        result = hash((self.target_text, self.begin, self.end))
+        return result
+
     def __lt__(self, other):
         """
         span1 < span2 if span1.end <= span2.begin

@@ -113,6 +113,20 @@ class TokenSpanTest(ArrayTestBase):
         self.assertEqual(s1 + s2, s1)
         self.assertEqual(s2 + s3, TokenSpan(toks, 2, 4))
 
+    def test_hash(self):
+        toks = self._make_spans_of_tokens()
+        s1 = TokenSpan(toks, 0, 3)
+        s2 = TokenSpan(toks, 0, 3)
+        s3 = TokenSpan(toks, 3, 4)
+        d = {s1: "foo"}
+        self.assertEqual(d[s1], "foo")
+        self.assertEqual(d[s2], "foo")
+        d[s2] = "bar"
+        d[s3] = "fab"
+        self.assertEqual(d[s1], "bar")
+        self.assertEqual(d[s2], "bar")
+        self.assertEqual(d[s3], "fab")
+
 
 class TokenSpanArrayTest(ArrayTestBase):
     def _make_spans(self):
