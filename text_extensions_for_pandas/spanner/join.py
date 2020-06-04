@@ -132,7 +132,7 @@ def overlap_join(
     # TODO: Is average the right aggregate to use here?
     total_len = np.sum(first_ends - first_begins) + np.sum(second_ends - second_begins)
     average_len = total_len / (len(first_series) + len(second_series))
-    blocking_factor = int(np.floor(average_len))
+    blocking_factor = max(1, int(np.floor(average_len)))
 
     # Generate a table of which blocks each row of the input participates in.
     # Use primary key (index) values because inputs can have duplicate spans.
