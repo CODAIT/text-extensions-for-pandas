@@ -21,50 +21,10 @@
 import pandas as pd
 import pyarrow as pa
 
-
-def watson_nlp_parse_response(response):
-
-    def flatten_dict(d, parent_name=None):
-        flattened = {}
-        for k, v in d.items():
-            if isinstance(v, dict):
-                child = flatten_dict(v, k)
-                flattened.update(child)
-            elif isinstance(v, list) and isinstance(v[0], dict):
-                if parent_name is not None:
-                    k = parent_name + "." + k
-                elements = [flatten_dict(i, k) for i in v]
-                flattened[k] = elements
-            else:
-                if parent_name is not None:
-                    k = parent_name + "." + k
-                flattened[k] = v
-        return flattened
-
-    dfs = {}
-
-    # Create the entities DataFrame
-    entities = response.get("entities", [])
-    entities = [flatten_dict(i) for i in entities]
-    entities_df = pd.DataFrame.from_records(entities)
-    dfs["entities"] = entities_df
-
-    # Create the keywords DataFrame
-    keywords = response.get("keywords", [])
-    keywords = [flatten_dict(i) for i in keywords]
-    keywords_df = pd.DataFrame.from_records(keywords)
-    dfs["keywords"] = keywords_df
-
-    # Create the relations DataFrame
-    relations = response.get("relations", [])
-    relations = [flatten_dict(i) for i in relations]
-    relations_df = pd.DataFrame.from_records(relations)
-    dfs["relations"] = relations_df
-
-    return dfs
+from text_extensions_for_pandas.array import CharSpanArray, TokenSpanArray
 
 
-def watson_nlp_parse_response_arrow(response):
+def watson_nlp_parse_response(response, analyzed_text=None):
 
     def flatten_struct(struct_array, parent_name=None):
         arrays = struct_array.flatten()
@@ -82,16 +42,47 @@ def watson_nlp_parse_response_arrow(response):
             else:
                 yield array, name
 
+    def get_char_span_from_location(table):
+        for name in table.column_names:
+            if name.lower().endswith("location"):
+                col = table.column(name)
+                if pa.types.is_list(col.type) and pa.types.is_primitive(col.type.value_type):
+                    # TODO: assert list is fixed with 2 elements?
+                    col = pa.concat_arrays(col.iterchunks())  # Should only have 1 chunk anyway
+
+                    # Flatten to get primitive array convertible to numpy
+                    array = col.flatten()
+                    values = array.to_numpy()
+                    begins = values[0::2]
+                    ends = values[1::2]
+
+                    # TODO: possible to have more than 1 location?
+                    return CharSpanArray(analyzed_text, begins, ends)
+
     def make_dataframe(records):
         if len(records) > 0:
             arr = pa.array(records)
             assert pa.types.is_struct(arr.type)
             arrays, names = zip(*flatten_struct(arr))
             table = pa.Table.from_arrays(arrays, names)
-            return table.to_pandas()
+
+            # Replace location columns with char and token spans
+            char_span = None
+            if analyzed_text is not None:
+                char_span = get_char_span_from_location(table)
+                # TODO: drop location column?
+
+            df = table.to_pandas()
+
+            # Add the span columns to the DataFrame
+            if char_span is not None:
+                # TODO token_span = TokenSpanArray.al(char_span)
+                df['char_span'] = char_span
+
+            return df
         else:
             # TODO: fill in with expected schema
-            return pd.DataFrame.empty
+            return pd.DataFrame()
 
     dfs = {}
 
