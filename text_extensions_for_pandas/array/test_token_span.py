@@ -87,12 +87,20 @@ class TokenSpanTest(ArrayTestBase):
 
     def test_equals(self):
         toks = self._make_spans_of_tokens()
+        other_toks = toks[:-1].copy()
         s1 = TokenSpan(toks, 0, 2)
         s2 = TokenSpan(toks, 0, 2)
         s3 = TokenSpan(toks, 0, 3)
+        s4 = TokenSpan(other_toks, 0, 2)
+        s5 = CharSpan(toks.target_text, s4.begin, s4.end)
+        s6 = CharSpan(toks.target_text, s4.begin, s4.end + 1)
 
         self.assertEqual(s1, s2)
         self.assertNotEqual(s1, s3)
+        self.assertEqual(s1, s4)
+        self.assertEqual(s1, s5)
+        self.assertEqual(s5, s1)
+        self.assertNotEqual(s1, s6)
 
     def test_less_than(self):
         toks = self._make_spans_of_tokens()
@@ -177,8 +185,12 @@ class TokenSpanArrayTest(ArrayTestBase):
         arr = self._make_spans()
         self._assertArrayEquals(arr[0:4] == arr[1], [False, True, False, False])
         arr2 = self._make_spans()
+        self._assertArrayEquals(arr == arr, [True] * 7)
         self._assertArrayEquals(arr == arr2, [True] * 7)
         self._assertArrayEquals(arr[0:3] == arr[3:6], [False, False, False])
+        arr3 = CharSpanArray(arr.target_text, arr.begin, arr.end)
+        self._assertArrayEquals(arr == arr3, [True] * 7)
+        self._assertArrayEquals(arr3 == arr, [True] * 7)
 
     def test_not_equals(self):
         arr = self._make_spans()

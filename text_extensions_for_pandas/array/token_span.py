@@ -125,16 +125,17 @@ class TokenSpan(CharSpan):
             )
 
     def __eq__(self, other):
-        return (
-            isinstance(other, TokenSpan)
-            and self.tokens.equals(other.tokens)
-            and self.begin_token == other.begin_token
-            and self.end_token == other.end_token
-        )
+        if isinstance(other, TokenSpan) and self.tokens.equals(other.tokens):
+            return (
+                self.begin_token == other.begin_token
+                and self.end_token == other.end_token)
+        else:
+            # Different tokens, or no tokens, or not a span ==> Fall back on superclass
+            return CharSpan.__eq__(self, other)
 
     def __hash__(self):
-        result = hash((self.tokens, self.begin_token, self.end_token))
-        return result
+        # Use superclass hash function so that hash and __eq__ are consistent
+        return CharSpan.__hash__(self)
 
     def __lt__(self, other):
         """
@@ -351,37 +352,29 @@ class TokenSpanArray(CharSpanArray):
 
         :return: Returns a boolean mask indicating which rows match `other`.
         """
-        if isinstance(other, TokenSpan):
-            if not self.tokens.equals(other.tokens):
-                return np.zeros(self._begin_tokens.shape, dtype=np.bool)
+        if isinstance(other, TokenSpan) and self.tokens.equals(other.tokens):
             mask = np.full(len(self), True, dtype=np.bool)
             mask[self.begin_token != other.begin_token] = False
             mask[self.end_token != other.end_token] = False
             return mask
-        elif isinstance(other, TokenSpanArray):
+        elif isinstance(other, TokenSpanArray) and self.tokens.equals(other.tokens):
             if len(self) != len(other):
                 raise ValueError(
                     "Can't compare arrays of differing lengths "
                     "{} and {}".format(len(self), len(other))
                 )
-            if not self.tokens.equals(other.tokens):
-                return np.zeros(self._begin_tokens.shape, dtype=np.bool)
             return np.logical_and(
                 self.begin_token == other.begin_token, self.end_token == other.end_token
             )
         else:
-            # TODO: Return False here once we're sure that this
-            #  function is catching all the comparisons that really matter.
-            raise ValueError(
-                "Don't know how to compare objects of type "
-                "'{}' and '{}'".format(type(self), type(other))
-            )
+            # Different tokens, no tokens, unexpected type ==> fall back on superclass
+            return CharSpanArray.__eq__(self, other)
 
     def __hash__(self):
         if self._hash is None:
-            self._hash = hash(
-                (self._tokens, self._begin_tokens.tobytes(), self._end_tokens.tobytes())
-            )
+            # Use superclass hash function so that hash() and == are consistent
+            # across type.
+            self._hash = CharSpanArray.__hash__(self)
         return self._hash
 
     @classmethod
