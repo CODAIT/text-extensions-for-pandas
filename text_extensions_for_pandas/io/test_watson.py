@@ -844,17 +844,13 @@ class TestWatson(unittest.TestCase):
         pd.reset_option("display.max_columns")
 
     def test_print_all(self):
-        text = textwrap.dedent(
-          """\
-          Who is General Failure and why is he reading my hard disk?
-          If Barbie is so popular, why do you have to buy her friends?""")
-        result = watson_nlp_parse_response(response1, analyzed_text=text)
+        result = watson_nlu_parse_response(response1)
         for k, v in result.items():
             print("\n\n{}:".format(k))
             print(v)
 
     def test_response_entities(self):
-        result = watson_nlp_parse_response_arrow(response2)
+        result = watson_nlu_parse_response(response2)
 
         self.assertIn("entities", result)
 
@@ -868,7 +864,7 @@ class TestWatson(unittest.TestCase):
 
     def test_response_keywords(self):
 
-        result = watson_nlp_parse_response_arrow(response2)
+        result = watson_nlu_parse_response(response2)
 
         self.assertIn("keywords", result)
 

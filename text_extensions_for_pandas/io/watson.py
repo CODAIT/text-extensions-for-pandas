@@ -16,7 +16,8 @@
 ################################################################################
 # watson.py
 #
-# I/O functions related to Watson Natural Language Processing on the IBM Cloud.
+# I/O functions related to Watson Natural Language Understanding on the IBM Cloud.
+# TODO: add links here and docstrings
 
 import pandas as pd
 import pyarrow as pa
@@ -24,7 +25,7 @@ import pyarrow as pa
 from text_extensions_for_pandas.array import CharSpanArray, TokenSpanArray
 
 
-def watson_nlp_parse_response(response, analyzed_text=None):
+def watson_nlu_parse_response(response):
 
     def flatten_struct(struct_array, parent_name=None):
         arrays = struct_array.flatten()
@@ -42,34 +43,58 @@ def watson_nlp_parse_response(response, analyzed_text=None):
             else:
                 yield array, name
 
-    def get_char_span_from_location(table):
+    def make_table(records):
+        arr = pa.array(records)
+        assert pa.types.is_struct(arr.type)
+        arrays, names = zip(*flatten_struct(arr))
+        return pa.Table.from_arrays(arrays, names)
+
+    def find_column(table, column):
         for name in table.column_names:
-            if name.lower().endswith("location"):
-                col = table.column(name)
-                if pa.types.is_list(col.type) and pa.types.is_primitive(col.type.value_type):
-                    # TODO: assert list is fixed with 2 elements?
-                    col = pa.concat_arrays(col.iterchunks())  # Should only have 1 chunk anyway
-
-                    # Flatten to get primitive array convertible to numpy
-                    array = col.flatten()
-                    values = array.to_numpy()
-                    begins = values[0::2]
-                    ends = values[1::2]
-
-                    # TODO: possible to have more than 1 location?
-                    return CharSpanArray(analyzed_text, begins, ends)
+            if name.lower().endswith(column):
+                return table.column(name)
+        return None
 
     def make_dataframe(records):
         if len(records) > 0:
-            arr = pa.array(records)
-            assert pa.types.is_struct(arr.type)
-            arrays, names = zip(*flatten_struct(arr))
-            table = pa.Table.from_arrays(arrays, names)
+            table = make_table(records)
+            df = table.to_pandas()
+            return df
+        else:
+            # TODO: fill in with expected schema
+            return pd.DataFrame()
+
+    def make_dataframe_with_spans(records):
+        if len(records) > 0:
+            table = make_table(records)
+
+            char_span = None
+            location_col = find_column(table, "location")
+            text_col = find_column(table, "text")
 
             # Replace location columns with char and token spans
-            char_span = None
-            if analyzed_text is not None:
-                char_span = get_char_span_from_location(table)
+            if location_col is not None and text_col is not None and \
+                pa.types.is_list(location_col.type) and pa.types.is_primitive(location_col.type.value_type):
+
+                # TODO: assert location is fixed with 2 elements?
+                location_col = pa.concat_arrays(location_col.iterchunks())
+                text_col = pa.concat_arrays(text_col.iterchunks())
+
+                # Flatten to get primitive array convertible to numpy
+                array = location_col.flatten()
+                values = array.to_numpy()
+                begins = values[0::2]
+                ends = values[1::2]
+
+                # Build the covered text, TODO: ok to assume begin is sorted?
+                text = ""
+                for token, begin in zip(text_col, begins):
+                    if len(text) < begin:
+                        text += " " * (begin - len(text))
+                    text += token.as_py()
+
+                char_span = CharSpanArray(text, begins, ends)
+
                 # TODO: drop location column?
 
             df = table.to_pandas()
@@ -104,11 +129,9 @@ def watson_nlp_parse_response(response, analyzed_text=None):
 
     # Create the syntax DataFrame
     syntax = response.get("syntax", {})
-    paragraph = syntax.get("paragraphs", [])
-    dfs["syntax.paragraph"] = make_dataframe(paragraph)
     sentence = syntax.get("sentences", [])
-    dfs["syntax.sentence"] = make_dataframe(sentence)
+    dfs["syntax.sentence"] = make_dataframe_with_spans(sentence)
     tokens = syntax.get("tokens", [])
-    dfs["syntax.tokens"] = make_dataframe(tokens)
+    dfs["syntax.tokens"] = make_dataframe_with_spans(tokens)
 
     return dfs
