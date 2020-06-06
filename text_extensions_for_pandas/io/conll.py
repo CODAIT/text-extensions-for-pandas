@@ -695,3 +695,15 @@ def add_token_classes(token_features: pd.DataFrame,
     ret["token_class_id"] = [label_to_int[l] for l in elems]
     return ret
 
+
+def decode_class_labels(class_labels: Iterable[str]):
+    """
+    Decode the composite labels that :func:`add_token_classes` creates.
+
+    :param class_labels: Iterable of string class labels like "I-LOC"
+    :returns: A tuple of (IOB2 tags, entity type strings) corresponding
+     to the class labels.
+    """
+    iobs = ["O" if t == "O" else t[:1] for t in class_labels]
+    types = [None if t == "O" else t.split("-")[1] for t in class_labels]
+    return iobs, types
