@@ -38,8 +38,17 @@ from text_extensions_for_pandas.array import (
 # the collection.
 _CONLL_DOC_SEPARATOR = "-DOCSTART-"
 
-_PUNCT_REGEX = regex.compile(f"[{string.punctuation}]+")
-_PUNCT_MATCH_FN = np.vectorize(lambda s: _PUNCT_REGEX.fullmatch(s) is not None)
+# _PUNCT_REGEX = regex.compile(f"[{string.punctuation}]+")
+_PUNCT_OR_RIGHT_PAREN_REGEX = regex.compile('[!"#$%&\')*+,-./:;=>?@\\]^_`|}~]')
+_LEFT_PAREN_REGEX = regex.compile(r"[(<\[{]+")
+
+# _PUNCT_MATCH_FN = np.vectorize(lambda s: _PUNCT_REGEX.fullmatch(s) is not None)
+_SPACE_BEFORE_MATCH_FN = np.vectorize(lambda s:
+                                      _PUNCT_OR_RIGHT_PAREN_REGEX.fullmatch(s)
+                                      is not None)
+_SPACE_AFTER_MATCH_FN = np.vectorize(lambda s:
+                                     _LEFT_PAREN_REGEX.fullmatch(s)
+                                     is not None)
 
 
 def _parse_conll_file(input_file: str) -> List[List[Dict[str, List[str]]]]:
@@ -213,10 +222,16 @@ def _parse_conll_output_file(doc_dfs: List[pd.DataFrame],
 
 def _fix_iob_tags(df: pd.DataFrame) -> pd.DataFrame:
     """
-    In CoNLL-2003 format, the first token of an entity is only tagged
-    "B" when there are two entities of the same type back-to-back.
-    Correct for that silliness by always tagging the first token
-    with a "B". This conforms with the IOB2 format, see
+    In CoNLL-2003 format, entities are stored in IOB format, where the first
+    token of an entity is only tagged "B" when there are two entities of the
+    same type back-to-back. This format makes downstream processing difficult.
+    If a given position has an `I` tag, that position may or may not be the
+    first token of an entity. Code will need to inspect both the I/O/B tags
+    and the entity type of multiple other tokens to disambiguate between those
+    two cases.
+
+    This function converts these IOB tags to the easier-to-consume IOB2 format;
+    see
     https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)
     for details.
 
@@ -264,7 +279,8 @@ def _doc_to_df(doc: List[Dict[str, List[str]]],
     :param doc: Tree of Python objects that represents the document,
      List with one dictionary per sentence.
     :param space_before_punct: If `True`, add whitespace before
-     punctuation characters when reconstructing the text of the document.
+     punctuation characters (and after left parentheses)
+     when reconstructing the text of the document.
     :return: DataFrame with four columns:
     * `char_span`: Span of each token, with character offsets.
       Backed by the concatenation of the tokens in the document into
@@ -290,12 +306,20 @@ def _doc_to_df(doc: List[Dict[str, List[str]]],
         tokens = sentence["token"]
 
         # Don't put spaces before punctuation in the reconstituted string.
-        no_space_mask = (
+        no_space_before_mask = (
             np.zeros(len(tokens), dtype=np.bool) if space_before_punct
-            else _PUNCT_MATCH_FN(tokens))
-        no_space_mask[0] = True  # No space before first token
-        prefixes = np.where(no_space_mask, "", " ")
-        string_parts = np.ravel((prefixes, tokens), order='F')
+            else _SPACE_BEFORE_MATCH_FN(tokens))
+        no_space_after_mask = (
+            np.zeros(len(tokens), dtype=np.bool) if space_before_punct
+            else _SPACE_AFTER_MATCH_FN(tokens))
+        no_space_before_mask[0] = True  # No space before first token
+        no_space_after_mask[-1] = True  # No space after last token
+        shifted_no_space_after_mask = np.roll(no_space_after_mask, 1)
+        prefixes = np.where(
+            np.logical_or(no_space_before_mask,
+                          shifted_no_space_after_mask),
+            "", " ")
+        string_parts = np.ravel((prefixes, tokens), order="F")
         sentence_text = "".join(string_parts)
         sentences_list.append(sentence_text)
 
