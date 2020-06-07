@@ -39,7 +39,9 @@ from text_extensions_for_pandas.array import (
 _CONLL_DOC_SEPARATOR = "-DOCSTART-"
 
 # _PUNCT_REGEX = regex.compile(f"[{string.punctuation}]+")
-_PUNCT_OR_RIGHT_PAREN_REGEX = regex.compile('[!"#$%&\')*+,-./:;=>?@\\]^_`|}~]')
+_PUNCT_OR_RIGHT_PAREN_REGEX = regex.compile(
+    # Punctuation, right paren, or apostrophe followed by 1-2 lowercase letters
+    '[!"#$%&\')*+,-./:;=>?@\\]^_`|}~]|\'[a-z]{1,2}')
 _LEFT_PAREN_REGEX = regex.compile(r"[(<\[{]+")
 
 # _PUNCT_MATCH_FN = np.vectorize(lambda s: _PUNCT_REGEX.fullmatch(s) is not None)

@@ -26,7 +26,8 @@ you O
 have O
 to O
 buy O
-her O
+Barbie I-PER
+'s O
 friends O
 ? O
 
