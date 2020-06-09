@@ -24,6 +24,7 @@
 # the relational algebra augmented with spanner algebra.
 #
 
+from text_extensions_for_pandas.spanner.consolidate import *
 from text_extensions_for_pandas.spanner.extract import *
 from text_extensions_for_pandas.spanner.join import *
 from text_extensions_for_pandas.spanner.project import *

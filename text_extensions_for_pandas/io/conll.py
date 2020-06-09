@@ -38,8 +38,22 @@ from text_extensions_for_pandas.array import (
 # the collection.
 _CONLL_DOC_SEPARATOR = "-DOCSTART-"
 
-_PUNCT_REGEX = regex.compile(f"[{string.punctuation}]+")
-_PUNCT_MATCH_FN = np.vectorize(lambda s: _PUNCT_REGEX.fullmatch(s) is not None)
+# _PUNCT_REGEX = regex.compile(f"[{string.punctuation}]+")
+_PUNCT_OR_RIGHT_PAREN_REGEX = regex.compile(
+    # Punctuation, right paren, or apostrophe followed by 1-2 lowercase letters
+    # But not single or double quote, which could either begin or end a quotation
+    '[!#%)*+,-./:;=>?@\\]^_`|}~]|\'[a-zA-Z]{1,2}')
+# Tokens that behave like left parentheses for whitespace purposes,
+# including dollar signs ("$100", not "$ 100")
+_LEFT_PAREN_REGEX = regex.compile(r"[(<\[{$]+")
+
+# _PUNCT_MATCH_FN = np.vectorize(lambda s: _PUNCT_REGEX.fullmatch(s) is not None)
+_SPACE_BEFORE_MATCH_FN = np.vectorize(lambda s:
+                                      _PUNCT_OR_RIGHT_PAREN_REGEX.fullmatch(s)
+                                      is not None)
+_SPACE_AFTER_MATCH_FN = np.vectorize(lambda s:
+                                     _LEFT_PAREN_REGEX.fullmatch(s)
+                                     is not None)
 
 
 def _parse_conll_file(input_file: str) -> List[List[Dict[str, List[str]]]]:
@@ -213,10 +227,16 @@ def _parse_conll_output_file(doc_dfs: List[pd.DataFrame],
 
 def _fix_iob_tags(df: pd.DataFrame) -> pd.DataFrame:
     """
-    In CoNLL-2003 format, the first token of an entity is only tagged
-    "B" when there are two entities of the same type back-to-back.
-    Correct for that silliness by always tagging the first token
-    with a "B". This conforms with the IOB2 format, see
+    In CoNLL-2003 format, entities are stored in IOB format, where the first
+    token of an entity is only tagged "B" when there are two entities of the
+    same type back-to-back. This format makes downstream processing difficult.
+    If a given position has an `I` tag, that position may or may not be the
+    first token of an entity. Code will need to inspect both the I/O/B tags
+    and the entity type of multiple other tokens to disambiguate between those
+    two cases.
+
+    This function converts these IOB tags to the easier-to-consume IOB2 format;
+    see
     https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)
     for details.
 
@@ -264,7 +284,8 @@ def _doc_to_df(doc: List[Dict[str, List[str]]],
     :param doc: Tree of Python objects that represents the document,
      List with one dictionary per sentence.
     :param space_before_punct: If `True`, add whitespace before
-     punctuation characters when reconstructing the text of the document.
+     punctuation characters (and after left parentheses)
+     when reconstructing the text of the document.
     :return: DataFrame with four columns:
     * `char_span`: Span of each token, with character offsets.
       Backed by the concatenation of the tokens in the document into
@@ -290,12 +311,20 @@ def _doc_to_df(doc: List[Dict[str, List[str]]],
         tokens = sentence["token"]
 
         # Don't put spaces before punctuation in the reconstituted string.
-        no_space_mask = (
+        no_space_before_mask = (
             np.zeros(len(tokens), dtype=np.bool) if space_before_punct
-            else _PUNCT_MATCH_FN(tokens))
-        no_space_mask[0] = True  # No space before first token
-        prefixes = np.where(no_space_mask, "", " ")
-        string_parts = np.ravel((prefixes, tokens), order='F')
+            else _SPACE_BEFORE_MATCH_FN(tokens))
+        no_space_after_mask = (
+            np.zeros(len(tokens), dtype=np.bool) if space_before_punct
+            else _SPACE_AFTER_MATCH_FN(tokens))
+        no_space_before_mask[0] = True  # No space before first token
+        no_space_after_mask[-1] = True  # No space after last token
+        shifted_no_space_after_mask = np.roll(no_space_after_mask, 1)
+        prefixes = np.where(
+            np.logical_or(no_space_before_mask,
+                          shifted_no_space_after_mask),
+            "", " ")
+        string_parts = np.ravel((prefixes, tokens), order="F")
         sentence_text = "".join(string_parts)
         sentences_list.append(sentence_text)
 
@@ -468,8 +497,9 @@ def iob_to_spans(
 
 
 def spans_to_iob(
-    token_spans: Union[TokenSpanArray, List[TokenSpan], pd.Series]
-) -> pd.Series:
+    token_spans: Union[TokenSpanArray, List[TokenSpan], pd.Series],
+    span_ent_types: Union[str, Iterable, np.ndarray, pd.Series] = None
+) -> pd.DataFrame:
     """
     Convert a series of `TokenSpan`s of entities to token tags in
     Inside–Outside–Beginning (IOB2) format. See
@@ -480,25 +510,39 @@ def spans_to_iob(
         `TokenSpanArray.make_array()`. Should contain `TokenSpan`s aligned with the
         target tokenization.
         Usually you create this array by calling `TokenSpanArray.align_to_tokens()`.
-    :return: A `pd.Series` of IOB2 tags as strings and a series name of "ent_iob".
+    :param span_ent_types: List of entity type strings corresponding to each of the
+        elements of `token_spans`, or `None` to indicate null entity tags.
+    :return: A `pd.DataFrame` with two columns:
+      * "ent_iob": IOB2 tags as strings "ent_iob"
+      * "ent_type": Entity type strings (or NaN values if `ent_types` is `None`)
     """
+    # Normalize inputs
     token_spans = TokenSpanArray.make_array(token_spans)
+    if span_ent_types is None:
+        span_ent_types = [None] * len(token_spans)
+    elif isinstance(span_ent_types, str):
+        span_ent_types = [span_ent_types] * len(token_spans)
+    elif isinstance(span_ent_types, pd.Series):
+        span_ent_types = span_ent_types.values
 
     # Define the IOB categorical type with "O" == 0, "B"==1, "I"==2
     iob2_dtype = pd.CategoricalDtype(["O", "B", "I"], ordered=False)
 
     # Handle an empty token span array
     if len(token_spans) == 0:
-        return pd.Series(dtype=iob2_dtype)
+        return pd.DataFrame({
+            "ent_iob": pd.Series(dtype=iob2_dtype),
+            "ent_type": pd.Series(dtype="string")
+        })
 
     # Initialize an IOB series with all 'O' entities
     iob_data = np.zeros_like(token_spans.tokens.begin, dtype=np.int64)
     iob_tags = pd.Categorical.from_codes(codes=iob_data, dtype=iob2_dtype)
 
-    # Assign the begin entities
+    # Assign the begin tags
     iob_tags[token_spans.begin_token] = "B"
 
-    # Fill in the remaining inside entities
+    # Fill in the remaining inside tags
     i_lengths = token_spans.end_token - (token_spans.begin_token + 1)
     i_mask = i_lengths > 0
     i_begins = token_spans.begin_token[i_mask] + 1
@@ -506,7 +550,17 @@ def spans_to_iob(
     for begin, end in zip(i_begins, i_ends):
         iob_tags[begin:end] = "I"
 
-    return pd.Series(iob_tags, name="ent_iob")
+    # Use a similar process to generate entity type tags
+    ent_types = np.full(len(token_spans.tokens), None, dtype=object)
+    for ent_type, begin, end in zip(span_ent_types,
+                                    token_spans.begin_token,
+                                    token_spans.end_token):
+        ent_types[begin:end] = ent_type
+
+    return pd.DataFrame({
+        "ent_iob": iob_tags,
+        "ent_type": pd.Series(ent_types, dtype="string")
+    })
 
 
 def conll_2003_to_dataframes(input_file: str,
@@ -604,4 +658,81 @@ def conll_2003_output_to_dataframes(doc_dfs: List[pd.DataFrame],
     ]
 
 
+def make_iob_tag_categories(entity_types: List[str]) \
+        -> Tuple[pd.CategoricalDtype, List[str], Dict[str, int]]:
+    """
+    Enumerate all the possible token categories for combinations of
+    IOB tags and entity types (for example, I + "PER" ==> "I-PER").
+    Generate a consistent mapping from these strings to integers.
 
+    :param entity_types: Allowable entity type strings for the corpus
+    :returns: A triple of:
+     * Pandas CategoricalDtype
+     * mapping from integer to string label, as a list. This mapping is guaranteed
+       to be consistent with the mapping in the Pandas CategoricalDtype in the first
+       return value.
+     * mapping string label to integer, as a dict; the inverse of the second return
+       value.
+    """
+    int_to_label = ["O"] + [f"{x}-{y}" for x in ["B", "I"] for y in entity_types]
+    label_to_int = {int_to_label[i]: i for i in range(len(int_to_label))}
+    token_class_dtype = pd.CategoricalDtype(categories=int_to_label)
+    return token_class_dtype, int_to_label, label_to_int
+
+
+def add_token_classes(token_features: pd.DataFrame,
+                      token_class_dtype: pd.CategoricalDtype = None,
+                      iob_col_name: str = "ent_iob",
+                      entity_type_col_name: str = "ent_type") -> pd.DataFrame:
+    """
+    Add additional columns to a dataframe of IOB-tagged tokens containing composite
+    string and integer category labels for the tokens.
+
+    :param token_features: Dataframe of tokens with IOB tags and entity type strings
+    :param token_class_dtype: Optional Pandas categorical dtype indicating how to map
+     composite tags like `I-PER` to integer values.
+     You can use :func:`make_iob_tag_categories` to generate this dtype.
+     If this parameter is not provided, this function will use an arbitrary mapping
+     using the values that appear in this dataframe.
+    :param iob_col_name: Optional name of a column in `token_features` that contains the
+     IOB2 tags as strings, "I", "O", or "B".
+    :param entity_type_col_name: Optional name of a column in `token_features`
+     that contains entity type information; or `None` if no such column exists.
+
+    :returns: A copy of `token_features` with two additional columns, `token_class`
+     (string class label) and `token_class_id` (integer label).
+     If `token_features` contains columns with either of these names, those columns will
+     be overwritten in the returned copy of `token_features`.
+    """
+    if token_class_dtype is None:
+        empty_mask = (token_features[entity_type_col_name].isna() |
+                      (token_features[entity_type_col_name] == ""))
+        token_class_type, _, label_to_int = make_iob_tag_categories(
+            list(token_features[~empty_mask][entity_type_col_name].unique())
+        )
+    else:
+        label_to_int = {token_class_dtype.categories[i]: i
+                        for i in range(len(token_class_dtype.categories))}
+    elems = []  # Type: str
+    for index, row in token_features[[iob_col_name, entity_type_col_name]].iterrows():
+        if row[iob_col_name] == "O":
+            elems.append("O")
+        else:
+            elems.append(f"{row[iob_col_name]}-{row[entity_type_col_name]}")
+    ret = token_features.copy()
+    ret["token_class"] = pd.Categorical(elems, dtype=token_class_dtype)
+    ret["token_class_id"] = [label_to_int[l] for l in elems]
+    return ret
+
+
+def decode_class_labels(class_labels: Iterable[str]):
+    """
+    Decode the composite labels that :func:`add_token_classes` creates.
+
+    :param class_labels: Iterable of string class labels like "I-LOC"
+    :returns: A tuple of (IOB2 tags, entity type strings) corresponding
+     to the class labels.
+    """
+    iobs = ["O" if t == "O" else t[:1] for t in class_labels]
+    types = [None if t == "O" else t.split("-")[1] for t in class_labels]
+    return iobs, types

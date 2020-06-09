@@ -73,9 +73,19 @@ class CharSpan:
                                        textwrap.shorten(self.covered_text, 80))
 
     def __eq__(self, other):
-        return (self.begin == other.begin
-                and self.end == other.end
-                and self.target_text == other.target_text)
+        if isinstance(other, CharSpan):
+            return (self.begin == other.begin
+                    and self.end == other.end
+                    and self.target_text == other.target_text)
+        elif isinstance(other, CharSpanArray):
+            return other == self
+        else:
+            # Different type ==> not equal
+            return False
+
+    def __hash__(self):
+        result = hash((self.target_text, self.begin, self.end))
+        return result
 
     def __lt__(self, other):
         """

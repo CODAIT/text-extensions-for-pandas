@@ -2,6 +2,7 @@ Who O
 is O
 General I-PER
 Failure I-PER
+( O
 and O
 why O
 is I-FOO
@@ -10,6 +11,7 @@ reading O
 my O
 hard I-FAB
 disk B-FAB
+) O
 ? O
 
 If O
@@ -24,7 +26,8 @@ you O
 have O
 to O
 buy O
-her O
+Barbie I-PER
+'s O
 friends O
 ? O
 
