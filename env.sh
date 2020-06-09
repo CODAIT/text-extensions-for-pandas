@@ -77,6 +77,10 @@ conda install -y -c conda-forge \
 conda install -y -c conda-forge \
     nodejs
 
+# Jupyter debugger requires the xeus-python kernel
+conda install -y -c conda-forge \
+    xeus-python
+
 
 ################################################################################
 # Third-best way to install packages: pip
@@ -105,6 +109,9 @@ echo "   jupyter labextension install jupyterlab-plotly"
 # Finish installation of ipywidgets from the "conda-forge" section above
 jupyter nbextension enable --py widgetsnbextension
 jupyter labextension install @jupyter-widgets/jupyterlab-manager
+
+# Jupyter debugger extension (requires xeus-python, installed above)
+jupyter labextension install @jupyterlab/debugger
 
 #jupyter lab build
 
