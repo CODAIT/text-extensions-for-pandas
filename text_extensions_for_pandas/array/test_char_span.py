@@ -147,6 +147,20 @@ class CharSpanTest(unittest.TestCase):
         self.assertEqual(s3.context(), "This is a [test.]")
         self.assertEqual(s3.context(3), "... a [test.]")
 
+    def test_hash(self):
+        test_text = "This is a test."
+        s1 = CharSpan(test_text, 0, 3)
+        s2 = CharSpan(test_text, 0, 3)
+        s3 = CharSpan(test_text, 3, 4)
+        d = {s1: "foo"}
+        self.assertEqual(d[s1], "foo")
+        self.assertEqual(d[s2], "foo")
+        d[s2] = "bar"
+        d[s3] = "fab"
+        self.assertEqual(d[s1], "bar")
+        self.assertEqual(d[s2], "bar")
+        self.assertEqual(d[s3], "fab")
+
 
 class ArrayTestBase(TestBase):
     """

@@ -100,15 +100,18 @@ python -m spacy download en_core_web_sm
 
 # Plotly for JupyterLab
 # Currently disabled because the install takes 5-10 minutes. 
-echo "Not installing jupyterlab-plotly because the install takes 5-10 minutes."
-echo "To install manually, activate the '${ENV_NAME}' environment and run the "
-echo "following command:"
-echo "   jupyter labextension install jupyterlab-plotly"
+#echo "Not installing jupyterlab-plotly because the install takes 5-10 minutes."
+#echo "To install manually, activate the '${ENV_NAME}' environment and run the "
+#echo "following command:"
+#echo "   jupyter labextension install jupyterlab-plotly"
 #jupyter labextension install jupyterlab-plotly
 
 # Finish installation of ipywidgets from the "conda-forge" section above
 jupyter nbextension enable --py widgetsnbextension
 jupyter labextension install @jupyter-widgets/jupyterlab-manager
+
+# Also install the table of contents extension
+jupyter labextension install @jupyterlab/toc
 
 # Jupyter debugger extension (requires xeus-python, installed above)
 jupyter labextension install @jupyterlab/debugger
