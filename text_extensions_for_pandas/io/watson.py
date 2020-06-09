@@ -23,6 +23,7 @@ import pandas as pd
 import pyarrow as pa
 
 from text_extensions_for_pandas.array import CharSpanArray, TokenSpanArray
+from text_extensions_for_pandas.spanner import contain_join
 
 
 def watson_nlu_parse_response(response):
@@ -56,58 +57,80 @@ def watson_nlu_parse_response(response):
         return None
 
     def make_dataframe(records):
-        if len(records) > 0:
-            table = make_table(records)
-            df = table.to_pandas()
-            return df
-        else:
+        if len(records) == 0:
             # TODO: fill in with expected schema
             return pd.DataFrame()
 
-    def make_dataframe_with_spans(records):
-        if len(records) > 0:
-            table = make_table(records)
+        table = make_table(records)
+        df = table.to_pandas()
+        return df
 
-            char_span = None
-            location_col = find_column(table, "location")
-            text_col = find_column(table, "text")
+    def make_char_span(table):
+        location_col = find_column(table, "location")
+        text_col = find_column(table, "text")
 
-            # Replace location columns with char and token spans
-            if location_col is not None and text_col is not None and \
-                pa.types.is_list(location_col.type) and pa.types.is_primitive(location_col.type.value_type):
+        # Replace location columns with char and token spans
+        if location_col is None or text_col is None or \
+                not pa.types.is_list(location_col.type) or not pa.types.is_primitive(location_col.type.value_type):
+            raise ValueError("Expected location column as a list of integers")
 
-                # TODO: assert location is fixed with 2 elements?
-                location_col = pa.concat_arrays(location_col.iterchunks())
-                text_col = pa.concat_arrays(text_col.iterchunks())
+        # TODO: assert location is fixed with 2 elements?
+        location_col = pa.concat_arrays(location_col.iterchunks())
+        text_col = pa.concat_arrays(text_col.iterchunks())
 
-                # Flatten to get primitive array convertible to numpy
-                array = location_col.flatten()
-                values = array.to_numpy()
-                begins = values[0::2]
-                ends = values[1::2]
+        # Flatten to get primitive array convertible to numpy
+        array = location_col.flatten()
+        values = array.to_numpy()
+        begins = values[0::2]
+        ends = values[1::2]
 
-                # Build the covered text, TODO: ok to assume begin is sorted?
-                text = ""
-                for token, begin in zip(text_col, begins):
-                    if len(text) < begin:
-                        text += " " * (begin - len(text))
-                    text += token.as_py()
+        # Build the covered text, TODO: ok to assume begin is sorted?
+        text = ""
+        for token, begin in zip(text_col, begins):
+            if len(text) < begin:
+                text += " " * (begin - len(text))
+            text += token.as_py()
 
-                char_span = CharSpanArray(text, begins, ends)
+        char_span = CharSpanArray(text, begins, ends)
 
-                # TODO: drop location column?
+        return char_span
 
-            df = table.to_pandas()
+    def make_syntax_dataframes(syntax_response):
+        tokens = syntax_response.get("tokens", [])
+        sentence = syntax_response.get("sentences", [])
 
-            # Add the span columns to the DataFrame
-            if char_span is not None:
-                # TODO token_span = TokenSpanArray.al(char_span)
-                df['char_span'] = char_span
-
-            return df
-        else:
+        if len(sentence) == 0 and len(tokens) == 0:
             # TODO: fill in with expected schema
             return pd.DataFrame()
+
+        token_table = make_table(tokens)
+        char_span = make_char_span(token_table)
+        token_span = TokenSpanArray.from_char_offsets(char_span)
+
+        sentence_table = make_table(sentence)
+        sentence_char_span = make_char_span(sentence_table)
+        sentence_span = TokenSpanArray.align_to_tokens(char_span, sentence_char_span)
+
+        # TODO: drop location, text columns
+
+        # Add the span columns to the DataFrames
+        token_df = token_table.to_pandas()
+        token_df['char_span'] = char_span
+        token_df['token_span'] = token_span
+
+        sentence_df = sentence_table.to_pandas()
+        sentence_df['char_span'] = sentence_char_span
+
+        df = token_df.merge(
+            contain_join(
+                pd.Series(sentence_span),
+                token_df['token_span'],
+                first_name="sentence",
+                second_name="token_span",
+            ), how="outer"
+        )
+
+        return df
 
     dfs = {}
 
@@ -128,10 +151,7 @@ def watson_nlu_parse_response(response):
     dfs["semantic_roles"] = make_dataframe(semantic_roles)
 
     # Create the syntax DataFrame
-    syntax = response.get("syntax", {})
-    sentence = syntax.get("sentences", [])
-    dfs["syntax.sentence"] = make_dataframe_with_spans(sentence)
-    tokens = syntax.get("tokens", [])
-    dfs["syntax.tokens"] = make_dataframe_with_spans(tokens)
+    syntax_response = response.get("syntax", {})
+    dfs["syntax"] = make_syntax_dataframes(syntax_response)
 
     return dfs
