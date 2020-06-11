@@ -63,8 +63,7 @@ def _make_dataframe(records):
         return pd.DataFrame()
 
     table = _make_table(records)
-    df = table.to_pandas()
-    return df
+    return table.to_pandas()
 
 
 def _make_char_span(table):
@@ -93,9 +92,7 @@ def _make_char_span(table):
             text += " " * (begin - len(text))
         text += token.as_py()
 
-    char_span = CharSpanArray(text, begins, ends)
-
-    return char_span
+    return CharSpanArray(text, begins, ends)
 
 
 def _make_syntax_dataframes(syntax_response):
@@ -136,6 +133,49 @@ def _make_syntax_dataframes(syntax_response):
     return df
 
 
+def _make_relations_dataframe(relations):
+    if len(relations) == 0:
+        # TODO: fill in with expected schema
+        return pd.DataFrame()
+
+    table = _make_table(relations)
+
+    # Separate each argument into a column
+    flattened_arguments = []
+    for name in table.column_names:
+        if name.lower().startswith("arguments"):
+            col = pa.concat_arrays(table.column(name).iterchunks())
+            assert pa.types.is_list(col.type)
+
+            num_arguments = len(col[0])
+
+            raw = col
+            while pa.types.is_list(raw.type):
+                raw = raw.flatten()
+
+            values = raw.to_pandas()
+            offsets = col.offsets.to_numpy()
+
+            # TODO assert fixed length list with number of values
+
+            for i in range(num_arguments):
+                v = values[i::num_arguments]
+                flat_raw = pa.array(v, from_pandas=True)
+                flat_offsets = offsets / num_arguments
+                '''child = flat_raw
+                for arr, offsets in reversed(flattened[1:]):
+                    child = pa.ListArray.from_arrays(offsets, child)
+                flat_offsets = offsets[i::num_arguments]
+                '''
+                array = pa.ListArray.from_arrays(flat_offsets, flat_raw)
+                flattened_arguments.append((array, name + "_{}".format(i)))
+
+    for arg_array, arg_name in flattened_arguments:
+        table = table.append_column(arg_name, arg_array)
+
+    return table.to_pandas()
+
+
 def watson_nlu_parse_response(response):
 
     dfs = {}
@@ -150,7 +190,7 @@ def watson_nlu_parse_response(response):
 
     # Create the relations DataFrame
     relations = response.get("relations", [])
-    dfs["relations"] = _make_dataframe(relations)
+    dfs["relations"] = _make_relations_dataframe(relations)
 
     # Create the semantic roles DataFrame
     semantic_roles = response.get("semantic_roles", [])
