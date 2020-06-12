@@ -73,7 +73,8 @@ class CoNLLTest(unittest.TestCase):
         pd.testing.assert_series_equal(df["ent_iob"], result["ent_iob"])
 
     def test_conll_2003_to_dataframes(self):
-        dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt")
+        dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt",
+                                       ["ent"], [True])
         self.assertEqual(len(dfs), 2)
         self.assertEqual(
             dfs[0]["char_span"].values.target_text,
@@ -192,8 +193,89 @@ class CoNLLTest(unittest.TestCase):
             ),
         )
 
+    def test_conll_2003_to_dataframes_multi_field(self):
+        dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test2.txt",
+                                       ["pos", "phrase", "ent"], [False, True, True])
+        # print(f"***{repr(dfs[0])}***")  # Uncomment to regenerate gold standard
+        self.assertEqual(
+            repr(dfs[0]),
+            # NOTE the escaped backslash in the string below. Be sure to put it back
+            # in when regenerating this string!
+            textwrap.dedent(
+                """\
+                char_span             token_span  pos phrase_iob phrase_type  \\
+0   [0, 10): '-DOCSTART-'  [0, 10): '-DOCSTART-'  -X-          O        None   
+1         [11, 14): 'Who'        [11, 14): 'Who'   WP          B          NP   
+2          [15, 17): 'is'         [15, 17): 'is'  VBD          B          VP   
+3     [18, 25): 'General'    [18, 25): 'General'  NNP          B          NP   
+4     [26, 33): 'Failure'    [26, 33): 'Failure'  NNP          B          NP   
+5           [34, 35): '('          [34, 35): '('    (          O        None   
+6         [35, 38): 'and'        [35, 38): 'and'   CC          O        None   
+7         [39, 42): 'why'        [39, 42): 'why'  WRB          B        ADVP   
+8          [43, 45): 'is'         [43, 45): 'is'  VPD          B          VP   
+9          [46, 48): 'he'         [46, 48): 'he'  PRP          B          NP   
+10    [49, 56): 'reading'    [49, 56): 'reading'  VBD          B          VP   
+11         [57, 59): 'my'         [57, 59): 'my'  WRB          I          VP   
+12       [60, 64): 'hard'       [60, 64): 'hard'   NN          I          VP   
+13       [65, 69): 'disk'       [65, 69): 'disk'   NN          I          VP   
+14          [69, 70): ')'          [69, 70): ')'    )          O        None   
+15          [70, 71): '?'          [70, 71): '?'    ?          O        None   
+16         [72, 74): 'If'         [72, 74): 'If'   CC          O        None   
+17     [75, 81): 'Barbie'     [75, 81): 'Barbie'  NNP          B          NP   
+18         [82, 84): 'is'         [82, 84): 'is'  VPD          B          VP   
+19         [85, 87): 'so'         [85, 87): 'so'  WRB          B        ADJP   
+20    [88, 95): 'popular'    [88, 95): 'popular'   JJ          I        ADJP   
+21          [95, 96): ','          [95, 96): ','    ,          O        None   
+22       [97, 100): 'why'       [97, 100): 'why'  WRB          B        ADVP   
+23       [101, 103): 'do'       [101, 103): 'do'  VPD          B          VP   
+24      [104, 107): 'you'      [104, 107): 'you'   NN          O        None   
+25     [108, 112): 'have'     [108, 112): 'have'  VBD          B          VP   
+26       [113, 115): 'to'       [113, 115): 'to'  VBD          I          VP   
+27      [116, 119): 'buy'      [116, 119): 'buy'  VBD          I          VP   
+28   [120, 126): 'Barbie'   [120, 126): 'Barbie'  NNP          B          NP   
+29       [126, 128): ''s'       [126, 128): ''s'    '          O        None   
+30  [129, 136): 'friends'  [129, 136): 'friends'   NN          B          NP   
+31        [136, 137): '?'        [136, 137): '?'    ?          O        None   
+
+   ent_iob ent_type                                           sentence  
+0        O     None                              [0, 10): '-DOCSTART-'  
+1        O     None  [11, 71): 'Who is General Failure (and why is ...  
+2        O     None  [11, 71): 'Who is General Failure (and why is ...  
+3        B      PER  [11, 71): 'Who is General Failure (and why is ...  
+4        I      PER  [11, 71): 'Who is General Failure (and why is ...  
+5        O     None  [11, 71): 'Who is General Failure (and why is ...  
+6        O     None  [11, 71): 'Who is General Failure (and why is ...  
+7        O     None  [11, 71): 'Who is General Failure (and why is ...  
+8        B      FOO  [11, 71): 'Who is General Failure (and why is ...  
+9        B      BAR  [11, 71): 'Who is General Failure (and why is ...  
+10       O     None  [11, 71): 'Who is General Failure (and why is ...  
+11       O     None  [11, 71): 'Who is General Failure (and why is ...  
+12       B      FAB  [11, 71): 'Who is General Failure (and why is ...  
+13       B      FAB  [11, 71): 'Who is General Failure (and why is ...  
+14       O     None  [11, 71): 'Who is General Failure (and why is ...  
+15       O     None  [11, 71): 'Who is General Failure (and why is ...  
+16       O     None  [72, 137): 'If Barbie is so popular, why do yo...  
+17       B      PER  [72, 137): 'If Barbie is so popular, why do yo...  
+18       O     None  [72, 137): 'If Barbie is so popular, why do yo...  
+19       O     None  [72, 137): 'If Barbie is so popular, why do yo...  
+20       O     None  [72, 137): 'If Barbie is so popular, why do yo...  
+21       O     None  [72, 137): 'If Barbie is so popular, why do yo...  
+22       O     None  [72, 137): 'If Barbie is so popular, why do yo...  
+23       O     None  [72, 137): 'If Barbie is so popular, why do yo...  
+24       O     None  [72, 137): 'If Barbie is so popular, why do yo...  
+25       O     None  [72, 137): 'If Barbie is so popular, why do yo...  
+26       O     None  [72, 137): 'If Barbie is so popular, why do yo...  
+27       O     None  [72, 137): 'If Barbie is so popular, why do yo...  
+28       B      PER  [72, 137): 'If Barbie is so popular, why do yo...  
+29       O     None  [72, 137): 'If Barbie is so popular, why do yo...  
+30       O     None  [72, 137): 'If Barbie is so popular, why do yo...  
+31       O     None  [72, 137): 'If Barbie is so popular, why do yo...  """
+            ),
+        )
+
     def test_conll_2003_output_to_dataframes(self):
-        doc_dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt")
+        doc_dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt",
+                                           ["ent"], [True])
         output_dfs = conll_2003_output_to_dataframes(
             doc_dfs, "test_data/io/test_conll/conll03_output.txt"
         )

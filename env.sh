@@ -77,6 +77,10 @@ conda install -y -c conda-forge \
 conda install -y -c conda-forge \
     nodejs
 
+# Jupyter debugger requires the xeus-python kernel
+conda install -y -c conda-forge \
+    xeus-python
+
 
 ################################################################################
 # Third-best way to install packages: pip
@@ -108,6 +112,9 @@ jupyter labextension install @jupyter-widgets/jupyterlab-manager
 
 # Also install the table of contents extension
 jupyter labextension install @jupyterlab/toc
+
+# Jupyter debugger extension (requires xeus-python, installed above)
+jupyter labextension install @jupyterlab/debugger
 
 #jupyter lab build
 

@@ -7,7 +7,9 @@
 import ipywidgets
 from IPython.display import display
 import numpy as np
+import os.path
 import pandas as pd
+import requests
 import time
 import torch
 import sklearn.random_projection
@@ -19,6 +21,40 @@ import importlib
 tp = importlib.reload(tp)
 
 from typing import *
+
+def get_conll_data() -> Dict[str, str]:
+    """
+    Download and cache a copy of the CoNLL-2003 data set.
+    
+    :returns: Mapping from fold name to file name
+    """
+    # Download and cache a copy of the data set.
+    # NOTE: This data set is licensed for research use only. Be sure to adhere
+    #  to the terms of the license when using this data set!
+    _CONLL_DOWNLOAD_BASE_URL = (
+        "https://github.com/patverga/torch-ner-nlp-from-scratch/raw/master/"
+        "data/conll2003/"
+    )
+    _TRAIN_FILE_NAME = "eng.train"
+    _DEV_FILE_NAME = "eng.testa"
+    _TEST_FILE_NAME = "eng.testb"
+    _TRAIN_FILE = f"outputs/{_TRAIN_FILE_NAME}"
+    _DEV_FILE = f"outputs/{_DEV_FILE_NAME}"
+    _TEST_FILE = f"outputs/{_TEST_FILE_NAME}"
+
+    def download_file(url, destination):
+        data = requests.get(url)
+        open(destination, "wb").write(data.content)
+
+    if not os.path.exists(_TRAIN_FILE):
+        download_file(_CONLL_DOWNLOAD_BASE_URL + _TRAIN_FILE_NAME, _TRAIN_FILE)
+        download_file(_CONLL_DOWNLOAD_BASE_URL + _DEV_FILE_NAME, _DEV_FILE)
+        download_file(_CONLL_DOWNLOAD_BASE_URL + _TEST_FILE_NAME, _TEST_FILE)
+    return {
+        "train": _TRAIN_FILE, 
+        "dev": _DEV_FILE,
+        "test": _TEST_FILE
+    }
 
 def run_with_progress_bar(num_items: int, fn: Callable, item_type: str = "doc") \
         -> List[pd.DataFrame]:
@@ -229,7 +265,6 @@ def train_reduced_model(X: np.ndarray, Y: np.ndarray, n_components: int,
         )),
         ("mlogreg", sklearn.linear_model.LogisticRegression(
             multi_class="multinomial",
-            verbose=1,
             max_iter=10000
         ))
     ])
@@ -430,6 +465,8 @@ def realign_to_tokens(spans_df: pd.DataFrame, corpus_toks_df: pd.DataFrame) -> p
      where the "token_span" column contains token-based spans based off
      the *corpus* tokenization in `corpus_toks_df["char_span"]`.
     """
+    if len(spans_df.index) == 0:
+        return spans_df.copy()
     overlaps_df = (
         tp
         .overlap_join(spans_df["token_span"], corpus_toks_df["char_span"],
