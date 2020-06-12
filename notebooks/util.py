@@ -265,7 +265,6 @@ def train_reduced_model(X: np.ndarray, Y: np.ndarray, n_components: int,
         )),
         ("mlogreg", sklearn.linear_model.LogisticRegression(
             multi_class="multinomial",
-            # verbose=1,
             max_iter=10000
         ))
     ])
