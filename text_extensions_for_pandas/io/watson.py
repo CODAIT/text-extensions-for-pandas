@@ -150,25 +150,29 @@ def _make_relations_dataframe(relations):
             num_arguments = len(col[0])
 
             raw = col
+            offset_arrays = []
             while pa.types.is_list(raw.type):
+                offset_arrays.append(raw.offsets)
                 raw = raw.flatten()
 
             values = raw.to_pandas()
-            offsets = col.offsets.to_numpy()
+            offsets_list = [o.to_numpy() for o in offset_arrays]
 
             # TODO assert fixed length list with number of values
 
             for i in range(num_arguments):
                 v = values[i::num_arguments]
-                flat_raw = pa.array(v, from_pandas=True)
-                flat_offsets = offsets / num_arguments
+                flat_raw = pa.array(v)
+                #flat_offsets = offsets / num_arguments
+                for offsets in reversed(offsets_list):
+                    temp = offsets[i::num_arguments]
                 '''child = flat_raw
                 for arr, offsets in reversed(flattened[1:]):
                     child = pa.ListArray.from_arrays(offsets, child)
                 flat_offsets = offsets[i::num_arguments]
                 '''
-                array = pa.ListArray.from_arrays(flat_offsets, flat_raw)
-                flattened_arguments.append((array, name + "_{}".format(i)))
+                #array = pa.ListArray.from_arrays(flat_offsets, flat_raw)
+                #flattened_arguments.append((array, name + "_{}".format(i)))
 
     for arg_array, arg_name in flattened_arguments:
         table = table.append_column(arg_name, arg_array)
