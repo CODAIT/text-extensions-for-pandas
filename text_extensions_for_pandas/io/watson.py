@@ -19,6 +19,7 @@
 # I/O functions related to Watson Natural Language Understanding on the IBM Cloud.
 # TODO: add links here and docstrings
 
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 
@@ -146,8 +147,17 @@ def _make_relations_dataframe(relations):
         if name.lower().startswith("arguments"):
             col = pa.concat_arrays(table.column(name).iterchunks())
             assert pa.types.is_list(col.type)
+            first_list = col[0]
 
-            num_arguments = len(col[0])
+            num_arguments = len(first_list)
+
+            # Not a nested list
+            '''if not pa.types.is_list(col.type.value_type):
+                raw = col.flatten()
+                values = raw.to_numpy(zero_copy_only=False)
+                for i in range(num_arguments):
+            '''
+
 
             raw = col
             offset_arrays = []
@@ -155,18 +165,51 @@ def _make_relations_dataframe(relations):
                 offset_arrays.append(raw.offsets)
                 raw = raw.flatten()
 
-            values = raw.to_pandas()
+            values = raw.to_numpy(zero_copy_only=False)  #raw.to_pandas()
             offsets_list = [o.to_numpy() for o in offset_arrays]
 
             # TODO assert fixed length list with number of values
 
+            value_offsets = offsets_list.pop()
+            value_lengths = value_offsets[1:] - value_offsets[:-1]
+
             for i in range(num_arguments):
-                v = values[i::num_arguments]
+                split_name = name.split('.', maxsplit=1)
+                arg_name = "{}_{}.{}".format(split_name[0], i, split_name[1])
+                if pa.types.is_list(col.type.value_type):
+                    num_elements = len(first_list[i])
+                    arg_lengths = value_lengths[i::num_arguments]
+                else:
+                    num_elements = 1
+                    arg_lengths = 1
+
+                # Simple case of fixed length arrays
+                if len(np.unique(arg_lengths)) == 1:
+
+                    # Only 1 element so leave in primitive array
+                    if num_elements == 1:
+                        arg_values = values[i::num_arguments]
+                        arg_array = pa.array(arg_values)
+                    # Multiple elements so put back in a list array
+                    else:
+                        arg_values = values.reshape([len(col) * num_arguments, num_elements])
+                        arg_values = arg_values[i::num_elements]
+                        arg_values = arg_values.flatten()
+                        arg_offsets = np.cumsum(arg_lengths)
+                        arg_offsets = np.insert(arg_offsets, 0, 0)
+                        arg_array = pa.ListArray.from_arrays(arg_offsets, arg_values)
+
+                    flattened_arguments.append((arg_array, arg_name))
+                else:
+                    raise NotImplementedError
+
+                '''#v = values[i::num_arguments]
                 flat_raw = pa.array(v)
                 #flat_offsets = offsets / num_arguments
                 for offsets in reversed(offsets_list):
-                    temp = offsets[i::num_arguments]
-                '''child = flat_raw
+                    #temp = offsets[i::num_arguments]
+                    lengths =
+                child = flat_raw
                 for arr, offsets in reversed(flattened[1:]):
                     child = pa.ListArray.from_arrays(offsets, child)
                 flat_offsets = offsets[i::num_arguments]
