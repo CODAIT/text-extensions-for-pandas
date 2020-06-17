@@ -112,7 +112,8 @@ def _make_syntax_dataframes(syntax_response):
     sentence_char_span = _make_char_span(sentence_table)
     sentence_span = TokenSpanArray.align_to_tokens(char_span, sentence_char_span)
 
-    # TODO: drop location, text columns
+    # Drop location, text columns that is duplicated in char_span
+    token_table = token_table.drop(["location", "text"])
 
     # Add the span columns to the DataFrames
     token_df = token_table.to_pandas()
@@ -143,51 +144,50 @@ def _make_relations_dataframe(relations):
 
     # Separate each argument into a column
     flattened_arguments = []
+    drop_cols = []
     for name in table.column_names:
         if name.lower().startswith("arguments"):
             col = pa.concat_arrays(table.column(name).iterchunks())
             assert pa.types.is_list(col.type)
-            first_list = col[0]
+            is_nested_list = pa.types.is_list(col.type.value_type)
 
+            name_split = name.split('.', maxsplit=1)
+            first_list = col[0]
             num_arguments = len(first_list)
 
-            # Not a nested list
-            '''if not pa.types.is_list(col.type.value_type):
-                raw = col.flatten()
-                values = raw.to_numpy(zero_copy_only=False)
-                for i in range(num_arguments):
-            '''
+            null_count = 0
 
-
+            # Get the flattened raw values
             raw = col
             offset_arrays = []
             while pa.types.is_list(raw.type):
                 offset_arrays.append(raw.offsets)
+                null_count += raw.null_count
                 raw = raw.flatten()
 
-            values = raw.to_numpy(zero_copy_only=False)  #raw.to_pandas()
+            # TODO handle lists with null values
+            if null_count > 0:
+                continue
+
+            # Convert values to numpy
+            values = raw.to_numpy(zero_copy_only=False)  # string might copy
             offsets_list = [o.to_numpy() for o in offset_arrays]
 
-            # TODO assert fixed length list with number of values
-
+            # Compute the length of each list in the array
             value_offsets = offsets_list.pop()
             value_lengths = value_offsets[1:] - value_offsets[:-1]
 
+            # Separate the arguments into individual columns
             for i in range(num_arguments):
-                split_name = name.split('.', maxsplit=1)
-                arg_name = "{}_{}.{}".format(split_name[0], i, split_name[1])
-                if pa.types.is_list(col.type.value_type):
-                    num_elements = len(first_list[i])
-                    arg_lengths = value_lengths[i::num_arguments]
-                else:
-                    num_elements = 1
-                    arg_lengths = 1
+                arg_name = "{}.{}.{}".format(name_split[0], i, name_split[1])
+                arg_lengths = value_lengths[i::num_arguments]
 
-                # Simple case of fixed length arrays
-                if len(np.unique(arg_lengths)) == 1:
+                # Fixed length arrays can be sliced
+                if not is_nested_list or len(np.unique(arg_lengths)) == 1:
+                    num_elements = len(first_list[i]) if is_nested_list else 1
 
                     # Only 1 element so leave in primitive array
-                    if num_elements == 1:
+                    if not is_nested_list or num_elements == 1:
                         arg_values = values[i::num_arguments]
                         arg_array = pa.array(arg_values)
                     # Multiple elements so put back in a list array
@@ -198,27 +198,19 @@ def _make_relations_dataframe(relations):
                         arg_offsets = np.cumsum(arg_lengths)
                         arg_offsets = np.insert(arg_offsets, 0, 0)
                         arg_array = pa.ListArray.from_arrays(arg_offsets, arg_values)
-
-                    flattened_arguments.append((arg_array, arg_name))
                 else:
-                    raise NotImplementedError
+                    # TODO Argument properties with variable length arrays not currently supported
+                    continue
 
-                '''#v = values[i::num_arguments]
-                flat_raw = pa.array(v)
-                #flat_offsets = offsets / num_arguments
-                for offsets in reversed(offsets_list):
-                    #temp = offsets[i::num_arguments]
-                    lengths =
-                child = flat_raw
-                for arr, offsets in reversed(flattened[1:]):
-                    child = pa.ListArray.from_arrays(offsets, child)
-                flat_offsets = offsets[i::num_arguments]
-                '''
-                #array = pa.ListArray.from_arrays(flat_offsets, flat_raw)
-                #flattened_arguments.append((array, name + "_{}".format(i)))
+                flattened_arguments.append((arg_array, arg_name))
+            drop_cols.append(name)
 
+    # Add the flattened argument columns
     for arg_array, arg_name in flattened_arguments:
         table = table.append_column(arg_name, arg_array)
+
+    # Drop columns that have been flattened
+    table = table.drop(drop_cols)
 
     return table.to_pandas()
 
