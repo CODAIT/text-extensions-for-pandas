@@ -149,6 +149,54 @@ def _make_relations_dataframe(relations):
         if name.lower().startswith("arguments"):
             col = pa.concat_arrays(table.column(name).iterchunks())
             assert pa.types.is_list(col.type)
+
+            name_split = name.split('.', maxsplit=1)
+            num_arguments = len(col[0])
+
+            value_series = col.values.to_pandas()
+
+            # Separate the arguments into individual columns
+            for i in range(num_arguments):
+                arg_name = "{}.{}.{}".format(name_split[0], i, name_split[1])
+                arg_series = value_series[i::num_arguments]
+
+                arg_array = pa.array(arg_series)
+
+                # If list array is fixed length with 1 element, it can be flattened
+                temp = arg_array
+                while pa.types.is_list(temp.type):
+                    temp = temp.flatten()
+                    if len(temp) == len(arg_array):
+                        # TODO also need to verify each offset inc by 1?
+                        arg_array = temp
+
+                flattened_arguments.append((arg_array, arg_name))
+            drop_cols.append(name)
+
+    # Add the flattened argument columns
+    for arg_array, arg_name in flattened_arguments:
+        table = table.append_column(arg_name, arg_array)
+
+    # Drop columns that have been flattened
+    table = table.drop(drop_cols)
+
+    return table.to_pandas()
+
+
+def _make_relations_dataframe_zero_copy(relations):
+    if len(relations) == 0:
+        # TODO: fill in with expected schema
+        return pd.DataFrame()
+
+    table = _make_table(relations)
+
+    # Separate each argument into a column
+    flattened_arguments = []
+    drop_cols = []
+    for name in table.column_names:
+        if name.lower().startswith("arguments"):
+            col = pa.concat_arrays(table.column(name).iterchunks())
+            assert pa.types.is_list(col.type)
             is_nested_list = pa.types.is_list(col.type.value_type)
 
             name_split = name.split('.', maxsplit=1)
@@ -167,7 +215,7 @@ def _make_relations_dataframe(relations):
 
             # TODO handle lists with null values
             if null_count > 0:
-                continue
+                x = 1 #continue
 
             # Convert values to numpy
             values = raw.to_numpy(zero_copy_only=False)  # string might copy
