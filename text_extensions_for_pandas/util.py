@@ -62,7 +62,7 @@ def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"]) -> str:
             text_pieces.append("&#39;")
         elif text[i] == "$":
             # Dollar sign messes up Jupyter's JavaScript UI.
-            # Use backslash to avoid
+            # Place dollar sign in its own sub-span to avoid being misinterpeted as a LaTeX delimiter
             text_pieces.append("<span>&#36;</span>")
         else:
             text_pieces.append(text[i])
