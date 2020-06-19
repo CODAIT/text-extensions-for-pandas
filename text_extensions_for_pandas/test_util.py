@@ -34,7 +34,7 @@ class UtilTest(TestBase):
     def test_pretty_print_html(self):
         self.maxDiff = None
         html = pretty_print_html(_TEST_TOKS["token_span"].values)
-        suffix = html[-796:]
+        suffix = html[-809:]
         # print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
@@ -56,7 +56,7 @@ class UtilTest(TestBase):
          style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 60%;">
             <div style="float:center; padding:10px">
                 <p style="font-family:monospace">
-                    <span style="background-color:yellow">Item&#39;s</span> <span style="background-color:yellow">for</span> <span style="background-color:yellow">&lt;</span> <span style="background-color:yellow">&#36;100</span> <span style="background-color:yellow">&amp;</span> <span style="background-color:yellow">change
+                    <span style="background-color:yellow">Item&#39;s</span> <span style="background-color:yellow">for</span> <span style="background-color:yellow">&lt;</span> <span style="background-color:yellow"><span>&#36;</span>100</span> <span style="background-color:yellow">&amp;</span> <span style="background-color:yellow">change
                 </p>
             </div>
         </div>
