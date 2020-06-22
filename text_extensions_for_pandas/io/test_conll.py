@@ -50,9 +50,11 @@ class CoNLLTest(unittest.TestCase):
             textwrap.dedent(
                 """\
                                     token_span ent_type
-                0           [61, 67): 'Alaska'      GPE
-                1      [73, 84): 'Santa Claus'      GPE
-                2  [100, 113): 'Steven Wright'   PERSON"""
+                0           [4, 11): 'Bermuda'      ORG
+                1         [12, 20): 'Triangle'  PRODUCT
+                2           [61, 67): 'Alaska'      GPE
+                3      [73, 84): 'Santa Claus'   PERSON
+                4  [100, 113): 'Steven Wright'   PERSON"""
             ),
         )
 
