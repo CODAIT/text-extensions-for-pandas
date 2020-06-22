@@ -84,7 +84,14 @@ conda install -y -c conda-forge \
 
 ################################################################################
 # Third-best way to install packages: pip
-pip install memoized-property
+
+# pip install with the project's requirements.txt so that any hard constraints
+# on package versions are respected in the created environment.
+pip install -r requirements.txt
+
+# memoized-property now installed from requirements.txt, so no need to pip 
+# intall it here.
+#pip install memoized-property
 
 # Watson tooling requires pyyaml to be installed this way.
 pip install pyyaml
