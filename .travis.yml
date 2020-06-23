@@ -1,0 +1,27 @@
+language: python
+python:
+- "3.7"
+-
+install:
+#install conda
+ - sudo apt update
+ - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+ - bash miniconda.sh -b -p $HOME/miniconda
+ - source "$HOME/miniconda/etc/profile.d/conda.sh"
+ - hash -r
+ - conda config --set always_yes yes --set changeps1 no
+ - conda update -q conda
+
+ - conda info -a
+
+ - conda create --name pd
+ - conda activate pd
+ - conda install tensorflow jupyterlab pandas regex matplotlib cython grpcio-tools pytorch scikit-learn
+ - conda install -c conda-forge spacy pyarrow fastparquet plotly ipywidgets
+
+ - pip install -r requirements.txt
+ - pip install transformers
+ - python -m spacy download en_core_web_sm
+
+script:
+ - python -m unittest discover 
