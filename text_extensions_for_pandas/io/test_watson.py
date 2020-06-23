@@ -76,6 +76,18 @@ class TestWatson(unittest.TestCase):
         text_series = result["entities"]["text"]
         self.assertListEqual(sorted(text_series), expected_text)
 
+    def test_make_span_from_entities(self):
+        filename = "test_data/io/test_watson/holy_grail_response.txt"
+        dfs = self.parse_response_file(filename)
+
+        self.assertIn('entities', dfs)
+        self.assertIn('text', dfs['entities'].columns)
+        char_span = dfs['syntax']['char_span'].values
+
+        token_span = make_span_from_entities(dfs['entities'], 'text', char_span)
+        x = 1
+        # TODO check span
+
     def test_response_keywords(self):
         filename = "test_data/io/test_watson/basic_response.txt"
         response = self.load_response_file(filename)

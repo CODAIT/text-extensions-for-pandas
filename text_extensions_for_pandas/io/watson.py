@@ -288,3 +288,40 @@ def watson_nlu_parse_response(response):
     dfs["syntax"] = _make_syntax_dataframes(syntax_response)
 
     return dfs
+
+
+def make_span_from_entities(entities_frame, entity_col, char_span):
+    entities = entities_frame[entity_col]
+    entities_len = entities.str.len()
+    begins = []
+    ends = []
+
+    i = 0
+    while i < len(char_span):
+        span = char_span[i]
+        text = span.covered_text
+        end = i
+        num_tokens = 1
+        stop = False
+        while not stop:
+            stop = True
+            starts_with = entities.str.startswith(text)
+            if any(starts_with):
+                # Have a complete match, advance the end index
+                if any(entities_len[starts_with] == len(text)):
+                    end = i + num_tokens
+                # Try the next token
+                if i + num_tokens < len(char_span):
+                    span = char_span[i + num_tokens]
+                    text = text + " " + span.covered_text
+                    num_tokens += 1
+                    stop = False
+
+        if i != end:
+            begins.append(i)
+            ends.append(end)
+            i += (end - i)
+        else:
+            i += 1
+
+    return TokenSpanArray(char_span, begins, ends)
