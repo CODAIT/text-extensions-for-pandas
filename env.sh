@@ -51,27 +51,10 @@ conda create -y --name ${ENV_NAME} python=${PYTHON_VERSION}
 conda activate ${ENV_NAME}
 
 ################################################################################
-# Preferred way to install packages: Anaconda main
-conda install -y \
-    tensorflow \
-    jupyterlab \
-    pandas \
-    regex \
-    matplotlib \
-    cython \
-    grpcio-tools \
-    pytorch \
-    black \
-    scikit-learn
+# set up conda environment as much as possible from environment.yml file
 
-################################################################################
-# Second-best way to install packages: conda-forge
-conda install -y -c conda-forge \
-    spacy \
-    pyarrow \
-    fastparquet \
-    plotly \
-    ipywidgets \
+conda env update -f environment.yml
+
 
 # Post-install steps for ipywidgets on JupyterLab require Node
 conda install -y -c conda-forge \

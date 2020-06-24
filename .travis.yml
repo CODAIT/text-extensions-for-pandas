@@ -16,12 +16,12 @@ install:
 
  - conda create --name pd
  - conda activate pd
- - conda install tensorflow jupyterlab pandas regex matplotlib cython grpcio-tools pytorch scikit-learn
- - conda install -c conda-forge spacy pyarrow fastparquet plotly ipywidgets
+ - conda env update -f environment.yml
 
  - pip install -r requirements.txt
- - pip install transformers
  - python -m spacy download en_core_web_sm
+ - pip install transformers
+
 
 script:
- - python -m unittest discover 
+ - python -m unittest discover

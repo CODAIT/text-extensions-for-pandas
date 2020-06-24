@@ -1,0 +1,22 @@
+name: pd
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+ - tensorflow
+ - jupyterlab
+ - pandas
+ - regex
+ - matplotlib
+ - cython 
+ - grpcio-tools
+ - pytorch
+ - black
+ - scikit-learn 
+ - spacy
+ - pyarrow
+ - fastparquet 
+ - plotly
+ - ipywidgets
+
+
