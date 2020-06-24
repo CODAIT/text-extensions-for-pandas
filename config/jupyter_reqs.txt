@@ -1,0 +1,8 @@
+# jupyter_reqs.txt
+# Pip requirements file to create a Jupyterlab environment for development of
+# this project.
+jupyterlab
+nodejs
+xeus-python
+ipywidgets
+

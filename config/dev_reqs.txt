@@ -1,0 +1,11 @@
+# dev_reqs.txt
+# Pips requirements file containing libraries needed for development and
+# testing of this project, but not strictly necessary at runtime 
+# NOTE: These requirements are IN ADDITION TO the packages in
+# config/dev_env.yml and requirements.txt
+pyyaml
+transformers
+spacy
+fastparquet
+
+
