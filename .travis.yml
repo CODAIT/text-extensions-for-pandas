@@ -14,7 +14,7 @@ install:
 
  - conda info -a
 
- - ./env.sh
+ - CONDA_HOME="${HOME}/miniconda" ./env.sh
 
 
 script:
