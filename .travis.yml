@@ -24,4 +24,6 @@ install:
 
 
 script:
+ - #check that doc generation is possible
+  - generate_docs.sh
  - python -m unittest discover
