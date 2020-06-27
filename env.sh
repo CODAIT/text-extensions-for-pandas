@@ -46,55 +46,37 @@ echo "Creating an Anaconda environment called '${ENV_NAME}'"
 # Remove the detrius of any previous runs of this script
 conda env remove -n ${ENV_NAME}
 
-
 conda create -y --name ${ENV_NAME} python=${PYTHON_VERSION}
+
+################################################################################
+# Preferred way to install packages: Anaconda main
+#
+# We use YAML files to ensure that the CI environment will use the same
+# configuration.
+conda env update -n ${ENV_NAME} -f config/dev_env.yml
+
+################################################################################
+# Second-best way to install packages: pip
+
+# All the installation steps that follow must be done from within the new
+# environment.
 conda activate ${ENV_NAME}
-
-################################################################################
-# set up conda environment as much as possible from environment.yml file
-
-conda env update -f environment.yml
-
-
-# Post-install steps for ipywidgets on JupyterLab require Node
-conda install -y -c conda-forge \
-    nodejs
-
-# Jupyter debugger requires the xeus-python kernel
-conda install -y -c conda-forge \
-    xeus-python
-
-
-################################################################################
-# Third-best way to install packages: pip
 
 # pip install with the project's requirements.txt so that any hard constraints
 # on package versions are respected in the created environment.
 pip install -r requirements.txt
 
-# memoized-property now installed from requirements.txt, so no need to pip 
-# intall it here.
-#pip install memoized-property
+# Additional layer of pip-installed stuff for running regression tests
+pip install -r config/dev_reqs.txt
 
-# Watson tooling requires pyyaml to be installed this way.
-pip install pyyaml
-
-# Huggingface transformers library is currently only on PyPI
-pip install transformers
+# Additional layer of pip-installed stuff for running notebooks
+pip install -r config/jupyter_reqs.txt
 
 ################################################################################
 # Least-preferred install method: Custom
 
 # spaCy language models for English
 python -m spacy download en_core_web_sm
-
-# Plotly for JupyterLab
-# Currently disabled because the install takes 5-10 minutes. 
-#echo "Not installing jupyterlab-plotly because the install takes 5-10 minutes."
-#echo "To install manually, activate the '${ENV_NAME}' environment and run the "
-#echo "following command:"
-#echo "   jupyter labextension install jupyterlab-plotly"
-#jupyter labextension install jupyterlab-plotly
 
 # Finish installation of ipywidgets from the "conda-forge" section above
 jupyter nbextension enable --py widgetsnbextension
@@ -106,6 +88,8 @@ jupyter labextension install @jupyterlab/toc
 # Jupyter debugger extension (requires xeus-python, installed above)
 jupyter labextension install @jupyterlab/debugger
 
+# Uncomment the following line if one of the "jupyter labextension install"
+# commands neglects to rebuild jupyterlab assets.
 #jupyter lab build
 
 conda deactivate

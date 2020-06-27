@@ -1,10 +1,9 @@
-name: pd
+# Anaconda YAML file specifying packages that this project's build/test
+# environment should install from Anaconda's main channel.
 channels:
   - defaults
-  - conda-forge
 dependencies:
  - tensorflow
- - jupyterlab
  - pandas
  - regex
  - matplotlib
@@ -13,10 +12,5 @@ dependencies:
  - pytorch
  - black
  - scikit-learn 
- - spacy
- - pyarrow
- - fastparquet 
- - plotly
- - ipywidgets
 
 
