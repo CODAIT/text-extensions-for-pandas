@@ -51,11 +51,11 @@ def _make_table(records):
     return pa.Table.from_arrays(arrays, names)
 
 
-def _find_column(table, column):
+def _find_column(table, column_endswith):
     for name in table.column_names:
-        if name.lower().endswith(column):
-            return table.column(name)
-    return None
+        if name.lower().endswith(column_endswith):
+            return table.column(name), name
+    raise ValueError("Expected {} column but got {}".format(column_endswith, table.column_names))
 
 
 def _make_dataframe(records):
@@ -67,18 +67,27 @@ def _make_dataframe(records):
     return table.to_pandas()
 
 
-def _make_char_span(table):
-    location_col = _find_column(table, "location")
-    text_col = _find_column(table, "text")
+def _build_original_text(text_col, begins):
+    # Build the covered text, TODO: ok to assume begin is sorted?
+    text = ""
+    for token, begin in zip(text_col, begins):
+        if len(text) < begin:
+            text += " " * (begin - len(text))
+        text += token.as_py()
+    return text
+
+
+def _make_char_span(location_col, text_col, original_text):
 
     # Replace location columns with char and token spans
-    if location_col is None or text_col is None or \
-            not pa.types.is_list(location_col.type) or not pa.types.is_primitive(location_col.type.value_type):
+    if not (pa.types.is_list(location_col.type) and pa.types.is_primitive(location_col.type.value_type)):
         raise ValueError("Expected location column as a list of integers")
 
     # TODO: assert location is fixed with 2 elements?
-    location_col = pa.concat_arrays(location_col.iterchunks())
-    text_col = pa.concat_arrays(text_col.iterchunks())
+    if isinstance(location_col, pa.ChunkedArray):
+        location_col = pa.concat_arrays(location_col.iterchunks())
+    if isinstance(text_col, pa.ChunkedArray):
+        text_col = pa.concat_arrays(text_col.iterchunks())
 
     # Flatten to get primitive array convertible to numpy
     array = location_col.flatten()
@@ -86,17 +95,13 @@ def _make_char_span(table):
     begins = values[0::2]
     ends = values[1::2]
 
-    # Build the covered text, TODO: ok to assume begin is sorted?
-    text = ""
-    for token, begin in zip(text_col, begins):
-        if len(text) < begin:
-            text += " " * (begin - len(text))
-        text += token.as_py()
+    if original_text is None:
+        original_text = _build_original_text(text_col, begins)
 
-    return CharSpanArray(text, begins, ends)
+    return CharSpanArray(original_text, begins, ends)
 
 
-def _make_syntax_dataframes(syntax_response):
+def _make_syntax_dataframes(syntax_response, original_text):
     tokens = syntax_response.get("tokens", [])
     sentence = syntax_response.get("sentences", [])
 
@@ -105,15 +110,19 @@ def _make_syntax_dataframes(syntax_response):
         return pd.DataFrame()
 
     token_table = _make_table(tokens)
-    char_span = _make_char_span(token_table)
+    location_col, location_name = _find_column(token_table, "location")
+    text_col, text_name = _find_column(token_table, "text")
+    char_span = _make_char_span(location_col, text_col, original_text)
     token_span = TokenSpanArray.from_char_offsets(char_span)
 
-    sentence_table = _make_table(sentence)
-    sentence_char_span = _make_char_span(sentence_table)
-    sentence_span = TokenSpanArray.align_to_tokens(char_span, sentence_char_span)
-
     # Drop location, text columns that is duplicated in char_span
-    token_table = token_table.drop(["location", "text"])
+    token_table = token_table.drop([location_name, text_name])
+
+    sentence_table = _make_table(sentence)
+    location_col, _ = _find_column(sentence_table, "location")
+    text_col, _ = _find_column(sentence_table, "text")
+    sentence_char_span = _make_char_span(location_col, text_col, original_text)
+    sentence_span = TokenSpanArray.align_to_tokens(char_span, sentence_char_span)
 
     # Add the span columns to the DataFrames
     token_df = token_table.to_pandas()
@@ -122,10 +131,16 @@ def _make_syntax_dataframes(syntax_response):
 
     sentence_df = sentence_table.to_pandas()
     sentence_df['char_span'] = sentence_char_span
+    sentence_df['sentence_span'] = sentence_span
+
+    return token_df, sentence_df
+
+
+def _merge_syntax_dataframes(token_df, sentence_series):
 
     df = token_df.merge(
         contain_join(
-            pd.Series(sentence_span),
+            sentence_series,
             token_df['token_span'],
             first_name="sentence",
             second_name="token_span",
@@ -135,12 +150,14 @@ def _make_syntax_dataframes(syntax_response):
     return df
 
 
-def _make_relations_dataframe(relations):
+def _make_relations_dataframe(relations, original_text, sentence_span_series):
     if len(relations) == 0:
         # TODO: fill in with expected schema
         return pd.DataFrame()
 
     table = _make_table(relations)
+
+    location_cols = {}
 
     # Separate each argument into a column
     flattened_arguments = []
@@ -170,6 +187,9 @@ def _make_relations_dataframe(relations):
                         # TODO also need to verify each offset inc by 1?
                         arg_array = temp
 
+                if name.lower().endswith("location"):
+                    location_cols[i] = (arg_array, "{}.{}".format(name_split[0], i))
+
                 flattened_arguments.append((arg_array, arg_name))
             drop_cols.append(name)
 
@@ -177,10 +197,56 @@ def _make_relations_dataframe(relations):
     for arg_array, arg_name in flattened_arguments:
         table = table.append_column(arg_name, arg_array)
 
-    # Drop columns that have been flattened
+    # Replace argument location and text columns with spans
+    arg_span_cols = {}
+    for arg_i, (location_col, arg_prefix) in location_cols.items():
+        text_col, text_name = _find_column(table, "{}.text".format(arg_prefix))
+        arg_span_cols["{}.span".format(arg_prefix)] = _make_char_span(location_col, text_col, original_text)
+        drop_cols.extend(["{}.location".format(arg_prefix), text_name])
+
+    add_cols = arg_span_cols.copy()
+
+    # Build the sentence span and drop plain text sentence col
+    sentence_col, sentence_name = _find_column(table, "sentence")
+    arg_col_names = list(arg_span_cols.keys())
+    if len(arg_col_names) > 0:
+        first_arg_span_array = arg_span_cols[arg_col_names[0]]
+
+        sentence_matches = []
+        for i, arg_span in enumerate(first_arg_span_array):
+            arg_begin = arg_span.begin
+            arg_end = arg_span.end
+            j = len(sentence_span_series) // 2
+            found = False
+            while not found:
+                sentence_span = sentence_span_series[j]
+                if arg_begin >= sentence_span.end:
+                    j += 1
+                elif arg_end <= sentence_span.begin:
+                    j -= 1
+                else:
+                    contains = [sentence_span.contains(a[i]) for a in arg_span_cols.values()]
+                    if not (all(contains) and sentence_span.covered_text == sentence_col[i]):
+                        raise ValueError("Mismatched sentence span")  # TODO issue warning
+                    sentence_matches.append(j)
+                    found = True
+
+        relations_sentence = sentence_span_series[sentence_matches]
+        add_cols["sentence_span"] = relations_sentence.reset_index(drop=True)
+        drop_cols.append(sentence_name)
+    else:
+        pass  # TODO can't make sentence span, show warning?
+
+    # Drop columns that have been flattened or replaced by spans
     table = table.drop(drop_cols)
 
-    return table.to_pandas()
+    df = table.to_pandas()
+
+    # Insert additional columns
+    for col_name, col in add_cols.items():
+        df[col_name] = col
+
+    return df
 
 
 def _make_relations_dataframe_zero_copy(relations):
@@ -215,7 +281,7 @@ def _make_relations_dataframe_zero_copy(relations):
 
             # TODO handle lists with null values
             if null_count > 0:
-                x = 1 #continue
+                continue
 
             # Convert values to numpy
             values = raw.to_numpy(zero_copy_only=False)  # string might copy
@@ -263,9 +329,21 @@ def _make_relations_dataframe_zero_copy(relations):
     return table.to_pandas()
 
 
-def watson_nlu_parse_response(response):
+def watson_nlu_parse_response(response, original_text=None):
 
     dfs = {}
+
+    if original_text is None and "analyzed_text" in response:
+        original_text = response["analyzed_text"]
+
+    # Create the syntax DataFrame
+    syntax_response = response.get("syntax", {})
+    token_df, sentence_df = _make_syntax_dataframes(syntax_response, original_text)
+    sentence_series = sentence_df["sentence_span"]
+    dfs["syntax"] = _merge_syntax_dataframes(token_df, sentence_series)
+
+    if original_text is None and "char_span" in dfs["syntax"].columns:
+        original_text = dfs["syntax"]["char_span"].target_text
 
     # Create the entities DataFrame
     entities = response.get("entities", [])
@@ -277,15 +355,11 @@ def watson_nlu_parse_response(response):
 
     # Create the relations DataFrame
     relations = response.get("relations", [])
-    dfs["relations"] = _make_relations_dataframe(relations)
+    dfs["relations"] = _make_relations_dataframe(relations, original_text, sentence_series)
 
     # Create the semantic roles DataFrame
     semantic_roles = response.get("semantic_roles", [])
     dfs["semantic_roles"] = _make_dataframe(semantic_roles)
-
-    # Create the syntax DataFrame
-    syntax_response = response.get("syntax", {})
-    dfs["syntax"] = _make_syntax_dataframes(syntax_response)
 
     return dfs
 
