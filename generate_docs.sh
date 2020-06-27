@@ -11,9 +11,6 @@
 # and should be run accordingly 
 
 
-#install sphinx if it is not already installed
-conda install -y sphinx
-
 # part one of generating sphinx autodocumentation 
 # builds the .rst files that sphinx then translates into documents
 sphinx-apidoc -f -e -o docs text_extensions_for_pandas

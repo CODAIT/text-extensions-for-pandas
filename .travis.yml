@@ -19,8 +19,9 @@ install:
 
 script:
 
-- conda activate pd
-
- - #check that doc generation is possible
- - generate_docs.sh
+ #activate python virtual enviornment
+ - conda activate pd
+ #check that doc generation is possible
+ - ./generate_docs.sh
+ #run unit tests 
  - python -m unittest discover
