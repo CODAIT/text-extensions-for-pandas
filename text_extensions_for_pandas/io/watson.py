@@ -19,12 +19,87 @@
 # I/O functions related to Watson Natural Language Understanding on the IBM Cloud.
 # TODO: add links here and docstrings
 
+from typing import *
+
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 
 from text_extensions_for_pandas.array import CharSpanArray, TokenSpanArray
 from text_extensions_for_pandas.spanner import contain_join
+
+
+# Standard Schemas for Response Data
+entities_schema = [
+    ("type", "string"),
+    ("text", "string"),
+    ("sentiment.label", "string"),
+    ("sentiment.score", "double"),
+    ("relevance", "double"),
+    ("count", "int64"),
+    ("confidence", "double"),
+    ("disambiguation.subtype", "string"),
+    ("disambiguation.name", "string"),
+    ("disambiguation.dbpedia_resource", "string"),
+]
+
+keywords_schema = [
+    ("text", "string"),
+    ("sentiment.label", "string"),
+    ("sentiment.score", "double"),
+    ("relevance", "double"),
+    ("emotion.sadness", "double"),
+    ("emotion.joy", "double"),
+    ("emotion.fear", "double"),
+    ("emotion.disgust", "double"),
+    ("emotion.anger", "double"),
+    ("count", "int64"),
+]
+
+semantic_roles_schema = [
+    ("subject.text", "string"),
+    ("sentence", "string"),
+    ("object.text", "string"),
+    ("action.verb.text", "string"),
+    ("action.verb.tense", "string"),
+    ("action.text", "string"),
+    ("action.normalized", "string"),
+]
+
+syntax_schema = [
+    ("char_span", "ArrowCharSpanType"),
+    ("token_span", "ArrowTokenSpanType"),
+    ("part_of_speech", "string"),
+    ("lemma", "string"),
+    ("sentence", " ArrowTokenSpanType"),
+]
+
+relations_schema = [
+    ("type", "string"),
+    ("sentence_span", "ArrowTokenSpanType"),
+    ("score", "double"),
+    ("arguments.0.span", "ArrowTokenSpanType"),
+    ("arguments.1.span", "ArrowTokenSpanType"),
+    ("arguments.0.entities.type", "string"),
+    ("arguments.1.entities.type", "string"),
+    ("arguments.0.entities.text", "string"),
+    ("arguments.1.entities.text", "string"),
+    ("arguments.0.entities.disambiguation.subtype", "string"),
+    ("arguments.1.entities.disambiguation.subtype", "string"),
+    ("arguments.0.disambiguation.name", "string"),
+    ("arguments.1.disambiguation.name", "string"),
+    ("arguments.0.disambiguation.dbpedia_resource", "string"),
+    ("arguments.1.disambiguation.dbpedia_resource", "string"),
+]
+
+
+def _schema_to_names(schema):
+    return [col for col, t in schema]
+
+
+def _apply_schema(df, schema, std_schema_on):
+    columns = [n for n in _schema_to_names(schema) if std_schema_on or n in df.columns]
+    return df.reindex(columns=columns)
 
 
 def _flatten_struct(struct_array, parent_name=None):
@@ -60,10 +135,10 @@ def _find_column(table, column_endswith):
 
 def _make_dataframe(records):
     if len(records) == 0:
-        # TODO: fill in with expected schema
         return pd.DataFrame()
 
     table = _make_table(records)
+
     return table.to_pandas()
 
 
@@ -251,7 +326,6 @@ def _make_relations_dataframe(relations, original_text, sentence_span_series):
 
 def _make_relations_dataframe_zero_copy(relations):
     if len(relations) == 0:
-        # TODO: fill in with expected schema
         return pd.DataFrame()
 
     table = _make_table(relations)
@@ -329,8 +403,9 @@ def _make_relations_dataframe_zero_copy(relations):
     return table.to_pandas()
 
 
-def watson_nlu_parse_response(response, original_text=None):
-
+def watson_nlu_parse_response(response: str,
+                              original_text: str = None,
+                              apply_standard_schema: bool = False) -> Dict[str, pd.DataFrame]:
     dfs = {}
 
     if original_text is None and "analyzed_text" in response:
@@ -340,31 +415,40 @@ def watson_nlu_parse_response(response, original_text=None):
     syntax_response = response.get("syntax", {})
     token_df, sentence_df = _make_syntax_dataframes(syntax_response, original_text)
     sentence_series = sentence_df["sentence_span"]
-    dfs["syntax"] = _merge_syntax_dataframes(token_df, sentence_series)
+    syntax_df = _merge_syntax_dataframes(token_df, sentence_series)
+    dfs["syntax"] = _apply_schema(syntax_df, syntax_schema, apply_standard_schema)
 
     if original_text is None and "char_span" in dfs["syntax"].columns:
         original_text = dfs["syntax"]["char_span"].target_text
 
     # Create the entities DataFrame
     entities = response.get("entities", [])
-    dfs["entities"] = _make_dataframe(entities)
+    entities_df = _make_dataframe(entities)
+    dfs["entities"] = _apply_schema(entities_df, entities_schema, apply_standard_schema)
 
     # Create the keywords DataFrame
     keywords = response.get("keywords", [])
-    dfs["keywords"] = _make_dataframe(keywords)
+    keywords_df = _make_dataframe(keywords)
+    dfs["keywords"] = _apply_schema(keywords_df, keywords_schema, apply_standard_schema)
 
     # Create the relations DataFrame
     relations = response.get("relations", [])
-    dfs["relations"] = _make_relations_dataframe(relations, original_text, sentence_series)
+    relations_df = _make_relations_dataframe(relations, original_text, sentence_series)
+    dfs["relations"] = _apply_schema(relations_df, relations_schema, apply_standard_schema)
 
     # Create the semantic roles DataFrame
     semantic_roles = response.get("semantic_roles", [])
-    dfs["semantic_roles"] = _make_dataframe(semantic_roles)
+    semantic_roles_df = _make_dataframe(semantic_roles)
+    dfs["semantic_roles"] = _apply_schema(semantic_roles_df, semantic_roles_schema, apply_standard_schema)
+
+    # TODO: check for warnings in response
 
     return dfs
 
 
-def make_span_from_entities(entities_frame, entity_col, char_span):
+def make_span_from_entities(entities_frame: pd.DataFrame,
+                            entity_col: str,
+                            char_span: CharSpanArray) -> TokenSpanArray:
     entities = entities_frame[entity_col]
     entities_len = entities.str.len()
     begins = []

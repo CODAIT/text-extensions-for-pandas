@@ -14,14 +14,11 @@
 #
 
 import json
+import os
 import textwrap
 import unittest
 
 from text_extensions_for_pandas.io.watson import *
-
-'''
-
-'''
 
 
 class TestWatson(unittest.TestCase):
@@ -128,3 +125,38 @@ class TestWatson(unittest.TestCase):
         self.assertIn("char_span", df.columns)
         self.assertIn("token_span", df.columns)
         self.assertIn("sentence", df.columns)
+
+
+@unittest.skipIf(os.environ.get("IBM_API_KEY") is None, "Env var 'IBM_API_KEY' is not set")
+class TestWatsonApiHandling(unittest.TestCase):
+
+    def setUpClass(cls):
+        cls.response = TestWatsonApiHandling._make_request()
+
+    @staticmethod
+    def _make_request():
+        from ibm_watson import NaturalLanguageUnderstandingV1
+        from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
+        from ibm_watson.natural_language_understanding_v1 import Features, CategoriesOptions, ConceptsOptions, EmotionOptions, EntitiesOptions, KeywordsOptions, \
+            MetadataOptions, RelationsOptions, SemanticRolesOptions, SentimentOptions, SyntaxOptions, SyntaxOptionsTokens
+
+        response = natural_language_understanding.analyze(
+            url="https://raw.githubusercontent.com/CODAIT/text-extensions-for-pandas/master/resources/holy_grail.txt",
+            return_analyzed_text=True,
+            features=Features(
+                #categories=CategoriesOptions(limit=3),
+                #concepts=ConceptsOptions(limit=3),
+                #emotion=EmotionOptions(targets=['grail']),
+                entities=EntitiesOptions(sentiment=True),
+                keywords=KeywordsOptions(sentiment=True,emotion=True),
+                #metadata=MetadataOptions(),
+                relations=RelationsOptions(),
+                semantic_roles=SemanticRolesOptions(),
+                #sentiment=SentimentOptions(targets=['Arthur']),
+                syntax=SyntaxOptions(sentences=True, tokens=SyntaxOptionsTokens(lemma=True, part_of_speech=True))  # Experimental
+            )).get_result()
+
+        return response
+
+    def test_analyzed_text_present(self):
+        self.assertIn("analyzed_text", self.response)

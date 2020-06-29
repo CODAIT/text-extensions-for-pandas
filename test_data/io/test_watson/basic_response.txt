@@ -494,5 +494,6 @@
       "count": 1,
       "confidence": 0.999498
     }
-  ]
+  ],
+  "analyzed_text": "If Barbie is so popular, why do you have to buy her friends?\nThe Bermuda Triangle got tired of warm weather.\nIt moved to Alaska. Now Santa Claus is missing.\n-- Steven Wright"
 }
