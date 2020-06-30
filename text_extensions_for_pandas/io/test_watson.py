@@ -81,7 +81,7 @@ class TestWatson(unittest.TestCase):
         self.assertIn('text', dfs['entities'].columns)
         char_span = dfs['syntax']['char_span'].values
 
-        token_span = make_span_from_entities(dfs['entities'], 'text', char_span)
+        token_span = make_span_from_entities(char_span, dfs['entities'])
         x = 1
         # TODO check span
 
@@ -109,12 +109,11 @@ class TestWatson(unittest.TestCase):
         self.assertIn("relations", result)
         df = result["relations"]
 
-        self.assertIn("arguments.0.text", df.columns)
-        self.assertIn("arguments.1.text", df.columns)
-        self.assertIn("arguments.0.location", df.columns)
-        self.assertIn("arguments.1.location", df.columns)
+        self.assertIn("arguments.0.span", df.columns)
+        self.assertIn("arguments.1.span", df.columns)
+        self.assertIn("sentence_span", df.columns)
 
-    def test_response_relations(self):
+    def test_response_syntax(self):
         filename = "test_data/io/test_watson/basic_response.txt"
         response = self.load_response_file(filename)
         result = watson_nlu_parse_response(response)
@@ -130,6 +129,7 @@ class TestWatson(unittest.TestCase):
 @unittest.skipIf(os.environ.get("IBM_API_KEY") is None, "Env var 'IBM_API_KEY' is not set")
 class TestWatsonApiHandling(unittest.TestCase):
 
+    @classmethod
     def setUpClass(cls):
         cls.response = TestWatsonApiHandling._make_request()
 
@@ -139,6 +139,25 @@ class TestWatsonApiHandling(unittest.TestCase):
         from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
         from ibm_watson.natural_language_understanding_v1 import Features, CategoriesOptions, ConceptsOptions, EmotionOptions, EntitiesOptions, KeywordsOptions, \
             MetadataOptions, RelationsOptions, SemanticRolesOptions, SentimentOptions, SyntaxOptions, SyntaxOptionsTokens
+
+        # Retrieve the APIKEY for authentication
+        apikey = os.environ.get("IBM_API_KEY")
+        if apikey is None:
+            raise ValueError("Expected apikey in the environment variable 'IBM_API_KEY'")
+
+        # Get the service URL for your IBM Cloud instance
+        ibm_cloud_service_url = os.environ.get("IBM_SERVICE_URL")
+        if ibm_cloud_service_url is None:
+            raise ValueError("Expected IBM cloud service URL in the environment variable 'IBM_SERVICE_URL'")
+
+        # Initialize the authenticator for making requests
+        authenticator = IAMAuthenticator(apikey)
+        natural_language_understanding = NaturalLanguageUnderstandingV1(
+            version='2019-07-12',
+            authenticator=authenticator
+        )
+
+        natural_language_understanding.set_service_url(ibm_cloud_service_url)
 
         response = natural_language_understanding.analyze(
             url="https://raw.githubusercontent.com/CODAIT/text-extensions-for-pandas/master/resources/holy_grail.txt",
@@ -157,6 +176,21 @@ class TestWatsonApiHandling(unittest.TestCase):
             )).get_result()
 
         return response
+
+    def test_expected_features(self):
+        self.assertIn("entities", self.response)
+        self.assertIsInstance(self.response["entities"], list)
+        self.assertIn("keywords", self.response)
+        self.assertIsInstance(self.response["keywords"], list)
+        self.assertIn("relations", self.response)
+        self.assertIsInstance(self.response["relations"], list)
+        self.assertIn("semantic_roles", self.response)
+        self.assertIsInstance(self.response["semantic_roles"], list)
+        self.assertIn("syntax", self.response)
+        syntax = self.response["syntax"]
+        self.assertIsInstance(syntax, dict)
+        self.assertIn("tokens", syntax)
+        self.assertIn("sentences", syntax)
 
     def test_analyzed_text_present(self):
         self.assertIn("analyzed_text", self.response)

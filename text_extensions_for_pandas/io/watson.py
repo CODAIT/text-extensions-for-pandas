@@ -181,7 +181,6 @@ def _make_syntax_dataframes(syntax_response, original_text):
     sentence = syntax_response.get("sentences", [])
 
     if len(sentence) == 0 and len(tokens) == 0:
-        # TODO: fill in with expected schema
         return pd.DataFrame()
 
     token_table = _make_table(tokens)
@@ -227,7 +226,6 @@ def _merge_syntax_dataframes(token_df, sentence_series):
 
 def _make_relations_dataframe(relations, original_text, sentence_span_series):
     if len(relations) == 0:
-        # TODO: fill in with expected schema
         return pd.DataFrame()
 
     table = _make_table(relations)
@@ -403,9 +401,28 @@ def _make_relations_dataframe_zero_copy(relations):
     return table.to_pandas()
 
 
-def watson_nlu_parse_response(response: str,
+def watson_nlu_parse_response(response: Dict[str, Any],
                               original_text: str = None,
                               apply_standard_schema: bool = False) -> Dict[str, pd.DataFrame]:
+    """
+    Parse a Watson NLU response as a decoded JSON string, e.g. dictionary containing requested
+    features and convert into a dict of Pandas DataFrames. The following features in the response
+    will be converted:
+        * entities
+        * keywords
+        * relations
+        * semantic_roles
+        * syntax
+
+    TODO: add desc of feature options, link to API
+
+    :param response: A dictionary of features from the IBM Watson NLU response
+    :param original_text: Optional original text sent in request, if None will
+                          look for "analyzed_text" keyword in response
+    :param apply_standard_schema: Return DataFrames with a set schema, whether data
+                                  was present in the response or not
+    :return: A dictionary mapping feature name to a Pandas DataFrame
+    """
     dfs = {}
 
     if original_text is None and "analyzed_text" in response:
@@ -446,9 +463,18 @@ def watson_nlu_parse_response(response: str,
     return dfs
 
 
-def make_span_from_entities(entities_frame: pd.DataFrame,
-                            entity_col: str,
-                            char_span: CharSpanArray) -> TokenSpanArray:
+def make_span_from_entities(char_span: CharSpanArray,
+                            entities_frame: pd.DataFrame,
+                            entity_col: str = "text") -> TokenSpanArray:
+    """
+    Create a token span array for entity text from the entities DataFrame, and an existing
+    char span array with tokens from the entire analyzed text.
+
+    :param char_span: Parsed tokens
+    :param entities_frame: Entities DataFrame from `watson_nlu_parse_response`
+    :param entity_col: Column name for the entity text
+    :return: TokenSpanArray for matching entities
+    """
     entities = entities_frame[entity_col]
     entities_len = entities.str.len()
     begins = []
