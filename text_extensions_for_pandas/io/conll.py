@@ -82,6 +82,9 @@ class _SentenceData:
         # Metadata columns by name
         self._token_metadata = _make_empty_meta_values(column_names, iob_columns)
 
+        # Line numbers for each token from the file
+        self._line_nums = []  # Type: List[int]
+
 
     @property
     def num_tokens(self) -> int:
@@ -95,6 +98,10 @@ class _SentenceData:
     def token_metadata(self) -> Dict[str, List[str]]:
         return self._token_metadata
 
+    @property
+    def line_nums(self):
+        return self._line_nums
+
     def add_line(self, line_num: int, line_elems: List[str]):
         """
         :param line_num: Location in file, for error reporting
@@ -107,6 +114,7 @@ class _SentenceData:
         token = line_elems[0]
         raw_tags = line_elems[1:]
         self._tokens.append(token)
+        self._line_nums.append(line_num)
         for i in range(len(raw_tags)):
             raw_tag = raw_tags[i]
             name = self._column_names[i]
@@ -357,7 +365,6 @@ def _doc_to_df(doc: List[_SentenceData],
      the returned dataframe will contain *two* columns, holding IOB2 tags and
      entity type tags, respectively. For example, an input column "ent" will turn into
      output columns "ent_iob" and "ent_type".
-
     :param space_before_punct: If `True`, add whitespace before
      punctuation characters (and after left parentheses)
      when reconstructing the text of the document.
@@ -371,6 +378,7 @@ def _doc_to_df(doc: List[_SentenceData],
       in the original file, with no corrections applied.
     * `ent_type`: Entity type names for tokens tagged "I" or "B" in
       the `ent_iob` column; `None` everywhere else.
+    * `line_num`: line number of each token in the parsed file
     """
 
     # Character offsets of tokens in the reconstructed document
@@ -387,6 +395,9 @@ def _doc_to_df(doc: List[_SentenceData],
     # Token metadata column values. Key is column name, value is metadata for
     # each token.
     meta_lists = _make_empty_meta_values(column_names, iob_columns)
+
+    # Line numbers of the parsed file for each token in the doc
+    doc_line_nums = []
 
     char_position = 0
     token_position = 0
@@ -435,6 +446,8 @@ def _doc_to_df(doc: List[_SentenceData],
         char_position += e[-1] + 1  # "+ 1" to account for newline
         token_position += len(e)
 
+        doc_line_nums.extend(sentence.line_nums)
+
     begins = np.concatenate(begins_list)
     ends = np.concatenate(ends_list)
     doc_text = "\n".join(sentences_list)
@@ -452,6 +465,7 @@ def _doc_to_df(doc: List[_SentenceData],
     for k, v in meta_lists.items():
         ret[k] = v
     ret["sentence"] = sentence_spans
+    ret["line_num"] = pd.Series(doc_line_nums)
     return ret
 
 
