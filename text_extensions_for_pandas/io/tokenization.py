@@ -49,7 +49,7 @@ def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
      * "special_tokens_mask": `True` if the token is a zero-length special token
        such as "start of document"
     """
-    from transformers.tokenization_utils import PreTrainedTokenizerFast
+    from transformers import PreTrainedTokenizerFast
 
     if not isinstance(tokenizer, PreTrainedTokenizerFast):
         raise TypeError(
