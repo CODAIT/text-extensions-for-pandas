@@ -92,7 +92,7 @@ def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"],
     else: # if not show_offsets
         return f"""
         <div id="text"
-         style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 60%;">
+         style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 100%;">
             <div style="float:center; padding:10px">
                 <p style="font-family:monospace">
                     {"".join(text_pieces)}

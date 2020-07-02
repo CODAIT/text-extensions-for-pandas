@@ -764,12 +764,6 @@ class TokenSpanArray(CharSpanArray):
     ##########################################
     # Keep private and protected methods here.
 
-    def _repr_html_(self) -> str:
-        """
-        HTML pretty-printing of a series of spans for Jupyter notebooks.
-        """
-        return util.pretty_print_html(self)
-
     def _clear_cached_properties(self) -> None:
         """
         Remove cached values of memoized properties to reflect changes to the

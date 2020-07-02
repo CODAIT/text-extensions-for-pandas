@@ -67,7 +67,7 @@ class UtilTest(TestBase):
             """\
 
         <div id="text"
-         style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 60%;">
+         style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 100%;">
             <div style="float:center; padding:10px">
                 <p style="font-family:monospace">
                     <span style="background-color:yellow">Item&#39;s</span> <span style="background-color:yellow">for</span> <span style="background-color:yellow">&lt;</span> <span style="background-color:yellow"><span>&#36;</span>100</span> <span style="background-color:yellow">&amp;</span> <span style="background-color:yellow">change
