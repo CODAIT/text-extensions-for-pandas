@@ -288,8 +288,9 @@ class TokenSpanArray(CharSpanArray):
         self._tokens = tokens  # Type: CharSpanArray
         self._begin_tokens = begin_tokens  # Type: np.ndarray
         self._end_tokens = end_tokens  # Type: np.ndarray
-        # Cached hash value
-        self._hash = None
+
+        self._shared_init()
+
 
     ##########################################
     # Overrides of superclass methods go here.

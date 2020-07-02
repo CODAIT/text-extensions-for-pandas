@@ -270,6 +270,12 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         # a change hasn't made the arrays no longer equal
         self._equiv_array_versions = []  # Type: List[int]
 
+        self._shared_init()
+
+    def _shared_init(self):
+        """
+        Initialization steps shared between CharSpanArray and TokenSpanArray
+        """
         # Cached hash value of this array
         self._hash = None
 
