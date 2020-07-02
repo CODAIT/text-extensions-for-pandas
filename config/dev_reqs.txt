@@ -4,7 +4,7 @@
 # NOTE: These requirements are IN ADDITION TO the packages in
 # config/dev_env.yml and requirements.txt
 pyyaml
-transformers
+transformers>=3.0.0
 spacy
 fastparquet
 sphinx
