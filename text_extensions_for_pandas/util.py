@@ -17,12 +17,15 @@ _ELLIPSIS = " [...] "
 _ELLIPSIS_LEN = len(_ELLIPSIS)
 
 
-def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"]) -> str:
+def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"],
+                      show_offsets: bool) -> str:
     """
     HTML pretty-printing of a series of spans for Jupyter notebooks.
 
     Args:
         column: Span column (either character or token spans)
+        show_offsets: True to generate a table of span offsets in addition
+         to the marked-up text
     """
 
     # Generate a dataframe of atomic types to pretty-print the spans
@@ -69,22 +72,34 @@ def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"]) -> str:
 
     # TODO: Use CSS here instead of embedding formatting into the
     #  generated HTML
-    return """
-    <div id="spanArray">
-        <div id="spans" 
-         style="background-color:#F0F0F0; border: 1px solid #E0E0E0; float:left; padding:10px;">
-            {}
+    if show_offsets:
+        return f"""
+        <div id="spanArray">
+            <div id="spans" 
+             style="background-color:#F0F0F0; border: 1px solid #E0E0E0; float:left; padding:10px;">
+                {spans_html}
+            </div>
+            <div id="text"
+             style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 60%;">
+                <div style="float:center; padding:10px">
+                    <p style="font-family:monospace">
+                        {"".join(text_pieces)}
+                    </p>
+                </div>
+            </div>
         </div>
+        """
+    else: # if not show_offsets
+        return f"""
         <div id="text"
-         style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 60%;">
+         style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 100%;">
             <div style="float:center; padding:10px">
                 <p style="font-family:monospace">
-                    {}
+                    {"".join(text_pieces)}
                 </p>
             </div>
         </div>
-    </div>
-    """.format(spans_html, "".join(text_pieces))
+        """
 
 
 class TestBase(unittest.TestCase):
