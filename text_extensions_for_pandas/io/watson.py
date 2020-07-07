@@ -17,9 +17,15 @@
 # watson.py
 #
 # I/O functions related to Watson Natural Language Understanding on the IBM Cloud.
-# TODO: add links here and docstrings
+# This service provides analysis of text feature through a request/response API, see
+# https://cloud.ibm.com/docs/natural-language-understanding?topic=natural-language-understanding-getting-started
+# for information on getting started with the service. Details of the provide API and
+# available features can be found at https://cloud.ibm.com/apidocs/natural-language-understanding?code=python#introduction.
+# For convience, a Python SDK is available at https://github.com/watson-developer-cloud/python-sdk that
+# can be used to authenticate and make requests to the service.
 
 from typing import *
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -30,7 +36,7 @@ from text_extensions_for_pandas.spanner import contain_join
 
 
 # Standard Schemas for Response Data
-entities_schema = [
+_entities_schema = [
     ("type", "string"),
     ("text", "string"),
     ("sentiment.label", "string"),
@@ -43,7 +49,7 @@ entities_schema = [
     ("disambiguation.dbpedia_resource", "string"),
 ]
 
-keywords_schema = [
+_keywords_schema = [
     ("text", "string"),
     ("sentiment.label", "string"),
     ("sentiment.score", "double"),
@@ -56,7 +62,7 @@ keywords_schema = [
     ("count", "int64"),
 ]
 
-semantic_roles_schema = [
+_semantic_roles_schema = [
     ("subject.text", "string"),
     ("sentence", "string"),
     ("object.text", "string"),
@@ -66,7 +72,7 @@ semantic_roles_schema = [
     ("action.normalized", "string"),
 ]
 
-syntax_schema = [
+_syntax_schema = [
     ("char_span", "ArrowCharSpanType"),
     ("token_span", "ArrowTokenSpanType"),
     ("part_of_speech", "string"),
@@ -74,7 +80,7 @@ syntax_schema = [
     ("sentence", " ArrowTokenSpanType"),
 ]
 
-relations_schema = [
+_relations_schema = [
     ("type", "string"),
     ("sentence_span", "ArrowTokenSpanType"),
     ("score", "double"),
@@ -102,6 +108,13 @@ def _apply_schema(df, schema, std_schema_on):
     return df.reindex(columns=columns)
 
 
+def _find_column(table, column_endswith):
+    for name in table.column_names:
+        if name.lower().endswith(column_endswith):
+            return table.column(name), name
+    raise ValueError("Expected {} column but got {}".format(column_endswith, table.column_names))
+
+
 def _flatten_struct(struct_array, parent_name=None):
     arrays = struct_array.flatten()
     fields = [f for f in struct_array.type]
@@ -126,13 +139,6 @@ def _make_table(records):
     return pa.Table.from_arrays(arrays, names)
 
 
-def _find_column(table, column_endswith):
-    for name in table.column_names:
-        if name.lower().endswith(column_endswith):
-            return table.column(name), name
-    raise ValueError("Expected {} column but got {}".format(column_endswith, table.column_names))
-
-
 def _make_dataframe(records):
     if len(records) == 0:
         return pd.DataFrame()
@@ -143,9 +149,10 @@ def _make_dataframe(records):
 
 
 def _build_original_text(text_col, begins):
-    # Build the covered text, TODO: ok to assume begin is sorted?
+    # Attempt to build the original text by padding tokens with spaces
+    # NOTE: this will not be exactly original text because no newlines or other token separators
     text = ""
-    for token, begin in zip(text_col, begins):
+    for token, begin in zip(text_col, sorted(begins)):
         if len(text) < begin:
             text += " " * (begin - len(text))
         text += token.as_py()
@@ -161,8 +168,6 @@ def _make_char_span(location_col, text_col, original_text):
     # TODO: assert location is fixed with 2 elements?
     if isinstance(location_col, pa.ChunkedArray):
         location_col = pa.concat_arrays(location_col.iterchunks())
-    if isinstance(text_col, pa.ChunkedArray):
-        text_col = pa.concat_arrays(text_col.iterchunks())
 
     # Flatten to get primitive array convertible to numpy
     array = location_col.flatten()
@@ -171,6 +176,10 @@ def _make_char_span(location_col, text_col, original_text):
     ends = values[1::2]
 
     if original_text is None:
+        warnings.warn("Analyzed text was not provided, attempting to reconstruct from tokens, "
+                      "however it will not be identical to the original analyzed text.")
+        if isinstance(text_col, pa.ChunkedArray):
+            text_col = pa.concat_arrays(text_col.iterchunks())
         original_text = _build_original_text(text_col, begins)
 
     return CharSpanArray(original_text, begins, ends)
@@ -300,7 +309,7 @@ def _make_relations_dataframe(relations, original_text, sentence_span_series):
                 else:
                     contains = [sentence_span.contains(a[i]) for a in arg_span_cols.values()]
                     if not (all(contains) and sentence_span.covered_text == sentence_col[i]):
-                        raise ValueError("Mismatched sentence span")  # TODO issue warning
+                        warnings.warn("Mismatched sentence span for: {}".format(sentence_span))
                     sentence_matches.append(j)
                     found = True
 
@@ -308,7 +317,7 @@ def _make_relations_dataframe(relations, original_text, sentence_span_series):
         add_cols["sentence_span"] = relations_sentence.reset_index(drop=True)
         drop_cols.append(sentence_name)
     else:
-        pass  # TODO can't make sentence span, show warning?
+        warnings.warn("Could not make sentence span column for Re")
 
     # Drop columns that have been flattened or replaced by spans
     table = table.drop(drop_cols)
@@ -414,7 +423,36 @@ def watson_nlu_parse_response(response: Dict[str, Any],
         * semantic_roles
         * syntax
 
-    TODO: add desc of feature options, link to API
+    For information on getting started with Watson Natural Language Understanding on IBM Cloud, see
+    https://cloud.ibm.com/docs/natural-language-understanding?topic=natural-language-understanding-getting-started.
+    A Python SDK for authentication and making requests to the service is provided at
+    https://github.com/watson-developer-cloud/python-sdk.  Details on the supported features and
+    available options when making the request can be found at
+    https://cloud.ibm.com/apidocs/natural-language-understanding?code=python#analyze-text.
+
+    .. note:: Additional feature data in response will not be processed
+
+    >>> response = natural_language_understanding.analyze(
+    ...     url="https://raw.githubusercontent.com/CODAIT/text-extensions-for-pandas/master/resources/holy_grail.txt",
+    ...         return_analyzed_text=True,
+    ...         features=Features(
+    ...         entities=EntitiesOptions(sentiment=True),
+    ...         keywords=KeywordsOptions(sentiment=True, emotion=True),
+    ...         relations=RelationsOptions(),
+    ...         semantic_roles=SemanticRolesOptions(),
+    ...         syntax=SyntaxOptions(sentences=True, tokens=SyntaxOptionsTokens(lemma=True, part_of_speech=True))
+    ...     )).get_result()
+    >>> dfs = watson_nlu_parse_response(response)
+    >>> dfs.keys()
+    dict_keys(['syntax', 'entities', 'keywords', 'relations', 'semantic_roles'])
+    >>> dfs["syntax"].head()
+               char_span         token_span part_of_speech   lemma  \
+    0    [0, 5): 'Monty'    [0, 5): 'Monty'          PROPN    None
+    1  [6, 12): 'Python'  [6, 12): 'Python'          PROPN  python
+
+                                                sentence
+    0  [0, 273): 'Monty Python and the Holy Grail is ...
+    1  [0, 273): 'Monty Python and the Holy Grail is ...
 
     :param response: A dictionary of features from the IBM Watson NLU response
     :param original_text: Optional original text sent in request, if None will
@@ -433,7 +471,7 @@ def watson_nlu_parse_response(response: Dict[str, Any],
     token_df, sentence_df = _make_syntax_dataframes(syntax_response, original_text)
     sentence_series = sentence_df["sentence_span"]
     syntax_df = _merge_syntax_dataframes(token_df, sentence_series)
-    dfs["syntax"] = _apply_schema(syntax_df, syntax_schema, apply_standard_schema)
+    dfs["syntax"] = _apply_schema(syntax_df, _syntax_schema, apply_standard_schema)
 
     if original_text is None and "char_span" in dfs["syntax"].columns:
         original_text = dfs["syntax"]["char_span"].target_text
@@ -441,24 +479,27 @@ def watson_nlu_parse_response(response: Dict[str, Any],
     # Create the entities DataFrame
     entities = response.get("entities", [])
     entities_df = _make_dataframe(entities)
-    dfs["entities"] = _apply_schema(entities_df, entities_schema, apply_standard_schema)
+    dfs["entities"] = _apply_schema(entities_df, _entities_schema, apply_standard_schema)
 
     # Create the keywords DataFrame
     keywords = response.get("keywords", [])
     keywords_df = _make_dataframe(keywords)
-    dfs["keywords"] = _apply_schema(keywords_df, keywords_schema, apply_standard_schema)
+    dfs["keywords"] = _apply_schema(keywords_df, _keywords_schema, apply_standard_schema)
 
     # Create the relations DataFrame
     relations = response.get("relations", [])
     relations_df = _make_relations_dataframe(relations, original_text, sentence_series)
-    dfs["relations"] = _apply_schema(relations_df, relations_schema, apply_standard_schema)
+    dfs["relations"] = _apply_schema(relations_df, _relations_schema, apply_standard_schema)
 
     # Create the semantic roles DataFrame
     semantic_roles = response.get("semantic_roles", [])
     semantic_roles_df = _make_dataframe(semantic_roles)
-    dfs["semantic_roles"] = _apply_schema(semantic_roles_df, semantic_roles_schema, apply_standard_schema)
+    dfs["semantic_roles"] = _apply_schema(semantic_roles_df, _semantic_roles_schema, apply_standard_schema)
 
-    # TODO: check for warnings in response
+    if "warnings" in response:
+        # TODO: verify structure of warnings
+        for w in response["warnings"]:
+            warnings.warn(w)
 
     return dfs
 
