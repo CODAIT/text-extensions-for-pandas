@@ -497,9 +497,8 @@ def watson_nlu_parse_response(response: Dict[str, Any],
     dfs["semantic_roles"] = _apply_schema(semantic_roles_df, _semantic_roles_schema, apply_standard_schema)
 
     if "warnings" in response:
-        # TODO: verify structure of warnings
-        for w in response["warnings"]:
-            warnings.warn(w)
+        # TODO: check structure of warnings and improve message
+        warnings.warn(response["warnings"])
 
     return dfs
 
