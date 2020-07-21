@@ -103,7 +103,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     Each tensor must have the same shape.
     """
 
-    def __init__(self, values: Union[np.ndarray, Sequence[np.ndarray], "TensorArray"],
+    def __init__(self, values: Union[np.ndarray, Sequence[np.ndarray]],
                  make_contiguous: bool = True):
         """
         :param values: A `numpy.ndarray` or sequence of `numpy.ndarray`s of equal shape.
@@ -114,7 +114,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         elif isinstance(values, Sequence):
             self._tensor = np.stack(values, axis=0) if len(values) > 0 else np.array([])
         elif isinstance(values, TensorArray):
-            self._tensor = values._tensor.copy()
+            raise TypeError("Use the copy() method to create a copy of a TensorArray")
         else:
             raise TypeError(f"Expected a numpy.ndarray or sequence of numpy.ndarray, "
                             f"but received {values} "

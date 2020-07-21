@@ -56,7 +56,7 @@ class TestTensor(unittest.TestCase):
             TensorArray(2112)
 
         # Copy constructor
-        s_copy = TensorArray(s)
+        s_copy = s.copy()
         self.assertEqual(len(s), len(s_copy))
 
     def test_operations(self):
