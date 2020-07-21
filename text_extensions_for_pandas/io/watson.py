@@ -32,6 +32,7 @@ import pandas as pd
 import pyarrow as pa
 
 from text_extensions_for_pandas.array import CharSpanArray, TokenSpanArray
+import text_extensions_for_pandas.io.watson_util as util
 from text_extensions_for_pandas.spanner import contain_join
 
 
@@ -99,92 +100,6 @@ _relations_schema = [
 ]
 
 
-def _schema_to_names(schema):
-    return [col for col, t in schema]
-
-
-def _apply_schema(df, schema, std_schema_on):
-    columns = [n for n in _schema_to_names(schema) if std_schema_on or n in df.columns]
-    return df.reindex(columns=columns)
-
-
-def _find_column(table, column_endswith):
-    for name in table.column_names:
-        if name.lower().endswith(column_endswith):
-            return table.column(name), name
-    raise ValueError("Expected {} column but got {}".format(column_endswith, table.column_names))
-
-
-def _flatten_struct(struct_array, parent_name=None):
-    arrays = struct_array.flatten()
-    fields = [f for f in struct_array.type]
-    for array, field in zip(arrays, fields):
-        name = field.name if parent_name is None else parent_name + "." + field.name
-        if pa.types.is_struct(array.type):
-            for child_array, child_name in _flatten_struct(array, name):
-                yield child_array, child_name
-        elif pa.types.is_list(array.type) and pa.types.is_struct(array.type.value_type):
-            struct = array.flatten()
-            for child_array, child_name in _flatten_struct(struct, name):
-                list_array = pa.ListArray.from_arrays(array.offsets, child_array)
-                yield list_array, child_name
-        else:
-            yield array, name
-
-
-def _make_table(records):
-    arr = pa.array(records)
-    assert pa.types.is_struct(arr.type)
-    arrays, names = zip(*_flatten_struct(arr))
-    return pa.Table.from_arrays(arrays, names)
-
-
-def _make_dataframe(records):
-    if len(records) == 0:
-        return pd.DataFrame()
-
-    table = _make_table(records)
-
-    return table.to_pandas()
-
-
-def _build_original_text(text_col, begins):
-    # Attempt to build the original text by padding tokens with spaces
-    # NOTE: this will not be exactly original text because no newlines or other token separators
-    text = ""
-    for token, begin in zip(text_col, sorted(begins)):
-        if len(text) < begin:
-            text += " " * (begin - len(text))
-        text += token.as_py()
-    return text
-
-
-def _make_char_span(location_col, text_col, original_text):
-
-    # Replace location columns with char and token spans
-    if not (pa.types.is_list(location_col.type) and pa.types.is_primitive(location_col.type.value_type)):
-        raise ValueError("Expected location column as a list of integers")
-
-    # TODO: assert location is fixed with 2 elements?
-    if isinstance(location_col, pa.ChunkedArray):
-        location_col = pa.concat_arrays(location_col.iterchunks())
-
-    # Flatten to get primitive array convertible to numpy
-    array = location_col.flatten()
-    values = array.to_numpy()
-    begins = values[0::2]
-    ends = values[1::2]
-
-    if original_text is None:
-        warnings.warn("Analyzed text was not provided, attempting to reconstruct from tokens, "
-                      "however it will not be identical to the original analyzed text.")
-        if isinstance(text_col, pa.ChunkedArray):
-            text_col = pa.concat_arrays(text_col.iterchunks())
-        original_text = _build_original_text(text_col, begins)
-
-    return CharSpanArray(original_text, begins, ends)
-
-
 def _make_syntax_dataframes(syntax_response, original_text):
     tokens = syntax_response.get("tokens", [])
     sentence = syntax_response.get("sentences", [])
@@ -192,19 +107,19 @@ def _make_syntax_dataframes(syntax_response, original_text):
     if len(sentence) == 0 and len(tokens) == 0:
         return pd.DataFrame()
 
-    token_table = _make_table(tokens)
-    location_col, location_name = _find_column(token_table, "location")
-    text_col, text_name = _find_column(token_table, "text")
-    char_span = _make_char_span(location_col, text_col, original_text)
+    token_table = util.make_table(tokens)
+    location_col, location_name = util.find_column(token_table, "location")
+    text_col, text_name = util.find_column(token_table, "text")
+    char_span = util.make_char_span(location_col, text_col, original_text)
     token_span = TokenSpanArray.from_char_offsets(char_span)
 
     # Drop location, text columns that is duplicated in char_span
     token_table = token_table.drop([location_name, text_name])
 
-    sentence_table = _make_table(sentence)
-    location_col, _ = _find_column(sentence_table, "location")
-    text_col, _ = _find_column(sentence_table, "text")
-    sentence_char_span = _make_char_span(location_col, text_col, original_text)
+    sentence_table = util.make_table(sentence)
+    location_col, _ = util.find_column(sentence_table, "location")
+    text_col, _ = util.find_column(sentence_table, "text")
+    sentence_char_span = util.make_char_span(location_col, text_col, original_text)
     sentence_span = TokenSpanArray.align_to_tokens(char_span, sentence_char_span)
 
     # Add the span columns to the DataFrames
@@ -237,7 +152,7 @@ def _make_relations_dataframe(relations, original_text, sentence_span_series):
     if len(relations) == 0:
         return pd.DataFrame()
 
-    table = _make_table(relations)
+    table = util.make_table(relations)
 
     location_cols = {}
 
@@ -282,14 +197,14 @@ def _make_relations_dataframe(relations, original_text, sentence_span_series):
     # Replace argument location and text columns with spans
     arg_span_cols = {}
     for arg_i, (location_col, arg_prefix) in location_cols.items():
-        text_col, text_name = _find_column(table, "{}.text".format(arg_prefix))
-        arg_span_cols["{}.span".format(arg_prefix)] = _make_char_span(location_col, text_col, original_text)
+        text_col, text_name = util.find_column(table, "{}.text".format(arg_prefix))
+        arg_span_cols["{}.span".format(arg_prefix)] = util.make_char_span(location_col, text_col, original_text)
         drop_cols.extend(["{}.location".format(arg_prefix), text_name])
 
     add_cols = arg_span_cols.copy()
 
     # Build the sentence span and drop plain text sentence col
-    sentence_col, sentence_name = _find_column(table, "sentence")
+    sentence_col, sentence_name = util.find_column(table, "sentence")
     arg_col_names = list(arg_span_cols.keys())
     if len(arg_col_names) > 0:
         first_arg_span_array = arg_span_cols[arg_col_names[0]]
@@ -335,7 +250,7 @@ def _make_relations_dataframe_zero_copy(relations):
     if len(relations) == 0:
         return pd.DataFrame()
 
-    table = _make_table(relations)
+    table = util.make_table(relations)
 
     # Separate each argument into a column
     flattened_arguments = []
@@ -471,30 +386,30 @@ def watson_nlu_parse_response(response: Dict[str, Any],
     token_df, sentence_df = _make_syntax_dataframes(syntax_response, original_text)
     sentence_series = sentence_df["sentence_span"]
     syntax_df = _merge_syntax_dataframes(token_df, sentence_series)
-    dfs["syntax"] = _apply_schema(syntax_df, _syntax_schema, apply_standard_schema)
+    dfs["syntax"] = util.apply_schema(syntax_df, _syntax_schema, apply_standard_schema)
 
     if original_text is None and "char_span" in dfs["syntax"].columns:
         original_text = dfs["syntax"]["char_span"].target_text
 
     # Create the entities DataFrame
     entities = response.get("entities", [])
-    entities_df = _make_dataframe(entities)
-    dfs["entities"] = _apply_schema(entities_df, _entities_schema, apply_standard_schema)
+    entities_df = util.make_dataframe(entities)
+    dfs["entities"] = util.apply_schema(entities_df, _entities_schema, apply_standard_schema)
 
     # Create the keywords DataFrame
     keywords = response.get("keywords", [])
-    keywords_df = _make_dataframe(keywords)
-    dfs["keywords"] = _apply_schema(keywords_df, _keywords_schema, apply_standard_schema)
+    keywords_df = util.make_dataframe(keywords)
+    dfs["keywords"] = util.apply_schema(keywords_df, _keywords_schema, apply_standard_schema)
 
     # Create the relations DataFrame
     relations = response.get("relations", [])
     relations_df = _make_relations_dataframe(relations, original_text, sentence_series)
-    dfs["relations"] = _apply_schema(relations_df, _relations_schema, apply_standard_schema)
+    dfs["relations"] = util.apply_schema(relations_df, _relations_schema, apply_standard_schema)
 
     # Create the semantic roles DataFrame
     semantic_roles = response.get("semantic_roles", [])
-    semantic_roles_df = _make_dataframe(semantic_roles)
-    dfs["semantic_roles"] = _apply_schema(semantic_roles_df, _semantic_roles_schema, apply_standard_schema)
+    semantic_roles_df = util.make_dataframe(semantic_roles)
+    dfs["semantic_roles"] = util.apply_schema(semantic_roles_df, _semantic_roles_schema, apply_standard_schema)
 
     if "warnings" in response:
         # TODO: check structure of warnings and improve message
