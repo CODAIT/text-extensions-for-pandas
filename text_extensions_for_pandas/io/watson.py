@@ -189,32 +189,36 @@ def _make_syntax_dataframes(syntax_response, original_text):
     tokens = syntax_response.get("tokens", [])
     sentence = syntax_response.get("sentences", [])
 
-    if len(sentence) == 0 and len(tokens) == 0:
-        return pd.DataFrame()
+    if len(tokens) > 0:
+        token_table = _make_table(tokens)
+        location_col, location_name = _find_column(token_table, "location")
+        text_col, text_name = _find_column(token_table, "text")
+        char_span = _make_char_span(location_col, text_col, original_text)
+        token_span = TokenSpanArray.from_char_offsets(char_span)
 
-    token_table = _make_table(tokens)
-    location_col, location_name = _find_column(token_table, "location")
-    text_col, text_name = _find_column(token_table, "text")
-    char_span = _make_char_span(location_col, text_col, original_text)
-    token_span = TokenSpanArray.from_char_offsets(char_span)
+        # Drop location, text columns that is duplicated in char_span
+        token_table = token_table.drop([location_name, text_name])
 
-    # Drop location, text columns that is duplicated in char_span
-    token_table = token_table.drop([location_name, text_name])
+        # Add the span columns to the DataFrames
+        token_df = token_table.to_pandas()
+        token_df['char_span'] = char_span
+        token_df['token_span'] = token_span
+    else:
+        char_span = None
+        token_df = pd.DataFrame()
 
-    sentence_table = _make_table(sentence)
-    location_col, _ = _find_column(sentence_table, "location")
-    text_col, _ = _find_column(sentence_table, "text")
-    sentence_char_span = _make_char_span(location_col, text_col, original_text)
-    sentence_span = TokenSpanArray.align_to_tokens(char_span, sentence_char_span)
-
-    # Add the span columns to the DataFrames
-    token_df = token_table.to_pandas()
-    token_df['char_span'] = char_span
-    token_df['token_span'] = token_span
-
-    sentence_df = sentence_table.to_pandas()
-    sentence_df['char_span'] = sentence_char_span
-    sentence_df['sentence_span'] = sentence_span
+    if len(sentence) > 0:
+        sentence_table = _make_table(sentence)
+        sentence_df = sentence_table.to_pandas()
+        if char_span is not None:
+            location_col, _ = _find_column(sentence_table, "location")
+            text_col, _ = _find_column(sentence_table, "text")
+            sentence_char_span = _make_char_span(location_col, text_col, original_text)
+            sentence_span = TokenSpanArray.align_to_tokens(char_span, sentence_char_span)
+            sentence_df['char_span'] = sentence_char_span
+            sentence_df['sentence_span'] = sentence_span
+    else:
+        sentence_df = pd.DataFrame()
 
     return token_df, sentence_df
 
@@ -469,12 +473,19 @@ def watson_nlu_parse_response(response: Dict[str, Any],
     # Create the syntax DataFrame
     syntax_response = response.get("syntax", {})
     token_df, sentence_df = _make_syntax_dataframes(syntax_response, original_text)
-    sentence_series = sentence_df["sentence_span"]
-    syntax_df = _merge_syntax_dataframes(token_df, sentence_series)
+    sentence_series = sentence_df.get("sentence_span")
+    if sentence_series is not None:
+        syntax_df = _merge_syntax_dataframes(token_df, sentence_series)
+    else:
+        syntax_df = pd.concat([token_df, sentence_df], axis=1)
     dfs["syntax"] = _apply_schema(syntax_df, _syntax_schema, apply_standard_schema)
 
     if original_text is None and "char_span" in dfs["syntax"].columns:
-        original_text = dfs["syntax"]["char_span"].target_text
+        char_span = dfs["syntax"]["char_span"]
+        if isinstance(char_span, CharSpanArray):
+            original_text = dfs["syntax"]["char_span"].target_text
+        else:
+            warnings.warn("Did not receive and could not build original text")
 
     # Create the entities DataFrame
     entities = response.get("entities", [])
