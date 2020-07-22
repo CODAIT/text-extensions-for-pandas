@@ -55,6 +55,10 @@ class TestTensor(unittest.TestCase):
         with self.assertRaises(TypeError):
             TensorArray(2112)
 
+        # Copy constructor
+        s_copy = s.copy()
+        self.assertEqual(len(s), len(s_copy))
+
     def test_operations(self):
         x = np.ones([5, 3])
 
@@ -244,6 +248,17 @@ class TestTensor(unittest.TestCase):
         a = np.asarray(s)
         npt.assert_array_equal(x, a)
         npt.assert_array_equal(x, s.to_numpy())
+
+    def test_sum(self):
+        x = np.array([[1, 2], [3, 4], [5, 6]])
+        s = TensorArray(x)
+        df = pd.DataFrame({"s": s})
+
+        sum_all = df["s"].sum()
+        npt.assert_array_equal(sum_all.to_numpy(), [9, 12])
+
+        sum_some = df["s"][[True, False, True]].sum()
+        npt.assert_array_equal(sum_some.to_numpy(), [6, 8])
 
 
 class TensorArrayDataFrameTests(unittest.TestCase):
