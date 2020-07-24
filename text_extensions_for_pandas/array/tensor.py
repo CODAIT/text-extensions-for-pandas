@@ -113,6 +113,8 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             self._tensor = values
         elif isinstance(values, Sequence):
             self._tensor = np.stack(values, axis=0) if len(values) > 0 else np.array([])
+        elif isinstance(values, TensorArray):
+            raise TypeError("Use the copy() method to create a copy of a TensorArray")
         else:
             raise TypeError(f"Expected a numpy.ndarray or sequence of numpy.ndarray, "
                             f"but received {values} "

@@ -87,7 +87,7 @@ class RepeatTraversal(UnaryTraversal):
                            else FalsePredicate())
         self._until_pred = (self._until_pred
                             if self._init_until_pred is not None
-                            else TruePredicate())
+                            else FalsePredicate())
 
         # The semantics of repeat() are different depending on whether the emit
         # and until modulators come before or after.
