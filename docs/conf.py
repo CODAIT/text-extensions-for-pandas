@@ -33,7 +33,7 @@ release = '0.0.1'
 # -- General configuration ---------------------------------------------------
 
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.coverage', 'sphinx.ext.napoleon', 
-                'sphinx.ext.autosummary', 'sphinx.ext.intersphinx', 
+                'sphinx.ext.autosummary', 'sphinx.ext.intersphinx',
                 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -49,7 +49,8 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 
 
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store','text_extensions_for_pandas.util.rst']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store','text_extensions_for_pandas.util.rst',
+                    'text_extensions_for_pandas.io.watson_util.rst']
 
 #look through files in this directory that include `test_` in their name. 
 # add them to the exclude_patterns list 
