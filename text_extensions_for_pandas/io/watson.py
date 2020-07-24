@@ -390,7 +390,7 @@ def watson_nlu_parse_response(response: Dict[str, Any],
     token_df, sentence_df = _make_syntax_dataframes(syntax_response, original_text)
     sentence_series = sentence_df.get("sentence_span")
     if sentence_series is not None:
-        syntax_df = watson_util.merge_syntax_dataframes(token_df, sentence_series)
+        syntax_df = _merge_syntax_dataframes(token_df, sentence_series)
     else:
         syntax_df = pd.concat([token_df, sentence_df], axis=1)
     dfs["syntax"] = watson_util.apply_schema(syntax_df, _syntax_schema, apply_standard_schema)
