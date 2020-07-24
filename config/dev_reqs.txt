@@ -5,7 +5,8 @@
 # config/dev_env.yml and requirements.txt
 pyyaml
 transformers>=3.0.0
-spacy
+# SpaCy models aren't stable across point releases
+spacy==2.3.2
 fastparquet
 sphinx
 

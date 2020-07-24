@@ -281,6 +281,34 @@ class TestWatson(unittest.TestCase):
         self.assertIn("token_span", df.columns)
         self.assertIn("sentence", df.columns)
 
+    def test_empty_frames(self):
+        empty_response = {
+            "usage": {
+                "text_units": 1,
+                "text_characters": 156,
+                "features": 4
+            },
+            "language": "en",
+        }
+        empty_result = watson_nlu_parse_response(empty_response, apply_standard_schema=True)
+
+        for df in empty_result.values():
+            self.assertIsInstance(df, pd.DataFrame)
+            self.assertEqual(len(df), 0)
+
+        filename = "test_data/io/test_watson/basic_response.txt"
+        response = self.load_response_file(filename)
+        result = watson_nlu_parse_response(response, apply_standard_schema=True)
+
+        for df in result.values():
+            self.assertIsInstance(df, pd.DataFrame)
+            self.assertGreater(len(df), 0)
+
+        for name, empty_df in empty_result.items():
+            empty_response_cols = list(empty_df.columns)
+            response_cols = list(result[name].columns)
+            self.assertListEqual(response_cols, empty_response_cols)
+
 
 @unittest.skipIf(os.environ.get("IBM_API_KEY") is None, "Env var 'IBM_API_KEY' is not set")
 class TestWatsonApiHandling(unittest.TestCase):
@@ -350,3 +378,49 @@ class TestWatsonApiHandling(unittest.TestCase):
 
     def test_analyzed_text_present(self):
         self.assertIn("analyzed_text", self.response)
+
+    def test_expected_relations_response(self):
+        relations = self.response["relations"]
+        r = relations[0]
+
+        # Check expected columns
+        self.assertIn("type", r)
+        self.assertIn("sentence", r)
+        self.assertIn("score", r)
+        self.assertIn("arguments", r)
+
+        # Check expected format of arguments
+        args = r["arguments"]
+        self.assertEqual(len(args), 2)
+        arg1 = args[0]
+        self.assertIn("text", arg1)
+        self.assertIn("location", arg1)
+
+        # Check location format
+        loc = arg1["location"]
+        self.assertIsInstance(loc, list)
+        self.assertEqual(len(loc), 2)
+        self.assertTrue(all([isinstance(i, int) for i in loc]))
+
+    def test_expected_syntax_response(self):
+        syntax_response = self.response["syntax"]
+        tokens = syntax_response["tokens"]
+
+        # Check tokens format
+        r = tokens[0]
+        self.assertIn("text", r)
+        self.assertIn("location", r)
+        loc = r["location"]
+        self.assertIsInstance(loc, list)
+        self.assertEqual(len(loc), 2)
+        self.assertTrue(all([isinstance(i, int) for i in loc]))
+
+        # Check sentence format
+        sentence = syntax_response["sentences"]
+        r = sentence[0]
+        self.assertIn("text", r)
+        self.assertIn("location", r)
+        loc = r["location"]
+        self.assertIsInstance(loc, list)
+        self.assertEqual(len(loc), 2)
+        self.assertTrue(all([isinstance(i, int) for i in loc]))
