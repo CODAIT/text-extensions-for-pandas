@@ -69,14 +69,6 @@ Repro:
         return GraphTraversal(self.vertices, self.edges, new_paths,
                               new_path_col_types, self._aliases)
 ```
-2. Attempt to call the `in_()` method:
-```python
-import pandas_text.gremlin.convert
-g = pandas_text.gremlin.convert.token_features_to_traversal(token_features)
-g.V().in_().toList()
-```
-You will get a strange error message about inputs to assign not being strings.
-
 ## `DataFrame.insert()` doesn't handle anonymous series gracefully
 Example:
 ```python
