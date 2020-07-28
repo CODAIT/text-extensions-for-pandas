@@ -71,9 +71,8 @@ class TensorType(pd.api.extensions.ExtensionDtype):
         return TensorArray
 
     def __from_arrow__(self, extension_array):
-        from text_extensions_for_pandas.array.arrow_conversion import ArrowTensorArray
-        values = ArrowTensorArray.to_numpy(extension_array)
-        return TensorArray(values)
+        from text_extensions_for_pandas.array.arrow_conversion import arrow_to_tensor_array
+        return arrow_to_tensor_array(extension_array)
 
 
 class TensorOpsMixin(pd.api.extensions.ExtensionScalarOpsMixin):

@@ -24,7 +24,7 @@
 import numpy as np
 import pyarrow as pa
 
-from text_extensions_for_pandas.array import CharSpanArray, TokenSpanArray
+from text_extensions_for_pandas.array import CharSpanArray, TensorArray, TokenSpanArray
 
 
 class ArrowCharSpanType(pa.PyExtensionType):
@@ -320,8 +320,11 @@ class ArrowTensorType(pa.PyExtensionType):
     def shape(self):
         return self._element_shape
 
+    def __arrow_ext_class__(self):
+        return ArrowTensorArray
 
-class ArrowTensorArray(object):
+
+class ArrowTensorArray(pa.ExtensionArray):
     """
     A batch of tensors with fixed shape.
     """
@@ -403,26 +406,24 @@ class ArrowTensorArray(object):
                             batch = []
             return iter_gen()
 
-    @staticmethod
-    def to_numpy(pa_ext_array):
+    def to_numpy(self):
+        shape = (len(self),) + self.type.shape
+        buf = self.storage.buffers()[3]
+        storage_list_type = self.storage.type
+        ext_dtype = storage_list_type.value_type.to_pandas_dtype()
+        return np.ndarray(shape, buffer=buf, dtype=ext_dtype)
 
-        def make_numpy_array(ext_arr):
-            ext_type = ext_arr.type
-            shape = (len(ext_arr),) + ext_type.shape
-            buf = ext_arr.storage.buffers()[3]
-            ext_list_type = ext_arr.storage.type
-            assert pa.types.is_list(ext_list_type)
-            ext_dtype = ext_list_type.value_type.to_pandas_dtype()
-            return np.ndarray(shape, buffer=buf, dtype=ext_dtype)
 
-        if isinstance(pa_ext_array, pa.ChunkedArray):
-            if pa_ext_array.num_chunks > 1:
-                # TODO: look into removing concat and constructing from list w/ shape
-                result = np.concatenate([make_numpy_array(chunk)
-                                         for chunk in pa_ext_array.iterchunks()])
-            else:
-                result = make_numpy_array(pa_ext_array.chunk(0))
+def arrow_to_tensor_array(ext_arr):
+
+    if isinstance(ext_arr, pa.ChunkedArray):
+        if ext_arr.num_chunks > 1:
+            # TODO: look into removing concat and constructing from list w/ shape
+            values = np.concatenate([chunk.to_numpy()
+                                     for chunk in ext_arr.iterchunks()])
         else:
-            result = make_numpy_array(pa_ext_array)
+            values = ext_arr.chunk(0).to_numpy()
+    else:
+        values = ext_arr.to_numpy()
 
-        return result
+    return TensorArray(values)
