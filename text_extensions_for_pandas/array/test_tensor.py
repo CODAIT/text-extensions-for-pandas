@@ -260,6 +260,12 @@ class TestTensor(unittest.TestCase):
         sum_some = df["s"][[True, False, True]].sum()
         npt.assert_array_equal(sum_some.to_numpy(), [6, 8])
 
+    def test_factorize(self):
+        x = np.array([[1, 2], [3, 4], [5, 6], [3, 4]])
+        s = TensorArray(x)
+        with self.assertRaises(NotImplementedError):
+            indices, values = s.factorize()
+
 
 class TensorArrayDataFrameTests(unittest.TestCase):
     def test_create(self):
