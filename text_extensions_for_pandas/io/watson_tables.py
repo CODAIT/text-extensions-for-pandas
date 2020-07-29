@@ -61,7 +61,7 @@ def _explode_indexes(df, axis_type, drop_original=False):
 
     if drop_original:
         df.drop(columns=f"{axis_type}_index_begin", inplace=True)
-    return df, f'{axis_type}_index'
+    return df, [f'{axis_type}_index']
 
 
 def _horiz_explode(df_in, column, drop_original=True):
@@ -89,7 +89,6 @@ def watson_tables_parse_response(response: Dict[str, Any], table_number=0) -> Di
     # Create Row headers DataFrame
     row_headers = table.get("row_headers", [])
     if len(row_headers) == 0:
-        print("row_headers = none")
         return_dict["row_headers"] = None
     else:
         row_headers_df = _make_headers_df(row_headers)
@@ -98,7 +97,6 @@ def watson_tables_parse_response(response: Dict[str, Any], table_number=0) -> Di
     # Create Column headers DataFrame
     column_headers = table.get("column_headers", [])
     if len(column_headers) == 0:
-        print("col_headers = none")
         return_dict["column_headers"] = None
     else:
         column_headers_df = _make_headers_df(column_headers)
@@ -149,18 +147,22 @@ def make_exploded_df(dfs_dict: Dict[str, pd.DataFrame], drop_original: bool = Tr
         exploded = exploded
         row_header_names = []
 
-
     return exploded, row_header_names, col_header_names
 
 
 def make_table_from_exploded_df(exploded_df: pd.DataFrame, row_heading_cols, column_heading_cols,
-                                value_col: str = "text") -> object:
-    return exploded_df.pivot_table(index=row_heading_cols, columns=column_heading_cols, values=value_col,
-                                   aggfunc=(lambda a: " | ".join(a)))
+                                value_col: str = "text", concat_with: str = " | ") -> object:
+    table = exploded_df.pivot_table(index=row_heading_cols, columns=column_heading_cols, values=value_col,
+                                   aggfunc=(lambda a: concat_with.join(a)))
+    row_nones = [ None for _ in range(len(row_heading_cols))]
+    col_nones = [None for _ in range(len(column_heading_cols))]
+
+    return table.rename_axis(index=row_nones, columns=col_nones)
 
 
 def make_table(dfs_dict: Dict[str, pd.DataFrame], value_col="text", row_explode_by: str = None,
-               col_explode_by: str = None):
+               col_explode_by: str = None, concat_with: str = " | "):
     exploded, row_heading_names, col_heading_names = make_exploded_df(dfs_dict, explode_row_method= row_explode_by,
                                                                       explode_col_method= col_explode_by)
-    return make_table_from_exploded_df(exploded, row_heading_names, col_heading_names, value_col=value_col)
+    return make_table_from_exploded_df(exploded, row_heading_names, col_heading_names,
+                                       value_col=value_col, concat_with=concat_with)
