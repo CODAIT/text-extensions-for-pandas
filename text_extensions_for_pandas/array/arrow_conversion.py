@@ -414,16 +414,23 @@ class ArrowTensorArray(pa.ExtensionArray):
         return np.ndarray(shape, buffer=buf, dtype=ext_dtype)
 
 
-def arrow_to_tensor_array(ext_arr):
+def arrow_to_tensor_array(extension_array: pa.ExtensionArray) -> TensorArray:
+    """
+    Convert a pyarrow.ExtensionArray with type ArrowTensorType to a
+    TensorArray.
 
-    if isinstance(ext_arr, pa.ChunkedArray):
-        if ext_arr.num_chunks > 1:
+    :param extension_array: pyarrow.ExtensionArray with type ArrowTensorType
+    :return: TensorArray
+    """
+
+    if isinstance(extension_array, pa.ChunkedArray):
+        if extension_array.num_chunks > 1:
             # TODO: look into removing concat and constructing from list w/ shape
             values = np.concatenate([chunk.to_numpy()
-                                     for chunk in ext_arr.iterchunks()])
+                                     for chunk in extension_array.iterchunks()])
         else:
-            values = ext_arr.chunk(0).to_numpy()
+            values = extension_array.chunk(0).to_numpy()
     else:
-        values = ext_arr.to_numpy()
+        values = extension_array.to_numpy()
 
     return TensorArray(values)
