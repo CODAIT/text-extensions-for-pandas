@@ -78,7 +78,26 @@ def _horiz_explode(df_in, column, drop_original=True):
 
 
 def watson_tables_parse_response(response: Dict[str, Any], table_number=0) -> Dict[str, pd.DataFrame]:
-    #
+    """
+    Parse a response from Watson Tables Understanding as a decoded JSON string. e.g.
+     dictionary containing requested features and convert into a dict of Pandas DataFrames.
+     The following features will be converted from the response:
+        * Row headers
+        * Column headers
+        * Body cells
+
+    More information on using Watson Table Extraction or the Compare and Comply API, see
+    https://cloud.ibm.com/docs/compare-comply?topic=compare-comply-understanding_tables
+    More infomration about available features can be found at
+    https://cloud.ibm.com/apidocs/compare-comply?code=python#extract-a-document-s-tables
+
+
+    :param response: A dictionary of features returned by the IBM Watson Compare and Comply API
+    :param table_number: Defaults to analyzing the first table, input a number here to analyze the nth table
+
+    :return: A dictionary mapping feature names ("row_headers", "col_headers", "body_cells")
+                    to Pandas DataFrames
+    """
     return_dict = {}
 
     tables = response.get("tables", [])
@@ -114,6 +133,23 @@ def make_exploded_df(dfs_dict: Dict[str, pd.DataFrame], drop_original: bool = Tr
                      explode_row_method: str = None,
                      explode_col_method: str = None
                      ) -> Tuple[pd.DataFrame, list, list]:
+    """
+    Creates a value-attribute mapping, mapping the column values to header or row number values
+    this is a preliminary stage to creating the final table, but may be a useful intermediary
+
+    :param dfs_dict: The dictionary of {features : DataFrames} returned by watson_tables_parse_response
+    :param drop_original: drop the original column location information. defaults to True
+    :param explode_row_method: If specified, set the method used to explode rows, instead of the default logic being applied
+                                if "title", the title field will be used to arrange rows
+                                if "title_id", the title_id feild will be used to arrange rows
+                                if "index", the row / column locations given will be used to arrange rows
+    :param explode_col_method: if specified, set the method used to explode columns, instead of the default logic bing applied
+                                if "title", the title field will be used to arrange rows
+                                if "title_id", the title_id feild will be used to arrange rows
+                                if "index", the row / column locations given will be used to arrange rows
+    :return: a table mapping values to attributes (either headings or row numbers if no headings exist)
+    """
+
     body = dfs_dict["body_cells"]
     if explode_col_method is None:
         if (not dfs_dict["col_headers"] is None) and len(dfs_dict["col_headers"]) != 0:
@@ -151,7 +187,19 @@ def make_exploded_df(dfs_dict: Dict[str, pd.DataFrame], drop_original: bool = Tr
 
 
 def make_table_from_exploded_df(exploded_df: pd.DataFrame, row_heading_cols, column_heading_cols,
-                                value_col: str = "text", concat_with: str = " | ") -> object:
+                                value_col: str = "text", concat_with: str = " | ") -> pd.DataFrame:
+    """
+    takes in the exploded dataframe, and converts it into the reconstructed table
+
+    :param exploded_df: The exploded dataframe, as returned by `make_exploded_df`
+    :param row_heading_cols: the names of the columns referring to row headings (as outputted from make_exploded_df())
+    :param column_heading_cols: the names of the columns referring to column headings
+                                (as outputted from make_exploded_df())
+    :param value_col: the name of the column to use for the value of each cell. Defaults to 'text'
+    :param concat_with: the delimiter to use when concatinating duplicate entries.
+                            Using an empty string, "" will fuse entries
+    :return: the reconstructed table. should be a 1:1 translation of original table, but both machine and human readable
+    """
     table = exploded_df.pivot_table(index=row_heading_cols, columns=column_heading_cols, values=value_col,
                                    aggfunc=(lambda a: concat_with.join(a)))
     row_nones = [ None for _ in range(len(row_heading_cols))]
@@ -162,6 +210,24 @@ def make_table_from_exploded_df(exploded_df: pd.DataFrame, row_heading_cols, col
 
 def make_table(dfs_dict: Dict[str, pd.DataFrame], value_col="text", row_explode_by: str = None,
                col_explode_by: str = None, concat_with: str = " | "):
+    """
+    Runs the end-to-end process of creating the table, starting with the parsed response from the Compare & Comply or
+    Watson Discovery engine, and returns the completed table.
+
+    :param dfs_dict: The dictionary of {features : DataFrames} returned by watson_tables_parse_response
+    :param value_col: Which column to use as values. by default "text"
+    :param row_explode_by: If specified, set the method used to explode rows, instead of the default logic being applied
+                                if "title", the title field will be used to arrange rows
+                                if "title_id", the title_id feild will be used to arrange rows
+                                if "index", the row / column locations given will be used to arrange rows
+    :param col_explode_by: if specified, set the method used to explode columns, instead of the default logic bing applied
+                                if "title", the title field will be used to arrange rows
+                                if "title_id", the title_id feild will be used to arrange rows
+                                if "index", the row / column locations given will be used to arrange rows
+    :param concat_with: the delimiter to use when concatinating duplicate entries. Using an empty string, "" will fuse entries
+    :return: the reconstructed table. should be a 1:1 translation of original table
+    """
+
     exploded, row_heading_names, col_heading_names = make_exploded_df(dfs_dict, explode_row_method= row_explode_by,
                                                                       explode_col_method= col_explode_by)
     return make_table_from_exploded_df(exploded, row_heading_names, col_heading_names,
