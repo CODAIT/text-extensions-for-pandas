@@ -77,6 +77,16 @@ def _horiz_explode(df_in, column, drop_original=True):
     return df, tags.columns.to_list()
 
 
+def _explode_by_concat(df_in, column, agg_by: str = " "):
+    def agg_horiz_headers(series):
+        series[column] = agg_by.join(series[column])
+        return series
+
+    df = df_in.copy()
+    df = df.apply(agg_horiz_headers, axis=1)
+    return df, [column]
+
+
 def watson_tables_parse_response(response: Dict[str, Any], table_number=0) -> Dict[str, pd.DataFrame]:
     """
     Parse a response from Watson Tables Understanding as a decoded JSON string. e.g.
@@ -171,7 +181,9 @@ def make_exploded_df(dfs_dict: Dict[str, pd.DataFrame], drop_original: bool = Tr
         exploded, col_header_names = _horiz_explode(body, "column_header_ids", drop_original=drop_original)
     elif explode_col_method == "index":
         exploded, col_header_names = _explode_indexes(body, "column", drop_original=drop_original)
-    else :
+    elif explode_col_method == "concat":
+        exploded, col_header_names = _explode_by_concat(body,"column_header_texts")
+    else:
         exploded = body
         col_header_names = []
 
@@ -181,6 +193,8 @@ def make_exploded_df(dfs_dict: Dict[str, pd.DataFrame], drop_original: bool = Tr
         exploded, row_header_names = _horiz_explode(exploded, "row_header_ids", drop_original=drop_original)
     elif explode_row_method == "index":
         exploded, row_header_names = _explode_indexes(exploded, "row", drop_original=drop_original)
+    elif explode_row_method == "concat":
+        exploded, row_header_names = _explode_by_concat(exploded, "row_header_texts")
     else:
         exploded = exploded
         row_header_names = []
