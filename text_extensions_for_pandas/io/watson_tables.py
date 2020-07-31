@@ -131,7 +131,7 @@ def watson_tables_parse_response(response: Dict[str, Any], table_number=0) -> Di
 
 def make_exploded_df(dfs_dict: Dict[str, pd.DataFrame], drop_original: bool = True,
                      explode_row_method: str = None,
-                     explode_col_method: str = None
+                     explode_col_method: str = None, keep_all_cols: bool = False
                      ) -> Tuple[pd.DataFrame, list, list]:
     """
     Creates a value-attribute mapping, mapping the column values to header or row number values
@@ -147,6 +147,8 @@ def make_exploded_df(dfs_dict: Dict[str, pd.DataFrame], drop_original: bool = Tr
                                 if "title", the title field will be used to arrange rows
                                 if "title_id", the title_id feild will be used to arrange rows
                                 if "index", the row / column locations given will be used to arrange rows
+    :param keep_all_cols: if false, keep only attributes necessary for constructing final table.
+                                gets overridden if drop_original is False.
     :return: a table mapping values to attributes (either headings or row numbers if no headings exist)
     """
 
@@ -182,6 +184,10 @@ def make_exploded_df(dfs_dict: Dict[str, pd.DataFrame], drop_original: bool = Tr
     else:
         exploded = exploded
         row_header_names = []
+
+    if drop_original and not keep_all_cols:
+        cols_to_keep = ["text"] + row_header_names + col_header_names
+        exploded = exploded[cols_to_keep]
 
     return exploded, row_header_names, col_header_names
 

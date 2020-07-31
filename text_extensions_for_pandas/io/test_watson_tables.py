@@ -255,7 +255,7 @@ class TestTables(unittest.TestCase):
         double_header = watson_tables_parse_response(self.responses_dict["double_header_table"])
         countries = watson_tables_parse_response(self.responses_dict["20-populous-countries"])
 
-        countries_exp = make_exploded_df(countries)
+        countries_exp = make_exploded_df(countries, keep_all_cols=True)
         self.assertSequenceEqual(countries_exp[1], ['row_index'])
         self.assertSequenceEqual(countries_exp[2], ['column_header_texts_0'])
         self.assertEqual(repr(countries_exp[0]),
@@ -302,7 +302,7 @@ class TestTables(unittest.TestCase):
 [126 rows x 10 columns]\
 """)
 
-        double_header_exp = make_exploded_df(double_header,drop_original=False)
+        double_header_exp = make_exploded_df(double_header, keep_all_cols=True, drop_original=False)
         self.assertSequenceEqual(double_header_exp[1], ['row_header_texts_0'])
         self.assertSequenceEqual(double_header_exp[2], ['column_header_texts_0', 'column_header_texts_1'])
         self.assertEqual(repr(double_header_exp[0]), """\
