@@ -71,9 +71,8 @@ class TensorType(pd.api.extensions.ExtensionDtype):
         return TensorArray
 
     def __from_arrow__(self, extension_array):
-        from text_extensions_for_pandas.array.arrow_conversion import ArrowTensorArray
-        values = ArrowTensorArray.to_numpy(extension_array)
-        return TensorArray(values)
+        from text_extensions_for_pandas.array.arrow_conversion import arrow_to_tensor_array
+        return arrow_to_tensor_array(extension_array)
 
 
 class TensorOpsMixin(pd.api.extensions.ExtensionScalarOpsMixin):
@@ -107,7 +106,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
                  make_contiguous: bool = True):
         """
         :param values: A `numpy.ndarray` or sequence of `numpy.ndarray`s of equal shape.
-        :param make_contiguous: force values to be contiguous in memory
+        :param make_contiguous: force values to be contiguous in memory (C order)
         """
         if isinstance(values, np.ndarray):
             self._tensor = values
@@ -122,6 +121,23 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         
         if not self._tensor.flags.c_contiguous and make_contiguous:
             self._tensor = np.ascontiguousarray(self._tensor)
+
+    @classmethod
+    def _from_sequence(cls, scalars, dtype=None, copy=True):
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        values = np.array(scalars, dtype=dtype, copy=copy)
+        return TensorArray(values)
+
+    @classmethod
+    def _from_factorized(cls, values, original):
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        raise NotImplementedError
 
     @classmethod
     def _concat_same_type(
@@ -180,13 +196,29 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         """
         return TensorType()
 
+    @property
+    def nbytes(self) -> int:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        return self._tensor.nbytes
+
     def to_numpy(self, dtype=None, copy=False, na_value=pd.api.extensions.no_default):
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        # TODO options
-        return self._tensor
+        if dtype is not None:
+            if copy:
+                values = np.array(self._tensor, dtype=dtype, copy=True)
+            else:
+                values = self._tensor.astype(dtype)
+        elif copy:
+            values = self._tensor.copy()
+        else:
+            values = self._tensor
+        return values
 
     def __len__(self) -> int:
         return len(self._tensor)
@@ -223,6 +255,14 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
 
     def __str__(self):
         return self._tensor.__str__()
+
+    def _values_for_factorize(self) -> Tuple[np.ndarray, Any]:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        # TODO return self._tensor, np.nan
+        raise NotImplementedError
 
     def _reduce(self, name, skipna=True, **kwargs):
         """
