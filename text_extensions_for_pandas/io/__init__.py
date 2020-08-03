@@ -24,3 +24,5 @@ from text_extensions_for_pandas.io.spacy import *
 from text_extensions_for_pandas.io.systemt import *
 from text_extensions_for_pandas.io.tokenization import *
 from text_extensions_for_pandas.io.watson import *
+from text_extensions_for_pandas.io.watson_tables import *
+

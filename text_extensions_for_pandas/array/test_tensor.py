@@ -21,8 +21,11 @@ import unittest
 import numpy as np
 import numpy.testing as npt
 import pandas as pd
+import pandas.testing as pdt
+from pandas.tests.extension import base
+import pytest
 
-from text_extensions_for_pandas.array.tensor import TensorArray
+from text_extensions_for_pandas.array.tensor import TensorArray, TensorType
 
 
 class TestTensor(unittest.TestCase):
@@ -54,6 +57,21 @@ class TestTensor(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             TensorArray(2112)
+
+        # Copy constructor
+        s_copy = s.copy()
+        self.assertEqual(len(s), len(s_copy))
+
+    def test_create_series(self):
+        x = np.array([[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]] * 100)
+        a = TensorArray(x)
+        s1 = pd.Series(a)
+        s2 = pd.Series(a, dtype=TensorType())
+        s3 = pd.Series(a, dtype=TensorType(), copy=True)
+        self.assertEqual(len(x), len(s1))
+        npt.assert_array_equal(x, s1.to_numpy())
+        pdt.assert_series_equal(s1, s2)
+        pdt.assert_series_equal(s1, s3)
 
     def test_operations(self):
         x = np.ones([5, 3])
@@ -245,6 +263,23 @@ class TestTensor(unittest.TestCase):
         npt.assert_array_equal(x, a)
         npt.assert_array_equal(x, s.to_numpy())
 
+    def test_sum(self):
+        x = np.array([[1, 2], [3, 4], [5, 6]])
+        s = TensorArray(x)
+        df = pd.DataFrame({"s": s})
+
+        sum_all = df["s"].sum()
+        npt.assert_array_equal(sum_all.to_numpy(), [9, 12])
+
+        sum_some = df["s"][[True, False, True]].sum()
+        npt.assert_array_equal(sum_some.to_numpy(), [6, 8])
+
+    def test_factorize(self):
+        x = np.array([[1, 2], [3, 4], [5, 6], [3, 4]])
+        s = TensorArray(x)
+        with self.assertRaises(NotImplementedError):
+            indices, values = s.factorize()
+
 
 class TensorArrayDataFrameTests(unittest.TestCase):
     def test_create(self):
@@ -262,11 +297,11 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             repr(result_df),
             textwrap.dedent(
                 """\
-                      value
-                key        
-                a    [2, 2]
-                b    [1, 1]
-                c    [3, 3]"""
+                    value
+                key      
+                a   [2 2]
+                b   [1 1]
+                c   [3 3]"""
             ),
         )
 
@@ -278,11 +313,14 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             repr(result2_df),
             textwrap.dedent(
                 """\
-                                value
-                key                  
-                a    [[2, 2], [2, 2]]
-                b    [[1, 1], [1, 1]]
-                c    [[3, 3], [3, 3]]"""
+                             value
+                key               
+                a   [[2 2]
+                 [2 2]]
+                b   [[1 1]
+                 [1 1]]
+                c   [[3 3]
+                 [3 3]]"""
             ),
         )
 
@@ -400,3 +438,169 @@ class TensorArrayIOTests(unittest.TestCase):
             self.assertGreaterEqual(table.column("tensor").num_chunks, 2)
             df_read = pd.read_feather(filename)
             pd.testing.assert_frame_equal(df, df_read)
+
+@pytest.fixture
+def dtype():
+    return TensorType()
+
+
+@pytest.fixture
+def data(dtype):
+    values = np.array([[i] for i in range(100)])
+    return pd.array(values, dtype=dtype)
+
+
+@pytest.fixture
+def data_for_twos(dtype):
+    return pd.array(np.ones(100), dtype=dtype)
+
+
+@pytest.fixture
+def data_missing(dtype):
+    values = np.array([[np.nan], [9]])
+    return pd.array(values, dtype=dtype)
+
+
+@pytest.fixture
+def data_for_sorting(dtype):
+    values = np.array([[3], [1], [2]])
+    return pd.array(values, dtype=dtype)
+
+
+@pytest.fixture
+def data_missing_for_sorting(dtype):
+    values = np.array([[3], [1], [np.nan]])
+    return pd.array(values, dtype=dtype)
+
+
+@pytest.fixture
+def na_cmp():
+    return lambda x, y: np.all(np.isnan(x)) and np.all(np.isnan(y))
+
+
+@pytest.fixture
+def na_value():
+    return np.nan
+
+
+@pytest.fixture
+def data_for_grouping(dtype):
+    b = [2]
+    a = [1]
+    na = [np.nan]
+    values = np.array([b, b, na, na, a, a, b])
+    return pd.array(values, dtype=dtype)
+
+
+class TestPandasDtype(base.BaseDtypeTests):
+    pass
+
+
+class TestPandasInterface(base.BaseInterfaceTests):
+    pass
+
+
+class TestPandasConstructors(base.BaseConstructorsTests):
+    def test_pandas_array_dtype(self, data):
+        # Fails making PandasArray with result = pd.array(data, dtype=np.dtype(object))
+        pass
+
+
+class TestPandasGetitem(base.BaseGetitemTests):
+    def test_getitem_boolean_array_mask(self, data):
+        # Need to support __getitem__ with boolean array mask
+        pass
+
+    def test_getitem_boolean_na_treated_as_false(self, data):
+        # Need to support __getitem__ with boolean array mask
+        pass
+
+    def test_getitem_integer_array(self, data=None, idx=None):
+        # Need to support __getitem__ with integer array
+        pass
+
+    def test_getitem_integer_with_missing_raises(self, data=None, idx=None):
+        # Need to support __getitem__ with arrays
+        pass
+
+    def test_take(self, data, na_value, na_cmp):
+        # values[i] = fill_value
+        # ValueError: cannot convert float NaN to integer
+        pass
+
+    def test_take_empty(self, data, na_value, na_cmp):
+        # IndexError: cannot do a non-empty take from an empty axes.
+        pass
+
+    def test_reindex(self, data, na_value):
+        # ValueError: cannot convert float NaN to integer
+        pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasSetitem(base.BaseSetitemTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasMissing(base.BaseMissingTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasArithmeticOps(base.BaseArithmeticOpsTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasComparisonOps(base.BaseComparisonOpsTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasReshaping(base.BaseReshapingTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasMethods(base.BaseMethodsTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasCasting(base.BaseCastingTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasGroupby(base.BaseGroupbyTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasNumericReduce(base.BaseNumericReduceTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasBooleanReduce(base.BaseBooleanReduceTests):
+    pass
+
+
+class TestPandasPrinting(base.BasePrintingTests):
+
+    @pytest.mark.skip("resolve errors")
+    def test_array_repr(self, data, size):
+        pass
+
+
+class TestPandasUnaryOps(base.BaseUnaryOpsTests):
+
+    @pytest.mark.skip("is supported?")
+    def test_invert(self, data):
+        pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasParsing(base.BaseParsingTests):
+    pass
