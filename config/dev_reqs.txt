@@ -8,5 +8,6 @@ transformers>=3.0.0
 spacy
 fastparquet
 sphinx
+ibm-watson
 
 
