@@ -302,7 +302,10 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         if isinstance(dtype, CharSpanType):
             data = self.copy() if copy else self
         else:
-            raise NotImplementedError("Types other than CharSpanType not supported")
+            na_value = CharSpan(
+                self.target_text, CharSpan.NULL_OFFSET_VALUE, CharSpan.NULL_OFFSET_VALUE
+            )
+            data = self.to_numpy(dtype=dtype, copy=copy, na_value=na_value)
         return data
 
     @property
@@ -461,6 +464,8 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         for information about this method.
         """
         text = None
+        if isinstance(scalars, CharSpanArray):
+            text = scalars.target_text
         begins = np.full(len(scalars), CharSpan.NULL_OFFSET_VALUE, np.int)
         ends = np.full(len(scalars), CharSpan.NULL_OFFSET_VALUE, np.int)
         i = 0

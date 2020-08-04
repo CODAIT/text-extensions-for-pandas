@@ -481,5 +481,9 @@ class TestPandasInterface(base.BaseInterfaceTests):
     pass
 
 
+class TestPandasConstructors(base.BaseConstructorsTests):
+    pass
+
+
 if __name__ == "__main__":
     unittest.main()
