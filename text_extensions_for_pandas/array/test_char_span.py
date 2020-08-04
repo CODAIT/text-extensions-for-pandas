@@ -427,37 +427,32 @@ def data_for_twos(dtype):
 
 @pytest.fixture
 def data_missing(dtype):
-    spans = [span for span, _ in zip(_gen_spans(), range(3))]
-    spans.insert(0, CharSpan(
+    spans = [span for span, _ in zip(_gen_spans(), range(2))]
+    spans[0] = CharSpan(
         spans[0].target_text, CharSpan.NULL_OFFSET_VALUE, CharSpan.NULL_OFFSET_VALUE
-    ))
+    )
     return pd.array(spans, dtype=dtype)
 
 
 @pytest.fixture
 def data_for_sorting(dtype):
     spans = [span for span, _ in zip(_gen_spans(), range(5))]
-    reordered = [None] * 5
-    reordered[0] = spans[3]
-    reordered[1] = spans[0]
+    reordered = [None] * 3
+    reordered[0] = spans[2]
+    reordered[1] = spans[3]
     reordered[2] = spans[1]
-    reordered[3] = spans[4]
-    reordered[4] = spans[3]
     return pd.array(reordered, dtype=dtype)
 
 
 @pytest.fixture
 def data_missing_for_sorting(dtype):
     spans = [span for span, _ in zip(_gen_spans(), range(6))]
-    reordered = [None] * 6
-    reordered[0] = spans[3]
-    reordered[1] = spans[0]
-    reordered[2] = spans[1]
-    reordered[3] = CharSpan(
+    reordered = [None] * 3
+    reordered[0] = spans[2]
+    reordered[1] = CharSpan(
         spans[0].target_text, CharSpan.NULL_OFFSET_VALUE, CharSpan.NULL_OFFSET_VALUE
     )
-    reordered[4] = spans[4]
-    reordered[5] = spans[3]
+    reordered[2] = spans[1]
     return pd.array(reordered, dtype=dtype)
 
 
@@ -480,6 +475,10 @@ def data_for_grouping(dtype):
     na = [np.nan]
     values = np.array([b, b, na, na, a, a, b])
     return pd.array(values, dtype=dtype)
+
+
+# import pytest fixtures
+from pandas.tests.extension.conftest import data_repeated, as_frame, as_series, use_numpy
 
 
 class TestPandasDtype(base.BaseDtypeTests):
@@ -541,9 +540,51 @@ class TestPandasReshaping(base.BaseReshapingTests):
     pass
 
 
-@pytest.mark.skip("resolve errors")
 class TestPandasMethods(base.BaseMethodsTests):
-    pass
+    @pytest.mark.skip(reason="Unclear test")
+    def test_value_counts(self, all_data, dropna):
+        pass
+
+    @pytest.mark.skip(reason="implement _from_factorized")
+    def test_sort_values_frame(self, data_for_sorting, ascending):
+        pass
+
+    @pytest.mark.skip(reason="implement _from_factorized")
+    def test_factorize(self, data_for_grouping, na_sentinel):
+        pass
+
+    @pytest.mark.skip(reason="implement _from_factorized")
+    def test_factorize_equivalence(self, data_for_grouping, na_sentinel):
+        pass
+
+    @pytest.mark.skip(reason="implement _from_factorized")
+    def test_factorize_empty(self, data):
+        pass
+
+    @pytest.mark.skip(reason="invalid operator")
+    def test_combine_add(self, data_repeated):
+        pass
+
+    @pytest.mark.skip(reason="unsupported operation")
+    def test_container_shift(self, data, frame, periods, indices):
+        # TODO check if support required
+        pass
+
+    @pytest.mark.skip(reason="unsupported operation")
+    def test_shift_non_empty_array(self, data, periods, indices):
+        # TODO check if support required
+        pass
+
+    @pytest.mark.skip(reason="unsupported operation")
+    def test_where_series(self, data, na_value, as_frame):
+        # TODO setitem error: NotImplementedError: Setting multiple rows at once not implemented
+        pass
+
+    def test_searchsorted(self, data_for_sorting, as_series):
+        # TODO fails for series with TypeError: 'CharSpan' object is not iterable
+        if as_series is True:
+            pytest.skip("errors with Series")
+        super().test_searchsorted(data_for_sorting, as_series)
 
 
 @pytest.mark.skip("resolve errors")
