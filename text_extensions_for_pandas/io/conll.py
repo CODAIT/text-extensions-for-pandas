@@ -23,6 +23,8 @@ from typing import *
 import numpy as np
 import pandas as pd
 import regex
+import requests
+import os
 
 from text_extensions_for_pandas.array import (
     TokenSpan,
@@ -854,3 +856,43 @@ def decode_class_labels(class_labels: Iterable[str]):
     iobs = ["O" if t == "O" else t[:1] for t in class_labels]
     types = [None if t == "O" else t.split("-")[1] for t in class_labels]
     return iobs, types
+
+
+def maybe_download_conll_data(target_dir: str) -> Dict[str, str]:
+    """
+    Download and cache a copy of the CoNLL-2003 named entity recogniation
+    data set.
+
+    **NOTE: This data set is licensed for research use only.**
+    Be sure to adhere to the terms of the license when using this data set!
+
+    :param target_dir: Directory where this function should write the corpus
+     files, if they are not already present.
+
+    :returns: Dictionary containing a mapping from fold name to file name for
+     each of the three folds (`train`, `test`, `dev`) of the corpus.
+    """
+    _CONLL_DOWNLOAD_BASE_URL = (
+        "https://github.com/patverga/torch-ner-nlp-from-scratch/raw/master/"
+        "data/conll2003/"
+    )
+    _TRAIN_FILE_NAME = "eng.train"
+    _DEV_FILE_NAME = "eng.testa"
+    _TEST_FILE_NAME = "eng.testb"
+    _TRAIN_FILE = f"{target_dir}/{_TRAIN_FILE_NAME}"
+    _DEV_FILE = f"{target_dir}/{_DEV_FILE_NAME}"
+    _TEST_FILE = f"{target_dir}/{_TEST_FILE_NAME}"
+
+    def download_file(url, destination):
+        data = requests.get(url)
+        open(destination, "wb").write(data.content)
+
+    if not os.path.exists(_TRAIN_FILE):
+        download_file(_CONLL_DOWNLOAD_BASE_URL + _TRAIN_FILE_NAME, _TRAIN_FILE)
+        download_file(_CONLL_DOWNLOAD_BASE_URL + _DEV_FILE_NAME, _DEV_FILE)
+        download_file(_CONLL_DOWNLOAD_BASE_URL + _TEST_FILE_NAME, _TEST_FILE)
+    return {
+        "train": _TRAIN_FILE,
+        "dev": _DEV_FILE,
+        "test": _TEST_FILE
+    }
