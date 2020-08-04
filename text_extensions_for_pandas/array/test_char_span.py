@@ -417,6 +417,17 @@ def data(dtype):
     return pd.array(spans, dtype=dtype)
 
 
+def _make_span_list():
+    text = "This is a test."
+    s1 = CharSpan(text, 0, 4)
+    s2 = CharSpan(text, 5, 7)
+    s3 = CharSpan(text, 8, 9)
+    s4 = CharSpan(text, 10, 14)
+    s5 = CharSpan(text, 14, 15)
+    spans = [s1, s2, s3, s4, s5]
+    return spans
+
+
 @pytest.fixture
 def data_for_twos(dtype):
     return pd.array(np.ones(100), dtype=dtype)
@@ -424,8 +435,11 @@ def data_for_twos(dtype):
 
 @pytest.fixture
 def data_missing(dtype):
-    values = np.array([[np.nan], [9]])
-    return pd.array(values, dtype=dtype)
+    spans = _make_span_list()
+    spans.append(CharSpan(
+        spans[0].target_text, CharSpan.NULL_OFFSET_VALUE, CharSpan.NULL_OFFSET_VALUE
+    ))
+    return pd.array(spans, dtype=dtype)
 
 
 @pytest.fixture
@@ -460,6 +474,10 @@ def data_for_grouping(dtype):
 
 
 class TestPandasDtype(base.BaseDtypeTests):
+    pass
+
+
+class TestPandasInterface(base.BaseInterfaceTests):
     pass
 
 
