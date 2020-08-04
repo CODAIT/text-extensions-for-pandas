@@ -526,7 +526,8 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             # From API docs: "[If allow_fill == True, then] negative values in
             # `indices` indicate missing values. These values are set to
             # `fill_value`.  Any other negative values raise a ``ValueError``."
-            if fill_value is None or np.math.isnan(fill_value):
+            if fill_value is None or \
+               (np.isscalar(fill_value) and np.math.isnan(fill_value)):
                 # Replace with a "nan span"
                 fill_value = CharSpan(
                     self.target_text,

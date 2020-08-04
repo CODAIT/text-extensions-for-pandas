@@ -403,8 +403,7 @@ def dtype():
     return CharSpanType()
 
 
-@pytest.fixture
-def data(dtype):
+def _gen_spans():
     text = "1"
     begins = [0]
     ends = [1]
@@ -413,19 +412,12 @@ def data(dtype):
         text += f" {s}"
         begins.append(ends[i - 1] + 1)
         ends.append(begins[i] + len(s))
-    spans = [CharSpan(text, b, e) for b, e in zip(begins, ends)]
-    return pd.array(spans, dtype=dtype)
+    return (CharSpan(text, b, e) for b, e in zip(begins, ends))
 
 
-def _make_span_list():
-    text = "This is a test."
-    s1 = CharSpan(text, 0, 4)
-    s2 = CharSpan(text, 5, 7)
-    s3 = CharSpan(text, 8, 9)
-    s4 = CharSpan(text, 10, 14)
-    s5 = CharSpan(text, 14, 15)
-    spans = [s1, s2, s3, s4, s5]
-    return spans
+@pytest.fixture
+def data(dtype):
+    return pd.array(list(_gen_spans()), dtype=dtype)
 
 
 @pytest.fixture
@@ -435,8 +427,8 @@ def data_for_twos(dtype):
 
 @pytest.fixture
 def data_missing(dtype):
-    spans = _make_span_list()
-    spans.append(CharSpan(
+    spans = [span for span, _ in zip(_gen_spans(), range(3))]
+    spans.insert(0, CharSpan(
         spans[0].target_text, CharSpan.NULL_OFFSET_VALUE, CharSpan.NULL_OFFSET_VALUE
     ))
     return pd.array(spans, dtype=dtype)
@@ -444,24 +436,41 @@ def data_missing(dtype):
 
 @pytest.fixture
 def data_for_sorting(dtype):
-    values = np.array([[3], [1], [2]])
-    return pd.array(values, dtype=dtype)
+    spans = [span for span, _ in zip(_gen_spans(), range(5))]
+    reordered = [None] * 5
+    reordered[0] = spans[3]
+    reordered[1] = spans[0]
+    reordered[2] = spans[1]
+    reordered[3] = spans[4]
+    reordered[4] = spans[3]
+    return pd.array(reordered, dtype=dtype)
 
 
 @pytest.fixture
 def data_missing_for_sorting(dtype):
-    values = np.array([[3], [1], [np.nan]])
-    return pd.array(values, dtype=dtype)
+    spans = [span for span, _ in zip(_gen_spans(), range(6))]
+    reordered = [None] * 6
+    reordered[0] = spans[3]
+    reordered[1] = spans[0]
+    reordered[2] = spans[1]
+    reordered[3] = CharSpan(
+        spans[0].target_text, CharSpan.NULL_OFFSET_VALUE, CharSpan.NULL_OFFSET_VALUE
+    )
+    reordered[4] = spans[4]
+    reordered[5] = spans[3]
+    return pd.array(reordered, dtype=dtype)
 
 
 @pytest.fixture
 def na_cmp():
-    return lambda x, y: np.all(np.isnan(x)) and np.all(np.isnan(y))
+    return lambda x, y: x.begin == CharSpan.NULL_OFFSET_VALUE and \
+                        y.begin == CharSpan.NULL_OFFSET_VALUE
 
 
 @pytest.fixture
 def na_value():
-    return pd.NA
+    spans = [span for span, _ in zip(_gen_spans(), range(1))]
+    return CharSpan(spans[0].target_text, CharSpan.NULL_OFFSET_VALUE, CharSpan.NULL_OFFSET_VALUE)
 
 
 @pytest.fixture
@@ -483,6 +492,28 @@ class TestPandasInterface(base.BaseInterfaceTests):
 
 class TestPandasConstructors(base.BaseConstructorsTests):
     pass
+
+
+class TestPandasGetitem(base.BaseGetitemTests):
+    @pytest.mark.skip("resolve errors")
+    def test_getitem_boolean_array_mask(self, data):
+        # Need to support __getitem__ with boolean array mask
+        pass
+
+    @pytest.mark.skip("resolve errors")
+    def test_getitem_boolean_na_treated_as_false(self, data):
+        # Need to support __getitem__ with boolean array mask
+        pass
+
+    @pytest.mark.skip("resolve errors")
+    def test_getitem_integer_array(self, data, idx):
+        # Need to support __getitem__ with integer array
+        pass
+
+    @pytest.mark.skip("resolve errors")
+    def test_getitem_integer_with_missing_raises(self, data, idx):
+        # Need to support __getitem__ with arrays
+        pass
 
 
 if __name__ == "__main__":
