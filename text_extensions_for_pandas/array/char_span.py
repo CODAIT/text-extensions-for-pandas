@@ -305,6 +305,14 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             raise NotImplementedError("Types other than CharSpanType not supported")
         return data
 
+    @property
+    def nbytes(self) -> int:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        return self._begins.nbytes + self._ends.nbytes + len(self._text.encode("utf-8"))
+
     def __len__(self) -> int:
         return len(self._begins)
 
@@ -472,6 +480,14 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             ends[i] = s.end
             i += 1
         return CharSpanArray(text, begins, ends)
+
+    @classmethod
+    def _from_factorized(cls, values, original):
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        raise NotImplementedError
 
     def isna(self) -> np.array:
         """

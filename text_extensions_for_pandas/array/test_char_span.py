@@ -405,18 +405,15 @@ def dtype():
 
 @pytest.fixture
 def data(dtype):
-    test_text = "This is a test."
-    text = test_text * 20
-    spans = []
-    offset = 0
-    for i in range(20):
-        s1 = CharSpan(text, 0 + offset, 4 + offset)
-        s2 = CharSpan(text, 5 + offset, 7 + offset)
-        s3 = CharSpan(text, 8 + offset, 9 + offset)
-        s4 = CharSpan(text, 10 + offset, 14 + offset)
-        s5 = CharSpan(text, 14 + offset, 15 + offset)
-        offset += len(test_text)
-        spans.extend([s1, s2, s3, s4, s5])
+    text = "1"
+    begins = [0]
+    ends = [1]
+    for i in range(1, 100):
+        s = str(i * 11)
+        text += f" {s}"
+        begins.append(ends[i - 1] + 1)
+        ends.append(begins[i] + len(s))
+    spans = [CharSpan(text, b, e) for b, e in zip(begins, ends)]
     return pd.array(spans, dtype=dtype)
 
 
