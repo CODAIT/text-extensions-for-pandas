@@ -18,6 +18,9 @@ import os
 import tempfile
 import unittest
 
+from pandas.tests.extension import base
+import pytest
+
 from text_extensions_for_pandas.array.char_span import *
 from text_extensions_for_pandas.util import TestBase
 
@@ -185,7 +188,6 @@ class CharSpanArrayTest(ArrayTestBase):
 
         with self.assertRaises(TypeError):
             CharSpanArray("", "Not a valid begins list", [42])
-
 
     def test_dtype(self):
         arr = CharSpanArray("", np.array([0],), np.array([0]))
@@ -394,6 +396,74 @@ class CharSpanArrayIOTests(ArrayTestBase):
             df.to_feather(filename)
             df_read = pd.read_feather(filename)
             pd.testing.assert_frame_equal(df, df_read)
+
+
+@pytest.fixture
+def dtype():
+    return CharSpanType()
+
+
+@pytest.fixture
+def data(dtype):
+    test_text = "This is a test."
+    text = test_text * 20
+    spans = []
+    offset = 0
+    for i in range(20):
+        s1 = CharSpan(text, 0 + offset, 4 + offset)
+        s2 = CharSpan(text, 5 + offset, 7 + offset)
+        s3 = CharSpan(text, 8 + offset, 9 + offset)
+        s4 = CharSpan(text, 10 + offset, 14 + offset)
+        s5 = CharSpan(text, 14 + offset, 15 + offset)
+        offset += len(test_text)
+        spans.extend([s1, s2, s3, s4, s5])
+    return pd.array(spans, dtype=dtype)
+
+
+@pytest.fixture
+def data_for_twos(dtype):
+    return pd.array(np.ones(100), dtype=dtype)
+
+
+@pytest.fixture
+def data_missing(dtype):
+    values = np.array([[np.nan], [9]])
+    return pd.array(values, dtype=dtype)
+
+
+@pytest.fixture
+def data_for_sorting(dtype):
+    values = np.array([[3], [1], [2]])
+    return pd.array(values, dtype=dtype)
+
+
+@pytest.fixture
+def data_missing_for_sorting(dtype):
+    values = np.array([[3], [1], [np.nan]])
+    return pd.array(values, dtype=dtype)
+
+
+@pytest.fixture
+def na_cmp():
+    return lambda x, y: np.all(np.isnan(x)) and np.all(np.isnan(y))
+
+
+@pytest.fixture
+def na_value():
+    return pd.NA
+
+
+@pytest.fixture
+def data_for_grouping(dtype):
+    b = [2]
+    a = [1]
+    na = [np.nan]
+    values = np.array([b, b, na, na, a, a, b])
+    return pd.array(values, dtype=dtype)
+
+
+class TestPandasDtype(base.BaseDtypeTests):
+    pass
 
 
 if __name__ == "__main__":

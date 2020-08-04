@@ -293,6 +293,18 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         """
         return CharSpanType()
 
+    def astype(self, dtype, copy=True):
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        dtype = pd.api.types.pandas_dtype(dtype)
+        if isinstance(dtype, CharSpanType):
+            data = self.copy() if copy else self
+        else:
+            raise NotImplementedError("Types other than CharSpanType not supported")
+        return data
+
     def __len__(self) -> int:
         return len(self._begins)
 

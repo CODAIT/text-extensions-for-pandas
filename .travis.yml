@@ -1,7 +1,7 @@
 language: python
 python:
 - "3.7"
--
+
 install:
 #install conda
  - sudo apt-get update
@@ -19,7 +19,7 @@ install:
 
 script:
 
- #activate python virtual enviornment
+ #activate python virtual environment
  - conda activate pd
  #check that doc generation is possible
  - ./generate_docs.sh
