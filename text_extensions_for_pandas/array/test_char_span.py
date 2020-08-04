@@ -516,5 +516,71 @@ class TestPandasGetitem(base.BaseGetitemTests):
         pass
 
 
+@pytest.mark.skip("resolve errors")
+class TestPandasSetitem(base.BaseSetitemTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasMissing(base.BaseMissingTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasArithmeticOps(base.BaseArithmeticOpsTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasComparisonOps(base.BaseComparisonOpsTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasReshaping(base.BaseReshapingTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasMethods(base.BaseMethodsTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasCasting(base.BaseCastingTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasGroupby(base.BaseGroupbyTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasNumericReduce(base.BaseNumericReduceTests):
+    pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasBooleanReduce(base.BaseBooleanReduceTests):
+    pass
+
+
+class TestPandasPrinting(base.BasePrintingTests):
+    pass
+
+
+class TestPandasUnaryOps(base.BaseUnaryOpsTests):
+
+    @pytest.mark.skip("is supported?")
+    def test_invert(self, data):
+        pass
+
+
+@pytest.mark.skip("resolve errors")
+class TestPandasParsing(base.BaseParsingTests):
+    pass
+
+
 if __name__ == "__main__":
     unittest.main()
