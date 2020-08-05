@@ -232,8 +232,8 @@ def _make_relations_dataframe(relations, original_text, sentence_span_series):
                         if not all(contains):
                             msg += f"\nContains Args: {all(contains)}"
                         if sentence_span.covered_text != sentence_col[i]:
-                            msg += f"Span Text: {sentence_span.covered_text}, " \
-                                   f"Sentence: {sentence_col[i]}"
+                            msg += f"Span Text: '{sentence_span.covered_text}', " \
+                                   f"Sentence: '{sentence_col[i]}'"
                         warnings.warn(msg)
                     sentence_matches.append(j)
                     found = True
