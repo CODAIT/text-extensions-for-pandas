@@ -18,6 +18,7 @@ import unittest
 import pandas as pd
 import numpy as np
 import textwrap
+from typing import *
 
 # noinspection PyPackageRequirements
 from transformers import BertTokenizerFast, BertModel
@@ -27,6 +28,9 @@ from text_extensions_for_pandas.io.tokenization import (
 )
 from text_extensions_for_pandas.io.conll import (
     conll_2003_to_dataframes, make_iob_tag_categories
+)
+from text_extensions_for_pandas.array import (
+    TensorArray
 )
 
 
@@ -93,55 +97,52 @@ class TestTokenize(unittest.TestCase):
         token_span_text = [s.covered_text for s in token_span]
         self.assertListEqual(char_span_text, token_span_text)
 
+    @staticmethod
+    def _embedding_to_int(df: pd.DataFrame, colname: str):
+        """
+        Turn embeddings into ints so that test results will be more stable.
+
+        :param df: Dataframe containing embeddings. MODIFIED IN PLACE.
+        :param colname: Name of column where embedddings reside
+        """
+        before = df[colname].values.to_numpy()
+        after = (before * 10.).astype(int)
+        df[colname] = TensorArray(after)
+
+
     def test_add_embeddings(self):
         text = "What's another word for Thesaurus?"
         bert_toks = make_bert_tokens(text, self._tokenizer)
         toks_with_embeddings = add_embeddings(bert_toks, self._bert)
-        # print(f"***{toks_with_embeddings}***")
+        self._embedding_to_int(toks_with_embeddings, "embedding")
+        num_rows = 5
+        # print(f"***{toks_with_embeddings.iloc[:num_rows]}***")
         self.assertEqual(
-            str(toks_with_embeddings),
+            str(toks_with_embeddings.iloc[:num_rows]),
             # NOTE: Don't forget to add both sets of double-backslashes back in if you
             # copy-and-paste an updated version of the output below!
             textwrap.dedent(
                 """\
-                id           char_span          token_span  input_id  token_type_id  \\
-            0    0          [0, 0): ''          [0, 0): ''       101              0   
-            1    1      [0, 4): 'What'      [0, 4): 'What'      2054              0   
-            2    2         [4, 5): '''         [4, 5): '''      1005              0   
-            3    3         [5, 6): 's'         [5, 6): 's'      1055              0   
-            4    4  [7, 14): 'another'  [7, 14): 'another'      2178              0   
-            5    5    [15, 19): 'word'    [15, 19): 'word'      2773              0   
-            6    6     [20, 23): 'for'     [20, 23): 'for'      2005              0   
-            7    7     [24, 27): 'The'     [24, 27): 'The'      1996              0   
-            8    8  [27, 33): 'saurus'  [27, 33): 'saurus'     22244              0   
-            9    9       [33, 34): '?'       [33, 34): '?'      1029              0   
-            10  10          [0, 0): ''          [0, 0): ''       102              0   
+               id           char_span          token_span  input_id  token_type_id  \\
+            0   0          [0, 0): ''          [0, 0): ''       101              0   
+            1   1      [0, 4): 'What'      [0, 4): 'What'      2054              0   
+            2   2         [4, 5): '''         [4, 5): '''      1005              0   
+            3   3         [5, 6): 's'         [5, 6): 's'      1055              0   
+            4   4  [7, 14): 'another'  [7, 14): 'another'      2178              0   
             
-                attention_mask  special_tokens_mask  \\
-            0                1                 True   
-            1                1                False   
-            2                1                False   
-            3                1                False   
-            4                1                False   
-            5                1                False   
-            6                1                False   
-            7                1                False   
-            8                1                False   
-            9                1                False   
-            10               1                 True   
+               attention_mask  special_tokens_mask  \\
+            0               1                 True   
+            1               1                False   
+            2               1                False   
+            3               1                False   
+            4               1                False   
             
-                                                        embedding  
-            0  [-1.28466532e-01  1.48239672e-01  2.22291630e-0...  
-            1  [ 1.25274494e-01 -9.84855667e-02  9.63621438e-0...  
-            2  [ 4.06849980e-01  1.57153994e-01  6.80696249e-0...  
-            3  [ 8.79898727e-01  1.75505936e-01  4.46715385e-0...  
-            4  [ 6.10884547e-01 -5.06082773e-01  2.02258557e-0...  
-            5  [ 2.25633755e-01  1.60800070e-01 -7.63645768e-0...  
-            6  [ 3.99375081e-01  5.56941926e-01  6.83342814e-0...  
-            7  [-8.26297551e-02 -6.08669817e-01  1.29478961e-0...  
-            8  [ 1.20107301e-01 -2.46813118e-01  1.61801279e-0...  
-            9  [ 9.03995410e-02 -2.36030549e-01 -5.32582641e-0...  
-            10 [ 7.81801343e-01  2.77477980e-01 -9.42935795e-0...  """))
+                                                       embedding  
+            0 [ -1   1   0   2  -5   0   3   3  -1   2   3  -...  
+            1 [  1   0   0  -1   0   0  -6   4  -7   4  -2  -...  
+            2 [  4   1   6  -3  -2  -2   6   4   1   8   0  -...  
+            3 [  8   1   4   0  -4   1   0   9  -7   5  -3  -...  
+            4 [  6  -5   2   3   1  -1   8   6  -1  -4   4  -...  """))
 
     def test_conll_to_bert(self):
         dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt",
@@ -152,6 +153,7 @@ class TestTokenize(unittest.TestCase):
         with_embeddings = conll_to_bert(
             first_df, self._tokenizer, self._bert, token_class_dtype,
             compute_embeddings=True)
+        self._embedding_to_int(with_embeddings, "embedding")
         num_rows = 5
         # print(f"[[[{with_embeddings.iloc[:num_rows]}]]]")
         self.assertEqual(
@@ -174,11 +176,11 @@ class TestTokenize(unittest.TestCase):
             4               1                False       I      PER       I-PER   
             
                token_class_id                                          embedding  
-            0               0 [-5.97730204e-02  1.62091315e-01  3.69775221e-0...  
-            1               0 [-1.47429836e+00  2.81369209e-01  3.91599715e-0...  
-            2               0 [-5.15211642e-01  1.88511163e-01  4.33955133e-0...  
-            3               2 [-4.91548181e-01 -6.86507523e-02  5.30912206e-0...  
-            4               7 [-1.64590195e-01  4.79323864e-02  4.46191430e-0...  """))
+            0               0 [  0   1   0   0  -4   0   5   3  -1   1   2  -...  
+            1               0 [-14   2   3  -2   0   7   0   5  -6   1   2  -...  
+            2               0 [ -5   1   4  -1   2   6   7   6   0  -2   1  -...  
+            3               2 [ -4   0   0   0  -9   5   3   5  -1  -2  -2   ...  
+            4               7 [ -1   0   0   3   2   1   4   8  -4  -3   0   ...  """))
 
         without_embeddings = conll_to_bert(
             first_df, self._tokenizer, self._bert, token_class_dtype,
