@@ -78,19 +78,20 @@ pip install -r config/jupyter_reqs.txt
 # spaCy language models for English
 python -m spacy download en_core_web_sm
 
+
 # Finish installation of ipywidgets from the "conda-forge" section above
 jupyter nbextension enable --py widgetsnbextension
-jupyter labextension install @jupyter-widgets/jupyterlab-manager
+jupyter labextension install --no-build @jupyter-widgets/jupyterlab-manager
 
 # Also install the table of contents extension
-jupyter labextension install @jupyterlab/toc
+jupyter labextension install --no-build @jupyterlab/toc
 
 # Jupyter debugger extension (requires xeus-python, installed above)
-jupyter labextension install @jupyterlab/debugger
+jupyter labextension install --no-build @jupyterlab/debugger
 
-# Uncomment the following line if one of the "jupyter labextension install"
-# commands neglects to rebuild jupyterlab assets.
-#jupyter lab build
+# Build once after installing all the extensions, and skip minimization of the
+# JuptyerLab resources, since we'll be running from the local machine.
+jupyter lab build --minimize=False
 
 conda deactivate
 
