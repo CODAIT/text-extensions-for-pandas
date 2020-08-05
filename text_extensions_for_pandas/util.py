@@ -1,4 +1,19 @@
 #
+#  Copyright (c) 2020 IBM Corp.
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+#
 # util.py
 #
 # Part of text_extensions_for_pandas
@@ -6,7 +21,6 @@
 # Internal utility functions, not exposed in the public API.
 #
 
-import math
 import numpy as np
 from typing import *
 import unittest
@@ -15,91 +29,6 @@ import unittest
 
 _ELLIPSIS = " [...] "
 _ELLIPSIS_LEN = len(_ELLIPSIS)
-
-
-def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"],
-                      show_offsets: bool) -> str:
-    """
-    HTML pretty-printing of a series of spans for Jupyter notebooks.
-
-    Args:
-        column: Span column (either character or token spans)
-        show_offsets: True to generate a table of span offsets in addition
-         to the marked-up text
-    """
-
-    # Generate a dataframe of atomic types to pretty-print the spans
-    spans_html = column.as_frame().to_html()
-
-    # Build up a mask of which characters in the target text are within
-    # at least one span.
-    text = column.target_text
-    mask = np.zeros(shape=(len(text)), dtype=np.bool)
-    # TODO: Vectorize
-    for e in column:
-        mask[e.begin:e.end] = True
-
-    # Walk through the text, building up an HTML representation
-    text_pieces = []
-    for i in range(len(text)):
-        if mask[i] and (i == 0 or not mask[i - 1]):
-            # Starting a highlighted region
-            text_pieces.append(
-                """<span style="background-color:yellow">""")
-        elif not (mask[i]) and i > 0 and mask[i - 1]:
-            # End of a bold region
-            text_pieces.append("</span>")
-        if text[i] == "\n":
-            text_pieces.append("<br>")
-        elif text[i] == "&":
-            text_pieces.append("&amp;")
-        elif text[i] == "<":
-            text_pieces.append("&lt;")
-        elif text[i] == ">":
-            text_pieces.append("&gt;")
-        elif text[i] == "\"":
-            # Not strictly necessary, but just in case.
-            text_pieces.append("&quot;")
-        elif text[i] == "'":
-            # Not strictly necessary, but just in case.
-            text_pieces.append("&#39;")
-        elif text[i] == "$":
-            # Dollar sign messes up Jupyter's JavaScript UI.
-            # Place dollar sign in its own sub-span to avoid being misinterpeted as a LaTeX delimiter
-            text_pieces.append("<span>&#36;</span>")
-        else:
-            text_pieces.append(text[i])
-
-    # TODO: Use CSS here instead of embedding formatting into the
-    #  generated HTML
-    if show_offsets:
-        return f"""
-        <div id="spanArray">
-            <div id="spans" 
-             style="background-color:#F0F0F0; border: 1px solid #E0E0E0; float:left; padding:10px;">
-                {spans_html}
-            </div>
-            <div id="text"
-             style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 60%;">
-                <div style="float:center; padding:10px">
-                    <p style="font-family:monospace">
-                        {"".join(text_pieces)}
-                    </p>
-                </div>
-            </div>
-        </div>
-        """
-    else: # if not show_offsets
-        return f"""
-        <div id="text"
-         style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 100%;">
-            <div style="float:center; padding:10px">
-                <p style="font-family:monospace">
-                    {"".join(text_pieces)}
-                </p>
-            </div>
-        </div>
-        """
 
 
 class TestBase(unittest.TestCase):

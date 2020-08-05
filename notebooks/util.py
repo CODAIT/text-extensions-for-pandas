@@ -4,8 +4,6 @@
 # Utilities shared across multiple notebooks
 #
 
-import ipywidgets
-from IPython.display import display
 import numpy as np
 import os.path
 import pandas as pd
@@ -22,92 +20,6 @@ tp = importlib.reload(tp)
 
 from typing import *
 
-def run_with_progress_bar(num_items: int, fn: Callable, item_type: str = "doc") \
-        -> List[pd.DataFrame]:
-    """
-    Display a progress bar while iterating over a list of dataframes.
-    
-    :param num_items: Number of items to iterate over
-    :param fn: A function that accepts a single integer argument -- let's 
-     call it `i` -- and performs processing for document `i` and returns
-     a `pd.DataFrame` of results 
-    :param item_type: Human-readable name for the items that the calling
-     code is iterating over
-    
-    """
-    _UPDATE_SEC = 0.1
-    result = [] # Type: List[pd.DataFrame]
-    last_update = time.time()
-    progress_bar = ipywidgets.IntProgress(0, 0, num_items,
-                                          description="Starting...",
-                                          layout=ipywidgets.Layout(width="100%"),
-                                          style={"description_width": "12%"})
-    display(progress_bar)
-    for i in range(num_items):
-        result.append(fn(i))
-        now = time.time()
-        if i == num_items - 1 or now - last_update >= _UPDATE_SEC:
-            progress_bar.value = i + 1
-            progress_bar.description = f"{i + 1}/{num_items} {item_type}s"
-            last_update = now
-    progress_bar.bar_style = "success"
-    return result
-
-
-def add_embeddings(df: pd.DataFrame, bert: Any) -> pd.DataFrame:
-    """
-    Add BERT embeddings to a dataframe of BERT tokens.
-    
-    :param df: Dataframe containing BERT tokens. Must contain a column
-     "input_id" containing token IDs.
-    :param bert: PyTorch-based BERT model from the `transformers` library
-    :returns: A copy of `df` with a new column, "embedding" containing
-     BERT embeddings as a `TensorArray`.
-    """
-    _OVERLAP = 32
-    _NON_OVERLAP = 64
-    flat_input_ids = df["input_id"].values
-    windows = tp.seq_to_windows(flat_input_ids, _OVERLAP, _NON_OVERLAP)
-    bert_result = bert(
-        input_ids=torch.tensor(windows["input_ids"]), 
-        attention_mask=torch.tensor(windows["attention_masks"]))
-    hidden_states = tp.windows_to_seq(flat_input_ids, 
-                                      bert_result[0].detach().numpy(),
-                                      _OVERLAP, _NON_OVERLAP)
-    embeddings = tp.TensorArray(hidden_states)
-    ret = df.copy()
-    ret["embedding"] = embeddings
-    return ret
-
-def conll_to_bert(df: pd.DataFrame, tokenizer, bert, 
-                  token_class_dtype: pd.CategoricalDtype,
-                  compute_embeddings: bool = True) -> pd.DataFrame:
-    """
-    :param df: One dataframe from the conll_2003_to_dataframes() function,
-     representing the tokens of a single document in the original tokenization.
-    :param tokenizer: BERT tokenizer instance from the `transformers` library
-    :param bert: PyTorch-based BERT model from the `transformers` library
-    :param token_class_dtype: Pandas categorical type for representing 
-     token class labels
-    :param compute_embeddings: True to generate BERT embeddings at each token
-     positiona and add a column "embedding" to the returned dataframe with
-     the embeddings
-     
-    :returns: A version of the same dataframe, but with BERT tokens, BERT
-     embeddings for each token (if `compute_embeddings` is `True`), 
-     and token class labels.
-    """
-    spans_df = tp.iob_to_spans(df)
-    bert_toks_df = tp.make_bert_tokens(df["char_span"].values[0].target_text, 
-                                       tokenizer)
-    bert_token_spans = tp.TokenSpanArray.align_to_tokens(bert_toks_df["char_span"],
-                                                         spans_df["token_span"])
-    bert_toks_df[["ent_iob", "ent_type"]] = tp.spans_to_iob(bert_token_spans, 
-                                                            spans_df["ent_type"])
-    bert_toks_df = tp.add_token_classes(bert_toks_df, token_class_dtype)
-    if compute_embeddings:
-        bert_toks_df = add_embeddings(bert_toks_df, bert)
-    return bert_toks_df
 
 def combine_folds(fold_to_docs: Dict[str, List[pd.DataFrame]]):
     """
@@ -410,7 +322,7 @@ def merge_model_results(results: Dict[str, Dict[Tuple[str, int], pd.DataFrame]])
         df.insert(0, "fold", doc_keys[i][0])
         df.insert(0, "doc_num", i)
         return df
-    to_stack = run_with_progress_bar(num_docs, df_for_doc)
+    to_stack = tp.run_with_progress_bar(num_docs, df_for_doc)
     all_results = pd.concat(to_stack)
     return all_results
 

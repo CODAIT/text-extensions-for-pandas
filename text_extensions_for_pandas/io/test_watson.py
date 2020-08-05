@@ -17,6 +17,7 @@ import json
 import os
 import textwrap
 import unittest
+import warnings
 
 from text_extensions_for_pandas.io.watson import *
 
@@ -35,8 +36,14 @@ class TestWatson(unittest.TestCase):
           It moved to Alaska. Now Santa Claus is missing.
           -- Steven Wright""")
 
+        # The cached data that these tests run off of currently results in many warnings,
+        # so we've temporarily disabled warnings for this test suite.
+        # TODO: Fix the cached data and re-enable warnings
+        warnings.simplefilter("ignore")
+
     def tearDown(self):
         pd.reset_option("display.max_columns")
+        warnings.simplefilter("default")
 
     def load_response_file(self, filename):
         with open(filename, mode='r') as f:
