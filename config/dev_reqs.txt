@@ -10,5 +10,6 @@ spacy==2.3.2
 fastparquet
 sphinx
 ipywidgets
+ibm-watson
 
 
