@@ -492,7 +492,16 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        raise NotImplementedError
+        return cls._from_sequence(values)
+
+    def _values_for_factorize(self) -> Tuple[np.ndarray, Any]:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        na_value = CharSpan(self.target_text, CharSpan.NULL_OFFSET_VALUE,
+                            CharSpan.NULL_OFFSET_VALUE)
+        return self.astype(object), na_value
 
     def isna(self) -> np.array:
         """

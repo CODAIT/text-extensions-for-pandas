@@ -470,11 +470,14 @@ def na_value():
 
 @pytest.fixture
 def data_for_grouping(dtype):
-    b = [2]
-    a = [1]
-    na = [np.nan]
-    values = np.array([b, b, na, na, a, a, b])
-    return pd.array(values, dtype=dtype)
+    spans = [span for span, _ in zip(_gen_spans(), range(3))]
+    a = spans[0]
+    b = spans[1]
+    c = spans[2]
+    na = CharSpan(
+        spans[0].target_text, CharSpan.NULL_OFFSET_VALUE, CharSpan.NULL_OFFSET_VALUE
+    )
+    return pd.array([a, a, na, na, b, b, a, c], dtype=dtype)
 
 
 # import pytest fixtures
@@ -547,18 +550,6 @@ class TestPandasMethods(base.BaseMethodsTests):
 
     @pytest.mark.skip(reason="implement _from_factorized")
     def test_sort_values_frame(self, data_for_sorting, ascending):
-        pass
-
-    @pytest.mark.skip(reason="implement _from_factorized")
-    def test_factorize(self, data_for_grouping, na_sentinel):
-        pass
-
-    @pytest.mark.skip(reason="implement _from_factorized")
-    def test_factorize_equivalence(self, data_for_grouping, na_sentinel):
-        pass
-
-    @pytest.mark.skip(reason="implement _from_factorized")
-    def test_factorize_empty(self, data):
         pass
 
     @pytest.mark.skip(reason="invalid operator")
