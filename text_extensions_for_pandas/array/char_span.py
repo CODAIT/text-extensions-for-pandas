@@ -26,6 +26,7 @@ from typing import *
 import numpy as np
 import pandas as pd
 from pandas.core.indexers import check_array_indexer
+from pandas.api.types import is_bool_dtype
 from memoized_property import memoized_property
 
 # Internal imports
@@ -340,22 +341,29 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        if isinstance(key, np.ndarray):
-            raise NotImplementedError("Setting multiple rows at once not "
-                                      "implemented")
-        if not isinstance(key, int):
-            raise NotImplementedError(f"Don't understand key type "
-                                      f"'{type(key)}'")
-        if value is None:
+
+        key = check_array_indexer(self, key)
+
+        if value is None or isinstance(value, Sequence) and len(value) == 0:
             self._begins[key] = CharSpan.NULL_OFFSET_VALUE
             self._ends[key] = CharSpan.NULL_OFFSET_VALUE
-        elif not isinstance(value, CharSpan):
-            raise ValueError(
-                f"Attempted to set element of CharSpanArray with"
-                f"an object of type {type(value)}")
-        else:
+        elif isinstance(value, CharSpan):
             self._begins[key] = value.begin
             self._ends[key] = value.end
+        elif isinstance(key, np.ndarray) and len(value) > 0 and len(value) == len(key) and \
+                ((isinstance(value, Sequence) and isinstance(value[0], CharSpan)) or
+                 isinstance(value, CharSpanArray)):
+            for k, v in zip(key, value):
+                self._begins[k] = v.begin
+                self._ends[k] = v.end
+        elif (isinstance(key, slice) or (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype)))\
+                and isinstance(value, CharSpanArray):
+            self._begins[key] = value._begins
+            self._ends[key] = value._ends
+        else:
+            raise ValueError(
+                f"Attempted to set element of CharSpanArray with "
+                f"an object of type {type(value)}")
         # We just changed the contents of this array, so invalidate any cached
         # results computed from those contents.
         self.increment_version()
