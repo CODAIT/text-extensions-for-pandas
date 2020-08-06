@@ -6,3 +6,4 @@ fastparquet
 pytest
 # TODO: The following dependency should go away when we switch to Python 3.8.
 memoized-property
+requests
