@@ -548,10 +548,6 @@ class TestPandasMethods(base.BaseMethodsTests):
     def test_value_counts(self, all_data, dropna):
         pass
 
-    @pytest.mark.skip(reason="implement _from_factorized")
-    def test_sort_values_frame(self, data_for_sorting, ascending):
-        pass
-
     @pytest.mark.skip(reason="invalid operator")
     def test_combine_add(self, data_repeated):
         pass
