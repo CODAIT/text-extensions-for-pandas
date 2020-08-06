@@ -24,4 +24,4 @@ script:
  #check that doc generation is possible
  - ./generate_docs.sh
  #run unit tests 
- - python -m unittest discover
+ - pytest text_extensions_for_pandas

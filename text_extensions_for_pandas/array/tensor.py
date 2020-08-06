@@ -28,9 +28,6 @@ import pandas as pd
 from pandas.compat import set_function_name
 from pandas.core import ops
 
-# Internal imports
-import text_extensions_for_pandas.util as util
-
 
 @pd.api.extensions.register_extension_dtype
 class TensorType(pd.api.extensions.ExtensionDtype):
@@ -123,13 +120,16 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             self._tensor = np.ascontiguousarray(self._tensor)
 
     @classmethod
-    def _from_sequence(cls, scalars, dtype=None, copy=True):
+    def _from_sequence(cls, scalars, dtype=None, copy=False):
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        values = np.array(scalars, dtype=dtype, copy=copy)
-        return TensorArray(values)
+        if copy and isinstance(scalars, np.ndarray):
+            scalars = scalars.copy()
+        elif isinstance(scalars, TensorArray):
+            scalars = scalars._tensor.copy() if copy else scalars._tensor
+        return TensorArray(scalars)
 
     @classmethod
     def _from_factorized(cls, values, original):
@@ -154,8 +154,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        # TODO any or all values in row nan?
-        return np.any(np.isnan(self._tensor), axis=1)
+        return np.all(np.isnan(self._tensor), axis=-1)
 
     def copy(self) -> "TensorArray":
         """
@@ -209,6 +208,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
+        dtype = pd.api.types.pandas_dtype(dtype)
         if dtype is not None:
             if copy:
                 values = np.array(self._tensor, dtype=dtype, copy=True)
@@ -218,6 +218,18 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             values = self._tensor.copy()
         else:
             values = self._tensor
+        return values
+
+    def astype(self, dtype, copy=True):
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        dtype = pd.api.types.pandas_dtype(dtype)
+        if isinstance(dtype, TensorType):
+            values = TensorArray(self._tensor.copy() if copy else self._tensor)
+        else:
+            values = self._tensor.astype(dtype, copy=copy)
         return values
 
     def __len__(self) -> int:

@@ -29,6 +29,7 @@ from memoized_property import memoized_property
 
 # Internal imports
 import text_extensions_for_pandas.util as util
+import text_extensions_for_pandas.jupyter as jupyter
 
 
 class CharSpan:
@@ -269,6 +270,11 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         # Version numbers of elements in self._equivalent_arrays, to ensure that
         # a change hasn't made the arrays no longer equal
         self._equiv_array_versions = []  # Type: List[int]
+
+        # Declare this here to make the pep8 linter happy. Actual initialization
+        # occurs in _shared_init()
+        self._repr_html_show_offsets = None  # Type: bool
+        self._hash = None  # Type: int
 
         self._shared_init()
 
@@ -715,7 +721,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         """
         HTML pretty-printing of a series of spans for Jupyter notebooks.
         """
-        return util.pretty_print_html(self, self._repr_html_show_offsets)
+        return jupyter.pretty_print_html(self, self._repr_html_show_offsets)
 
     @property
     def repr_html_show_offsets(self):

@@ -3,6 +3,7 @@ pandas>=1.0.3
 pyarrow>=1.0.0
 regex
 fastparquet
+pytest
 # TODO: The following dependency should go away when we switch to Python 3.8.
 memoized-property
-
+requests

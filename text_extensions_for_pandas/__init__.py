@@ -26,3 +26,4 @@
 from text_extensions_for_pandas.spanner import *
 from text_extensions_for_pandas.array import *
 from text_extensions_for_pandas.io import *
+from text_extensions_for_pandas.jupyter import *

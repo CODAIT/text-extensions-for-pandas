@@ -25,7 +25,10 @@ from typing import *
 from text_extensions_for_pandas.array import (
     CharSpanArray,
     TokenSpanArray,
+    TensorArray,
 )
+
+from text_extensions_for_pandas.io import conll as conll
 
 
 def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
@@ -49,6 +52,7 @@ def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
      * "special_tokens_mask": `True` if the token is a zero-length special token
        such as "start of document"
     """
+    # noinspection PyPackageRequirements
     from transformers import PreTrainedTokenizerFast
 
     if not isinstance(tokenizer, PreTrainedTokenizerFast):
@@ -102,6 +106,68 @@ def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
     )
 
     return token_features
+
+
+def add_embeddings(df: pd.DataFrame, bert: Any) -> pd.DataFrame:
+    """
+    Add BERT embeddings to a dataframe of BERT tokens.
+
+    :param df: Dataframe containing BERT tokens, as returned by
+      :func:`make_bert_tokens` Must contain a column
+      `input_id` containing token IDs.
+    :param bert: PyTorch-based BERT model from the `transformers` library
+    :returns: A copy of `df` with a new column, "embedding" containing
+     BERT embeddings as a `TensorArray`.
+    """
+    # Import torch inline so that the rest of this library will function without it.
+    # noinspection PyPackageRequirements
+    import torch
+
+    _OVERLAP = 32
+    _NON_OVERLAP = 64
+    flat_input_ids = df["input_id"].values
+    windows = seq_to_windows(flat_input_ids, _OVERLAP, _NON_OVERLAP)
+    bert_result = bert(
+        input_ids=torch.tensor(windows["input_ids"]),
+        attention_mask=torch.tensor(windows["attention_masks"]))
+    hidden_states = windows_to_seq(flat_input_ids,
+                                      bert_result[0].detach().numpy(),
+                                      _OVERLAP, _NON_OVERLAP)
+    embeddings = TensorArray(hidden_states)
+    ret = df.copy()
+    ret["embedding"] = embeddings
+    return ret
+
+
+def conll_to_bert(df: pd.DataFrame, tokenizer: Any, bert: Any,
+                  token_class_dtype: pd.CategoricalDtype,
+                  compute_embeddings: bool = True) -> pd.DataFrame:
+    """
+    :param df: One dataframe from the conll_2003_to_dataframes() function,
+     representing the tokens of a single document in the original tokenization.
+    :param tokenizer: BERT tokenizer instance from the `transformers` library
+    :param bert: PyTorch-based BERT model from the `transformers` library
+    :param token_class_dtype: Pandas categorical type for representing
+     token class labels, as returned by :func:`make_iob_tag_categories`
+    :param compute_embeddings: True to generate BERT embeddings at each token
+     position and add a column "embedding" to the returned dataframe with
+     the embeddings
+
+    :returns: A version of the same dataframe, but with BERT tokens, BERT
+     embeddings for each token (if `compute_embeddings` is `True`),
+     and token class labels.
+    """
+    spans_df = conll.iob_to_spans(df)
+    bert_toks_df = make_bert_tokens(df["char_span"].values[0].target_text,
+                                    tokenizer)
+    bert_token_spans = TokenSpanArray.align_to_tokens(bert_toks_df["char_span"],
+                                                         spans_df["token_span"])
+    bert_toks_df[["ent_iob", "ent_type"]] = conll.spans_to_iob(bert_token_spans,
+                                                               spans_df["ent_type"])
+    bert_toks_df = conll.add_token_classes(bert_toks_df, token_class_dtype)
+    if compute_embeddings:
+        bert_toks_df = add_embeddings(bert_toks_df, bert)
+    return bert_toks_df
 
 
 def seq_to_windows(
