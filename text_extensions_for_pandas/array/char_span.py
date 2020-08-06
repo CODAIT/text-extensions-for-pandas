@@ -343,6 +343,8 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         """
 
         key = check_array_indexer(self, key)
+        if isinstance(value, pd.Series) and isinstance(value.dtype, CharSpanType):
+            value = value.values
 
         if value is None or isinstance(value, Sequence) and len(value) == 0:
             self._begins[key] = CharSpan.NULL_OFFSET_VALUE

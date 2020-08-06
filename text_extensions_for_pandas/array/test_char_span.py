@@ -481,8 +481,8 @@ def data_for_grouping(dtype):
 
 
 # import pytest fixtures
-from pandas.tests.extension.conftest import as_array, box_in_series, data_repeated, as_frame, \
-    as_series, use_numpy
+from pandas.tests.extension.conftest import as_array, as_frame, as_series, box_in_series, \
+    fillna_method, data_repeated, use_numpy
 
 
 class TestPandasDtype(base.BaseDtypeTests):
@@ -505,7 +505,6 @@ class TestPandasSetitem(base.BaseSetitemTests):
     pass
 
 
-@pytest.mark.skip("resolve errors")
 class TestPandasMissing(base.BaseMissingTests):
     pass
 
