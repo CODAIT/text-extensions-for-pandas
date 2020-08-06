@@ -497,25 +497,7 @@ class TestPandasConstructors(base.BaseConstructorsTests):
 
 
 class TestPandasGetitem(base.BaseGetitemTests):
-    @pytest.mark.skip("resolve errors")
-    def test_getitem_boolean_array_mask(self, data):
-        # Need to support __getitem__ with boolean array mask
-        pass
-
-    @pytest.mark.skip("resolve errors")
-    def test_getitem_boolean_na_treated_as_false(self, data):
-        # Need to support __getitem__ with boolean array mask
-        pass
-
-    @pytest.mark.skip("resolve errors")
-    def test_getitem_integer_array(self, data, idx):
-        # Need to support __getitem__ with integer array
-        pass
-
-    @pytest.mark.skip("resolve errors")
-    def test_getitem_integer_with_missing_raises(self, data, idx):
-        # Need to support __getitem__ with arrays
-        pass
+    pass
 
 
 @pytest.mark.skip("resolve errors")

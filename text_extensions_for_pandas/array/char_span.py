@@ -25,6 +25,7 @@ from typing import *
 
 import numpy as np
 import pandas as pd
+from pandas.core.indexers import check_array_indexer
 from memoized_property import memoized_property
 
 # Internal imports
@@ -329,6 +330,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
                             int(self._ends[item]))
         else:
             # item not an int --> assume it's a numpy-compatible index
+            item = check_array_indexer(self, item)
             return CharSpanArray(self._text,
                                  self._begins[item],
                                  self._ends[item])
