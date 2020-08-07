@@ -477,7 +477,7 @@ def data_for_grouping(dtype):
     na = CharSpan(
         spans[0].target_text, CharSpan.NULL_OFFSET_VALUE, CharSpan.NULL_OFFSET_VALUE
     )
-    return pd.array([a, a, na, na, b, b, a, c], dtype=dtype)
+    return pd.array([b, b, na, na, a, a, b, c], dtype=dtype)
 
 
 # Can't import due to dependencies, taken from pandas.conftest import all_compare_operators
@@ -492,7 +492,7 @@ def all_numeric_reductions(request):
 
 # import pytest fixtures
 from pandas.tests.extension.conftest import all_data, as_array, as_frame, as_series, \
-    box_in_series, fillna_method, data_repeated, use_numpy
+    box_in_series, data_repeated, fillna_method, groupby_apply_op, use_numpy
 
 
 class TestPandasDtype(base.BaseDtypeTests):
@@ -582,7 +582,6 @@ class TestPandasCasting(base.BaseCastingTests):
     pass
 
 
-@pytest.mark.skip("resolve errors")
 class TestPandasGroupby(base.BaseGroupbyTests):
     pass
 
