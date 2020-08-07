@@ -73,7 +73,7 @@ class CharSpan:
 
     def __repr__(self) -> str:
         if self.begin == CharSpan.NULL_OFFSET_VALUE:
-            return "None"
+            return "NA"
         else:
             return "[{}, {}): '{}'".format(self.begin, self.end,
                                            textwrap.shorten(self.covered_text, 80))
