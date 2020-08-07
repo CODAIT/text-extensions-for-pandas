@@ -486,8 +486,8 @@ def all_compare_operators(request):
     return request.param
 
 # import pytest fixtures
-from pandas.tests.extension.conftest import as_array, as_frame, as_series, box_in_series, \
-    fillna_method, data_repeated, use_numpy
+from pandas.tests.extension.conftest import all_data, as_array, as_frame, as_series, \
+    box_in_series, fillna_method, data_repeated, use_numpy
 
 
 class TestPandasDtype(base.BaseDtypeTests):
@@ -573,7 +573,6 @@ class TestPandasMethods(base.BaseMethodsTests):
         super().test_searchsorted(data_for_sorting, as_series)
 
 
-@pytest.mark.skip("resolve errors")
 class TestPandasCasting(base.BaseCastingTests):
     pass
 

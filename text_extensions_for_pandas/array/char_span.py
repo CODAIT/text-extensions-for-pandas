@@ -72,8 +72,11 @@ class CharSpan:
         self._end = end
 
     def __repr__(self) -> str:
-        return "[{}, {}): '{}'".format(self.begin, self.end,
-                                       textwrap.shorten(self.covered_text, 80))
+        if self.begin == CharSpan.NULL_OFFSET_VALUE:
+            return "None"
+        else:
+            return "[{}, {}): '{}'".format(self.begin, self.end,
+                                           textwrap.shorten(self.covered_text, 80))
 
     def __eq__(self, other):
         if isinstance(other, CharSpan):
