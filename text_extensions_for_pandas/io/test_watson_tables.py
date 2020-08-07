@@ -50,8 +50,7 @@ class TestTables(unittest.TestCase):
 0                2              2  rowHeader-2810-2829    Statatory tax rate  
 1                3              3  rowHeader-4068-4089  IRS audit settlement  
 2                4              4  rowHeader-5329-5348    Dividends received  
-3                5              5  rowHeader-6586-6601        Total tax rate  , 'col_headers':                       \
-         text  column_index_begin  column_index_end  \\
+3                5              5  rowHeader-6586-6601        Total tax rate  , 'col_headers':                                text  column_index_begin  column_index_end  \\
 0                                                     0                 0   
 1  Three months ended setptember 30                   1                 2   
 2   Nine months ended setptember 30                   3                 4   
@@ -151,23 +150,23 @@ class TestTables(unittest.TestCase):
 14   [Nine months ended setptember 30, 2005]  [rowHeader-6586-6601]   
 15   [Nine months ended setptember 30, 2004]  [rowHeader-6586-6601]   
 
-          row_header_texts  
-0     [Statatory tax rate]  
-1     [Statatory tax rate]  
-2     [Statatory tax rate]  
-3     [Statatory tax rate]  
-4   [IRS audit settlement]  
-5   [IRS audit settlement]  
-6   [IRS audit settlement]  
-7   [IRS audit settlement]  
-8     [Dividends received]  
-9     [Dividends received]  
-10    [Dividends received]  
-11    [Dividends received]  
-12        [Total tax rate]  
-13        [Total tax rate]  
-14        [Total tax rate]  
-15        [Total tax rate]  }"""
+          row_header_texts attributes.text attributes.type  
+0     [Statatory tax rate]           [35%]    [Percentage]  
+1     [Statatory tax rate]           [36%]    [Percentage]  
+2     [Statatory tax rate]           [37%]    [Percentage]  
+3     [Statatory tax rate]           [38%]    [Percentage]  
+4   [IRS audit settlement]           [97%]    [Percentage]  
+5   [IRS audit settlement]         [35.5%]    [Percentage]  
+6   [IRS audit settlement]           [58%]    [Percentage]  
+7   [IRS audit settlement]         [15.2%]    [Percentage]  
+8     [Dividends received]         [13.2%]    [Percentage]  
+9     [Dividends received]          [3.3%]    [Percentage]  
+10    [Dividends received]         [15.4%]    [Percentage]  
+11    [Dividends received]          [4.7%]    [Percentage]  
+12        [Total tax rate]         [76.1%]    [Percentage]  
+13        [Total tax rate]          [4.3%]    [Percentage]  
+14        [Total tax rate]         [38.8%]    [Percentage]  
+15        [Total tax rate]         [15.1%]    [Percentage]  }"""
                          )
         parsed_2 = watson_tables_parse_response(self.responses_dict["20-populous-countries"])
         self.assertEqual(len(parsed_2), 3)
@@ -235,20 +234,20 @@ class TestTables(unittest.TestCase):
 124  [colHeader-3034-3039]                                [Date]   
 125  [colHeader-3284-3291]                              [Source]   
 
-    row_header_ids row_header_texts  
-0               []               []  
-1               []               []  
-2               []               []  
-3               []               []  
-4               []               []  
-..             ...              ...  
-121             []               []  
-122             []               []  
-123             []               []  
-124             []               []  
-125             []               []  
+    row_header_ids row_header_texts  attributes.text attributes.type  
+0               []               []              [1]        [Number]  
+1               []               []          [China]      [Location]  
+2               []               []  [1,403,627,360]        [Number]  
+3               []               []          [18.0%]    [Percentage]  
+4               []               []    [21 Jul 2020]      [DateTime]  
+..             ...              ...              ...             ...  
+121             []               []               []              []  
+122             []               []  [7,800,767,000]        [Number]  
+123             []               []           [100%]    [Percentage]  
+124             []               []    [21 Jul 2020]      [DateTime]  
+125             []               []             [UN]  [Organization]  
 
-[126 rows x 10 columns]}\
+[126 rows x 12 columns]}\
 """)
 
     def test_make_exploded_df(self):
@@ -286,20 +285,33 @@ class TestTables(unittest.TestCase):
 124  bodyCell-39954-39966  [colHeader-3034-3039]             []   
 125  bodyCell-40221-40405  [colHeader-3284-3291]             []   
 
-    row_header_texts               column_header_texts_0 row_index  
-0                 []                                Rank         1  
-1                 []  Country (or\\ndependent\\nterritory)         1  
-2                 []                          Population         1  
-3                 []                % of worldpopulation         1  
-4                 []                                Date         1  
-..               ...                                 ...       ...  
-121               []  Country (or\\ndependent\\nterritory)        21  
-122               []                          Population        21  
-123               []                % of worldpopulation        21  
-124               []                                Date        21  
-125               []                              Source        21  
+    row_header_texts  attributes.text attributes.type  \\
+0                 []              [1]        [Number]   
+1                 []          [China]      [Location]   
+2                 []  [1,403,627,360]        [Number]   
+3                 []          [18.0%]    [Percentage]   
+4                 []    [21 Jul 2020]      [DateTime]   
+..               ...              ...             ...   
+121               []               []              []   
+122               []  [7,800,767,000]        [Number]   
+123               []           [100%]    [Percentage]   
+124               []    [21 Jul 2020]      [DateTime]   
+125               []             [UN]  [Organization]   
 
-[126 rows x 10 columns]\
+                  column_header_texts_0 row_index  
+0                                  Rank         1  
+1    Country (or\\ndependent\\nterritory)         1  
+2                            Population         1  
+3                  % of worldpopulation         1  
+4                                  Date         1  
+..                                  ...       ...  
+121  Country (or\\ndependent\\nterritory)        21  
+122                          Population        21  
+123                % of worldpopulation        21  
+124                                Date        21  
+125                              Source        21  
+
+[126 rows x 12 columns]\
 """)
 
         double_header_exp = make_exploded_df(double_header, keep_all_cols=True, drop_original=False)
@@ -378,107 +390,126 @@ class TestTables(unittest.TestCase):
 14   [Nine months ended setptember 30, 2005]  [rowHeader-6586-6601]   
 15   [Nine months ended setptember 30, 2004]  [rowHeader-6586-6601]   
 
-          row_header_texts             column_header_texts_0  \\
-0     [Statatory tax rate]  Three months ended setptember 30   
-1     [Statatory tax rate]  Three months ended setptember 30   
-2     [Statatory tax rate]   Nine months ended setptember 30   
-3     [Statatory tax rate]   Nine months ended setptember 30   
-4   [IRS audit settlement]  Three months ended setptember 30   
-5   [IRS audit settlement]  Three months ended setptember 30   
-6   [IRS audit settlement]   Nine months ended setptember 30   
-7   [IRS audit settlement]   Nine months ended setptember 30   
-8     [Dividends received]  Three months ended setptember 30   
-9     [Dividends received]  Three months ended setptember 30   
-10    [Dividends received]   Nine months ended setptember 30   
-11    [Dividends received]   Nine months ended setptember 30   
-12        [Total tax rate]  Three months ended setptember 30   
-13        [Total tax rate]  Three months ended setptember 30   
-14        [Total tax rate]   Nine months ended setptember 30   
-15        [Total tax rate]   Nine months ended setptember 30   
+          row_header_texts attributes.text attributes.type  \\
+0     [Statatory tax rate]           [35%]    [Percentage]   
+1     [Statatory tax rate]           [36%]    [Percentage]   
+2     [Statatory tax rate]           [37%]    [Percentage]   
+3     [Statatory tax rate]           [38%]    [Percentage]   
+4   [IRS audit settlement]           [97%]    [Percentage]   
+5   [IRS audit settlement]         [35.5%]    [Percentage]   
+6   [IRS audit settlement]           [58%]    [Percentage]   
+7   [IRS audit settlement]         [15.2%]    [Percentage]   
+8     [Dividends received]         [13.2%]    [Percentage]   
+9     [Dividends received]          [3.3%]    [Percentage]   
+10    [Dividends received]         [15.4%]    [Percentage]   
+11    [Dividends received]          [4.7%]    [Percentage]   
+12        [Total tax rate]         [76.1%]    [Percentage]   
+13        [Total tax rate]          [4.3%]    [Percentage]   
+14        [Total tax rate]         [38.8%]    [Percentage]   
+15        [Total tax rate]         [15.1%]    [Percentage]   
 
-   column_header_texts_1    row_header_texts_0  
-0                   2005    Statatory tax rate  
-1                   2004    Statatory tax rate  
-2                   2005    Statatory tax rate  
-3                   2004    Statatory tax rate  
-4                   2005  IRS audit settlement  
-5                   2004  IRS audit settlement  
-6                   2005  IRS audit settlement  
-7                   2004  IRS audit settlement  
-8                   2005    Dividends received  
-9                   2004    Dividends received  
-10                  2005    Dividends received  
-11                  2004    Dividends received  
-12                  2005        Total tax rate  
-13                  2004        Total tax rate  
-14                  2005        Total tax rate  
-15                  2004        Total tax rate  """)
+               column_header_texts_0 column_header_texts_1  \\
+0   Three months ended setptember 30                  2005   
+1   Three months ended setptember 30                  2004   
+2    Nine months ended setptember 30                  2005   
+3    Nine months ended setptember 30                  2004   
+4   Three months ended setptember 30                  2005   
+5   Three months ended setptember 30                  2004   
+6    Nine months ended setptember 30                  2005   
+7    Nine months ended setptember 30                  2004   
+8   Three months ended setptember 30                  2005   
+9   Three months ended setptember 30                  2004   
+10   Nine months ended setptember 30                  2005   
+11   Nine months ended setptember 30                  2004   
+12  Three months ended setptember 30                  2005   
+13  Three months ended setptember 30                  2004   
+14   Nine months ended setptember 30                  2005   
+15   Nine months ended setptember 30                  2004   
+
+      row_header_texts_0  
+0     Statatory tax rate  
+1     Statatory tax rate  
+2     Statatory tax rate  
+3     Statatory tax rate  
+4   IRS audit settlement  
+5   IRS audit settlement  
+6   IRS audit settlement  
+7   IRS audit settlement  
+8     Dividends received  
+9     Dividends received  
+10    Dividends received  
+11    Dividends received  
+12        Total tax rate  
+13        Total tax rate  
+14        Total tax rate  
+15        Total tax rate  \
+""")
 
     def test_make_table(self):
         double_header_table = make_table(watson_tables_parse_response(self.responses_dict["double_header_table"]))
         self.assertEqual(repr(double_header_table), """\
-                     Nine months ended setptember 30         \\
-                                                2004   2005   
-Dividends received                              4.7%  15.4%   
-IRS audit settlement                           15.2%    58%   
-Statatory tax rate                               38%    37%   
-Total tax rate                                 15.1%  38.8%   
+                     Nine months ended setptember 30        \\
+                                                2004  2005   
+Dividends received                               4.7  15.4   
+IRS audit settlement                            15.2  58.0   
+Statatory tax rate                              38.0  37.0   
+Total tax rate                                  15.1  38.8   
 
-                     Three months ended setptember 30         
-                                                 2004   2005  
-Dividends received                               3.3%  13.2%  
-IRS audit settlement                            35.5%    97%  
-Statatory tax rate                                36%    35%  
-Total tax rate                                   4.3%  76.1%  \
+                     Three months ended setptember 30        
+                                                 2004  2005  
+Dividends received                                3.3  13.2  
+IRS audit settlement                             35.5  97.0  
+Statatory tax rate                               36.0  35.0  
+Total tax rate                                    4.3  76.1  \
 """)
 
         countries_table = make_table(watson_tables_parse_response(self.responses_dict["20-populous-countries"]))
         self.assertEqual(repr(countries_table), """\
-   % of worldpopulation Country (or\\ndependent\\nterritory)         Date  \\
-1                 18.0%                          China [b]  21 Jul 2020   
-2                 17.5%                          India [c]  21 Jul 2020   
-3                 4.23%                  United States [d]  21 Jul 2020   
-4                 3.46%                          Indonesia   1 Jul 2020   
-5                 2.83%                       Pakistan [e]   1 Jul 2020   
-6                 2.72%                             Brazil  21 Jul 2020   
-7                 2.64%                            Nigeria   1 Jul 2020   
-8                 2.17%                         Bangladesh  21 Jul 2020   
-9                 1.88%                         Russia [f]   1 Jan 2020   
-10                1.64%                             Mexico   1 Jul 2020   
-11                1.61%                              Japan   1 Jun 2020   
-12                1.40%                        Philippines  21 Jul 2020   
-13                1.29%                              Egypt  21 Jul 2020   
-14                1.26%                           Ethiopia   1 Jul 2019   
-15                1.23%                            Vietnam   1 Apr 2019   
-16                1.15%                           DR Congo   1 Jul 2020   
-17                1.07%                               Iran  21 Jul 2020   
-18                1.07%                            Germany  31 Dec 2019   
-19                1.07%                             Turkey  31 Dec 2019   
-20               0.860%                         France [g]   1 Jun 2020   
-21                 100%                              World  21 Jul 2020   
+    Rank Country (or\\ndependent\\nterritory)    Population  \\
+1      1                          China [b]  1.403627e+09   
+2      2                          India [c]  1.364965e+09   
+3      3                  United States [d]  3.299913e+08   
+4      4                          Indonesia  2.696034e+08   
+5      5                       Pakistan [e]  2.208923e+08   
+6      6                             Brazil  2.118221e+08   
+7      7                            Nigeria  2.061396e+08   
+8      8                         Bangladesh  1.689908e+08   
+9      9                         Russia [f]  1.467486e+08   
+10    10                             Mexico  1.277923e+08   
+11    11                              Japan  1.259300e+08   
+12    12                        Philippines  1.089213e+08   
+13    13                              Egypt  1.006445e+08   
+14    14                           Ethiopia  9.866500e+07   
+15    15                            Vietnam  9.620898e+07   
+16    16                           DR Congo  8.956140e+07   
+17    17                               Iran  8.363117e+07   
+18    18                            Germany  8.316671e+07   
+19    19                             Turkey  8.315500e+07   
+20    20                         France [g]  6.708100e+07   
+21  <NA>                              World  7.800767e+09   
 
-       Population Rank                            Source  
-1   1,403,627,360    1      National populationclock [3]  
-2   1,364,965,498    2      National populationclock [4]  
-3     329,991,308    3    National population\\nclock [5]  
-4     269,603,400    4     National annualprojection [6]  
-5     220,892,331    5                 UN Projection [2]  
-6     211,822,143    6      National populationclock [7]  
-7     206,139,587    7                 UN Projection [2]  
-8     168,990,780    8      National populationclock [8]  
-9     146,748,590    9             National estimate [9]  
-10    127,792,286   10    National annualprojection [10]  
-11    125,930,000   11  Monthly provisionalestimate [11]  
-12    108,921,316   12     National populationclock [12]  
-13    100,644,475   13     National populationclock [13]  
-14     98,665,000   14    National annualprojection [14]  
-15     96,208,984   15            2019 censusresult [15]  
-16     89,561,404   16                 UN Projection [2]  
-17     83,631,166   17     National populationclock [16]  
-18     83,166,711   18            National estimate [17]  
-19     83,154,997   19      National annualestimate [18]  
-20     67,081,000   20     Monthly nationalestimate [19]  
-21  7,800,767,000                    UN Projection [199]  \
+    % of worldpopulation         Date                            Source  
+1                  18.00  21 Jul 2020      National populationclock [3]  
+2                  17.50  21 Jul 2020      National populationclock [4]  
+3                   4.23  21 Jul 2020    National population\\nclock [5]  
+4                   3.46   1 Jul 2020     National annualprojection [6]  
+5                   2.83   1 Jul 2020                 UN Projection [2]  
+6                   2.72  21 Jul 2020      National populationclock [7]  
+7                   2.64   1 Jul 2020                 UN Projection [2]  
+8                   2.17  21 Jul 2020      National populationclock [8]  
+9                   1.88   1 Jan 2020             National estimate [9]  
+10                  1.64   1 Jul 2020    National annualprojection [10]  
+11                  1.61   1 Jun 2020  Monthly provisionalestimate [11]  
+12                  1.40  21 Jul 2020     National populationclock [12]  
+13                  1.29  21 Jul 2020     National populationclock [13]  
+14                  1.26   1 Jul 2019    National annualprojection [14]  
+15                  1.23   1 Apr 2019            2019 censusresult [15]  
+16                  1.15   1 Jul 2020                 UN Projection [2]  
+17                  1.07  21 Jul 2020     National populationclock [16]  
+18                  1.07  31 Dec 2019            National estimate [17]  
+19                  1.07  31 Dec 2019      National annualestimate [18]  
+20                  0.86   1 Jun 2020     Monthly nationalestimate [19]  
+21                100.00  21 Jul 2020               UN Projection [199]  \
 """)
 
 
