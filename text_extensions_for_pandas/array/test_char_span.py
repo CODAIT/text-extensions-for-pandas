@@ -485,6 +485,11 @@ def data_for_grouping(dtype):
 def all_compare_operators(request):
     return request.param
 
+
+@pytest.fixture(params=["sum"])
+def all_numeric_reductions(request):
+    return request.param
+
 # import pytest fixtures
 from pandas.tests.extension.conftest import all_data, as_array, as_frame, as_series, \
     box_in_series, fillna_method, data_repeated, use_numpy
@@ -582,12 +587,17 @@ class TestPandasGroupby(base.BaseGroupbyTests):
     pass
 
 
-@pytest.mark.skip("resolve errors")
 class TestPandasNumericReduce(base.BaseNumericReduceTests):
-    pass
+    def check_reduce(self, s, op_name, skipna):
+        # TODO skipna has no bearing
+        result = getattr(s, op_name)(skipna=skipna)
+        first = s[0]
+        last = s[len(s) - 1]
+        expected = CharSpan(first.target_text, first.begin, last.end)
+        assert result == expected
 
 
-@pytest.mark.skip("resolve errors")
+@pytest.mark.skip("must support 'all', 'any' aggregations")
 class TestPandasBooleanReduce(base.BaseBooleanReduceTests):
     pass
 
@@ -603,7 +613,7 @@ class TestPandasUnaryOps(base.BaseUnaryOpsTests):
         pass
 
 
-@pytest.mark.skip("resolve errors")
+@pytest.mark.skip("must implement _from_sequence_of_strings")
 class TestPandasParsing(base.BaseParsingTests):
     pass
 
