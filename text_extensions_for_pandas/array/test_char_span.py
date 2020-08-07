@@ -536,9 +536,10 @@ class TestPandasComparisonOps(base.BaseComparisonOpsTests):
         op(data, other)
 
 
-@pytest.mark.skip("resolve errors")
 class TestPandasReshaping(base.BaseReshapingTests):
-    pass
+    @pytest.mark.skip(reason="resolve errors")
+    def test_unstack(self, data, index, obj):
+        pass
 
 
 class TestPandasMethods(base.BaseMethodsTests):
