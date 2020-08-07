@@ -227,8 +227,15 @@ def _make_relations_dataframe(relations, original_text, sentence_span_series):
                     j -= 1
                 else:
                     contains = [sentence_span.contains(a[i]) for a in arg_span_cols.values()]
-                    if not (all(contains) and sentence_span.covered_text == sentence_col[i]):
-                        warnings.warn("Mismatched sentence span for: {}".format(sentence_span))
+                    if not (all(contains) and
+                            sentence_span.covered_text == sentence_col[i].as_py()):
+                        msg = f"Mismatched sentence span for: {sentence_span}"
+                        if not all(contains):
+                            msg += f"\nContains Args: {all(contains)}"
+                        if sentence_span.covered_text != sentence_col[i].as_py():
+                            msg += f"\nSpanText: '{sentence_span.covered_text}'" \
+                                   f"\nSentence: '{sentence_col[i]}'"
+                        warnings.warn(msg)
                     sentence_matches.append(j)
                     found = True
 
