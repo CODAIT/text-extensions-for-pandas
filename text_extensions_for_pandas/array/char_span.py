@@ -25,6 +25,7 @@ from typing import *
 
 import numpy as np
 import pandas as pd
+from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
 from pandas.core.indexers import check_array_indexer
 from pandas.api.types import is_bool_dtype
 from memoized_property import memoized_property
@@ -343,7 +344,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         """
 
         key = check_array_indexer(self, key)
-        if isinstance(value, pd.Series) and isinstance(value.dtype, CharSpanType):
+        if isinstance(value, ABCSeries) and isinstance(value.dtype, CharSpanType):
             value = value.values
 
         if value is None or isinstance(value, Sequence) and len(value) == 0:
@@ -379,6 +380,9 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
 
         :return: Returns a boolean mask indicating which rows match `other`.
         """
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+            # Rely on pandas to unbox and dispatch to us.
+            return NotImplemented
         if isinstance(other, CharSpan):
             mask = np.full(len(self), True, dtype=np.bool)
             mask[self.target_text != other.target_text] = False
@@ -584,6 +588,9 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         :return: Returns a boolean mask indicating which rows are less than
          `other`. span1 < span2 if span1.end <= span2.begin.
         """
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+            # Rely on pandas to unbox and dispatch to us.
+            return NotImplemented
         if isinstance(other, (CharSpanArray, CharSpan)):
             return self.end <= other.begin
         else:
@@ -592,7 +599,15 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
                              "".format(self, other, type(self), type(other)))
 
     def __gt__(self, other):
-        return other < self
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+            # Rely on pandas to unbox and dispatch to us.
+            return NotImplemented
+        if isinstance(other, (CharSpanArray, CharSpan)):
+            return other.__lt__(self)
+        else:
+            raise ValueError("'>' relationship not defined for {} and {} "
+                             "of types {} and {}"
+                             "".format(self, other, type(self), type(other)))
 
     def __le__(self, other):
         # TODO: Figure out what the semantics of this operation should be.

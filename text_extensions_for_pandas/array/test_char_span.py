@@ -480,6 +480,11 @@ def data_for_grouping(dtype):
     return pd.array([a, a, na, na, b, b, a, c], dtype=dtype)
 
 
+# Can't import due to dependencies, taken from pandas.conftest import all_compare_operators
+@pytest.fixture(params=["__eq__", "__ne__", "__lt__", "__gt__", "__le__", "__ge__"])
+def all_compare_operators(request):
+    return request.param
+
 # import pytest fixtures
 from pandas.tests.extension.conftest import as_array, as_frame, as_series, box_in_series, \
     fillna_method, data_repeated, use_numpy
@@ -509,14 +514,26 @@ class TestPandasMissing(base.BaseMissingTests):
     pass
 
 
-@pytest.mark.skip("resolve errors")
+@pytest.mark.skip("not applicable")
 class TestPandasArithmeticOps(base.BaseArithmeticOpsTests):
     pass
 
 
-@pytest.mark.skip("resolve errors")
 class TestPandasComparisonOps(base.BaseComparisonOpsTests):
-    pass
+    def _compare_other(self, s, data, op_name, other):
+        if op_name in ["__le__", "__ge__"]:
+            pytest.skip("op not supported")
+        op = self.get_op_from_name(op_name)
+        if isinstance(other, int):
+            # Compare with other type of object
+            with pytest.raises(ValueError):
+                op(data, other)
+
+            # Compare with scalar
+            other = data[0]
+
+        # TODO check result
+        op(data, other)
 
 
 @pytest.mark.skip("resolve errors")
