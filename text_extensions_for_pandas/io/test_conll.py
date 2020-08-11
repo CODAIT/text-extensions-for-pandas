@@ -21,7 +21,6 @@ from text_extensions_for_pandas.io.conll import *
 from text_extensions_for_pandas.io.spacy import make_tokens_and_features
 
 import spacy
-
 _SPACY_LANGUAGE_MODEL = spacy.load("en_core_web_sm")
 
 
@@ -460,6 +459,64 @@ class CoNLLTest(unittest.TestCase):
             9   [32, 38): 'Steven'    B-PERSON               1
             10  [39, 45): 'Wright'    I-PERSON               2"""
             ),
+        )
+
+    def test_combine_folds(self):
+        texts = [
+            "It's a small world, but I wouldn't want to have to paint it.",
+            "Everywhere is walking distance if you have the time.",
+        ]
+        arrays = [
+            CharSpanArray(texts[0], [7, 20], [12, 23]),
+            CharSpanArray(texts[1], [14], [21]),
+        ]
+        folds = {
+            "train": [pd.DataFrame({"spans": arrays[0], "foos": [1, 2], "bars": True})],
+            "bus": [pd.DataFrame({"spans": arrays[1], "foos": [5], "bars": [False]})]
+        }
+        combined_df = combine_folds(folds)
+        # print(f"****{combined_df}****")
+        self.assertEqual(
+            str(combined_df),
+            textwrap.dedent(
+                """\
+                    fold  doc_num                spans  foos   bars
+                0  train        0     [7, 12): 'small'     1   True
+                1  train        0      [20, 23): 'but'     2   True
+                2    bus        0  [14, 21): 'walking'     5  False"""
+            ),
+        )
+        # Span column should have been converted to object dtype
+        # See issue #73.
+        self.assertEqual(str(combined_df["spans"].dtype), "object")
+
+    def test_compute_accuracy(self):
+        doc_dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt",
+                                           ["ent"], [True])
+        output_dfs = conll_2003_output_to_dataframes(
+            doc_dfs, "test_data/io/test_conll/conll03_output.txt"
+        )
+        stats_by_doc = compute_accuracy_by_document(doc_dfs, output_dfs)
+        # print(f"****{stats_by_doc}****")
+        self.assertEqual(
+            str(stats_by_doc),
+            textwrap.dedent(
+                """\
+          fold  doc_num  num_true_positives  num_extracted  num_entities  precision  \\
+        0             0                  24             31            31   0.774194   
+        1             1                   7              9             9   0.777778   
+        
+             recall        F1  
+        0  0.774194  0.774194  
+        1  0.777778  0.777778  """
+            )
+        )
+        global_stats = compute_global_accuracy(stats_by_doc)
+        # ßprint(f"****{global_stats}****")
+        self.assertEqual(
+            str(global_stats),
+            ("{'num_true_positives': 31, 'num_entities': 40, 'num_extracted': 40, "
+             "'precision': 0.775, 'recall': 0.775, 'F1': 0.775}")
         )
 
 

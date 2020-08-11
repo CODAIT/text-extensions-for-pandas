@@ -30,6 +30,7 @@ from text_extensions_for_pandas.array import (
     TokenSpan,
     CharSpanArray,
     TokenSpanArray,
+    CharSpanType
 )
 
 # Special token that CoNLL-2003 format uses to delineate the documents in
@@ -895,4 +896,123 @@ def maybe_download_conll_data(target_dir: str) -> Dict[str, str]:
         "train": _TRAIN_FILE,
         "dev": _DEV_FILE,
         "test": _TEST_FILE
+    }
+
+
+def _prep_for_stacking(fold_name: str, doc_num: int, df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Subroutine of combine_folds()
+    """
+    df_values = {
+        "fold": fold_name,
+        "doc_num": doc_num,
+    }
+    for colname in df.columns:
+        if isinstance(df[colname].dtype, CharSpanType):
+            # Convert to objects to allow mixing spans from different documents.
+            # TODO: Remove this conversion once issue 73 is complete
+            df_values[colname] = df[colname].astype(object)
+        else:
+            df_values[colname] = df[colname]
+    return pd.DataFrame(df_values)
+
+
+def combine_folds(fold_to_docs: Dict[str, List[pd.DataFrame]]):
+    """
+    Merge together multiple parts of a corpus (i.e. train, test, validation)
+    into a single DataFrame of all tokens in the corpus.
+
+    **NOTE: Since `CharSpanArray` and `TokenSpanArray` currently only support spans
+    over one document at a time, this function converts columns of those types to
+    columns of type `Object` with `CharSpan`/`TokenSpan` objects. See
+    [issue 73](https://github.com/CODAIT/text-extensions-for-pandas/issues/73)
+    for more information.**
+
+    :param fold_to_docs: Mapping from fold name ("train", "test", etc.) to
+     list of per-document DataFrames as produced by :func:`util.conll_to_bert`.
+     All DataFrames must have the same schema, but any schema is ok.
+
+    :returns: corpus wide DataFrame with some additional leading columns `fold`
+     and `doc_num` to tell what fold and document number within the fold each
+     row of the dataframe comes from.
+    """
+    to_stack = []  # Type: List[pd.DataFrame]
+    for fold_name, docs_in_fold in fold_to_docs.items():
+        to_stack.extend([
+            _prep_for_stacking(fold_name, i, docs_in_fold[i])
+            for i in range(len(docs_in_fold))])
+    return pd.concat(to_stack).reset_index(drop=True)
+
+
+def compute_accuracy_by_document(corpus_dfs: Dict[Tuple[str, int], pd.DataFrame],
+                                 output_dfs: Dict[Tuple[str, int], pd.DataFrame]) \
+        -> pd.DataFrame:
+    """
+    Compute precision, recall, and F1 scores by document.
+
+    :param corpus_dfs: Gold-standard span/entity type pairs, as either:
+     * a dictionary of DataFrames, one DataFrames per document, indexed by
+       tuples of (collection name, offset into collection)
+     * a list of DataFrames, one per document
+       as returned by :func:`conll_2003_output_to_dataframes()`
+    :param output_dfs: Model outputs, in the same format as `gold_dfs`
+       (i.e. exactly the same column names). This is the format that
+      produces.
+    """
+    if isinstance(corpus_dfs, list):
+        if not isinstance(output_dfs, list):
+            raise TypeError(f"corpus_dfs is a list, but output_dfs is of type "
+                            f"'{type(output_dfs)}', which is not a list.")
+        corpus_dfs = {("", i): corpus_dfs[i] for i in range(len(corpus_dfs))}
+        output_dfs = {("", i): output_dfs[i] for i in range(len(output_dfs))}
+    # Note that it's important for all of these lists to be in the same
+    # order; hence these expressions all iterate over gold_dfs.keys()
+    num_true_positives = [
+        len(corpus_dfs[k].merge(output_dfs[k]).index)
+        for k in corpus_dfs.keys()]
+    num_extracted = [len(output_dfs[k].index) for k in corpus_dfs.keys()]
+    num_entities = [len(corpus_dfs[k].index) for k in corpus_dfs.keys()]
+    collection_name = [t[0] for t in corpus_dfs.keys()]
+    doc_num = [t[1] for t in corpus_dfs.keys()]
+
+    stats_by_doc = pd.DataFrame({
+        "fold": collection_name,
+        "doc_num": doc_num,
+        "num_true_positives": num_true_positives,
+        "num_extracted": num_extracted,
+        "num_entities": num_entities
+    })
+    stats_by_doc["precision"] = stats_by_doc["num_true_positives"] / stats_by_doc[
+        "num_extracted"]
+    stats_by_doc["recall"] = stats_by_doc["num_true_positives"] / stats_by_doc[
+        "num_entities"]
+    stats_by_doc["F1"] = (
+        2.0 * (stats_by_doc["precision"] * stats_by_doc["recall"])
+        / (stats_by_doc["precision"] + stats_by_doc["recall"]))
+    return stats_by_doc
+
+
+def compute_global_accuracy(stats_by_doc: pd.DataFrame):
+    """
+    Compute collection-wide precision, recall, and F1 score from the
+    output of :func:`compute_f1_by_document`.
+
+    :param stats_by_doc: Output of :func:`make_stats_df`
+    :returns: A Python dictionary of collection-level statistics about
+     result quality.
+    """
+    num_true_positives = stats_by_doc["num_true_positives"].sum()
+    num_entities = stats_by_doc["num_entities"].sum()
+    num_extracted = stats_by_doc["num_extracted"].sum()
+
+    precision = num_true_positives / num_extracted
+    recall = num_true_positives / num_entities
+    f1 = 2.0 * (precision * recall) / (precision + recall)
+    return {
+        "num_true_positives": num_true_positives,
+        "num_entities": num_entities,
+        "num_extracted": num_extracted,
+        "precision": precision,
+        "recall": recall,
+        "F1": f1
     }

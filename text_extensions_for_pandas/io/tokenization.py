@@ -29,6 +29,7 @@ from text_extensions_for_pandas.array import (
 )
 
 from text_extensions_for_pandas.io import conll as conll
+from text_extensions_for_pandas import spanner as spanner
 
 
 def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
@@ -94,7 +95,7 @@ def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
 
     token_features = pd.DataFrame(
         {
-            "id": special_tokens_mask.index,
+            "token_id": special_tokens_mask.index,
             # Use values instead of series because different indexes
             "char_span": pd.Series(char_spans).values,
             "token_span": pd.Series(token_spans).values,
@@ -168,6 +169,47 @@ def conll_to_bert(df: pd.DataFrame, tokenizer: Any, bert: Any,
     if compute_embeddings:
         bert_toks_df = add_embeddings(bert_toks_df, bert)
     return bert_toks_df
+
+
+def align_bert_tokens_to_corpus_tokens(
+        spans_df: pd.DataFrame, corpus_toks_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Expand entity matches from a BERT-based model so that they align
+    with the corpus's original tokenization.
+
+    :param spans_df: DataFrame of extracted entities. Must contain two
+     columns: "token_span" and "ent_type". Other columns ignored.
+    :param corpus_toks_df: DataFrame of the corpus's original tokenization,
+     one row per token.
+     Must contain a column "char_span" with character-based spans of
+     the tokens.
+
+    :returns: A new DataFrame with the schema ["token_span", "ent_type"],
+     where the "token_span" column contains token-based spans based off
+     the *corpus* tokenization in `corpus_toks_df["char_span"]`.
+    """
+    if len(spans_df.index) == 0:
+        return spans_df.copy()
+    overlaps_df = (
+        spanner
+            .overlap_join(spans_df["token_span"], corpus_toks_df["char_span"],
+                          "token_span", "corpus_token")
+            .merge(spans_df)
+    )
+    agg_df = (
+        overlaps_df
+            .groupby("token_span")
+            .aggregate({"corpus_token": "sum", "ent_type": "first"})
+            .reset_index()
+    )
+    cons_df = (
+        spanner.consolidate(agg_df, "corpus_token")
+        [["corpus_token", "ent_type"]]
+            .rename(columns={"corpus_token": "token_span"})
+    )
+    cons_df["token_span"] = TokenSpanArray.align_to_tokens(
+        corpus_toks_df["char_span"], cons_df["token_span"])
+    return cons_df
 
 
 def seq_to_windows(
