@@ -203,6 +203,10 @@ class CharSpanType(pd.api.extensions.ExtensionDtype):
         See docstring in `ExtensionDType` class in `pandas/core/dtypes/base.py`
         for information about this method.
         """
+        if not isinstance(string, str):
+            raise TypeError(
+                f"'construct_from_string' expects a string, got {type(string)}"
+            )
         # Upstream code uses exceptions as part of its normal control flow and
         # will pass this method bogus class names.
         if string == cls.__name__:
@@ -489,6 +493,8 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         for information about this method.
         """
         text = None
+        if isinstance(scalars, CharSpan):
+            scalars = [scalars]
         if isinstance(scalars, CharSpanArray):
             text = scalars.target_text
         begins = np.full(len(scalars), CharSpan.NULL_OFFSET_VALUE, np.int)
