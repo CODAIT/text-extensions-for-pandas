@@ -51,6 +51,10 @@ class TensorType(pd.api.extensions.ExtensionDtype):
         See docstring in `ExtensionDType` class in `pandas/core/dtypes/base.py`
         for information about this method.
         """
+        if not isinstance(string, str):
+            raise TypeError(
+                f"'construct_from_string' expects a string, got {type(string)}"
+            )
         # Upstream code uses exceptions as part of its normal control flow and
         # will pass this method bogus class names.
         if string == cls.__name__:
@@ -79,8 +83,8 @@ class TensorOpsMixin(pd.api.extensions.ExtensionScalarOpsMixin):
     """
 
     @classmethod
-    def _create_method(cls, op, coerce_to_dtype=True):
-        # NOTE: this overrides, but coerce_to_dtype might not be needed
+    def _create_method(cls, op, coerce_to_dtype=True, result_dtype=None):
+        # NOTE: this overrides, but coerce_to_dtype, result_dtype might not be needed
 
         def _binop(self, other):
             lvalues = self._tensor
