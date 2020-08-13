@@ -505,6 +505,10 @@ class TestPandasConstructors(base.BaseConstructorsTests):
         # Fails making PandasArray with result = pd.array(data, dtype=np.dtype(object))
         pass
 
+    @pytest.mark.skip("ValueError: Length of passed values is 1, index implies 3.")
+    def test_series_constructor_scalar_with_index(self, data, dtype):
+        pass
+
 
 class TestPandasGetitem(base.BaseGetitemTests):
     @pytest.mark.skip("resolve errors")
