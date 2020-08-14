@@ -36,8 +36,8 @@ class TestTables(unittest.TestCase):
     def test_parse_response(self):
         response = self.responses_dict["double_header_table"]
         parsed = watson_tables_parse_response(response)
-        self.assertEqual(len(parsed), 3)
-        self.assertSequenceEqual(sorted(parsed.keys()), ["body_cells", "col_headers", "row_headers"])
+        self.assertEqual(len(parsed), 4)
+        self.assertSequenceEqual(sorted(parsed.keys()), sorted(["body_cells", "col_headers", "row_headers", "given_loc"]))
         self.assertEqual(repr(parsed),
                          """\
 {'row_headers':                    text  column_index_begin  column_index_end  \\
@@ -166,11 +166,11 @@ class TestTables(unittest.TestCase):
 12        [Total tax rate]         [76.1%]    [Percentage]  
 13        [Total tax rate]          [4.3%]    [Percentage]  
 14        [Total tax rate]         [38.8%]    [Percentage]  
-15        [Total tax rate]         [15.1%]    [Percentage]  }"""
+15        [Total tax rate]         [15.1%]    [Percentage]  , 'given_loc': {'begin': 786, 'end': 7589}}"""
                          )
         parsed_2 = watson_tables_parse_response(self.responses_dict["20-populous-countries"])
-        self.assertEqual(len(parsed_2), 3)
-        self.assertSequenceEqual(sorted(parsed_2.keys()), ['body_cells', 'col_headers', 'row_headers'])
+        self.assertEqual(len(parsed_2), 4)
+        self.assertSequenceEqual(sorted(parsed_2.keys()), sorted(['body_cells', 'col_headers', 'row_headers',"given_loc"]))
         self.assertEqual(repr(parsed_2),
                          """\
 {'row_headers': None, 'col_headers':                                  text  column_index_begin  column_index_end  \\
@@ -247,7 +247,7 @@ class TestTables(unittest.TestCase):
 124             []               []    [21 Jul 2020]      [DateTime]  
 125             []               []             [UN]  [Organization]  
 
-[126 rows x 12 columns]}\
+[126 rows x 12 columns], 'given_loc': {'begin': 1611, 'end': 40405}}\
 """)
 
     def test_make_exploded_df(self):
@@ -450,16 +450,16 @@ class TestTables(unittest.TestCase):
         self.assertEqual(repr(double_header_table), """\
                      Nine months ended setptember 30        \\
                                                 2004  2005   
-Dividends received                               4.7  15.4   
-IRS audit settlement                            15.2  58.0   
 Statatory tax rate                              38.0  37.0   
+IRS audit settlement                            15.2  58.0   
+Dividends received                               4.7  15.4   
 Total tax rate                                  15.1  38.8   
 
                      Three months ended setptember 30        
                                                  2004  2005  
-Dividends received                                3.3  13.2  
-IRS audit settlement                             35.5  97.0  
 Statatory tax rate                               36.0  35.0  
+IRS audit settlement                             35.5  97.0  
+Dividends received                                3.3  13.2  
 Total tax rate                                    4.3  76.1  \
 """)
 
