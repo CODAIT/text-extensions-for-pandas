@@ -297,7 +297,13 @@ class TestWatson(unittest.TestCase):
             },
             "language": "en",
         }
-        empty_result = watson_nlu_parse_response(empty_response, apply_standard_schema=True)
+
+        with self.assertWarns(UserWarning) as cm:
+            empty_result = watson_nlu_parse_response(empty_response, apply_standard_schema=True)
+
+            expected_warn = "Did not receive and could not build original text"
+            warn = cm.warnings[0]
+            self.assertEqual(expected_warn, str(warn.message))
 
         for df in empty_result.values():
             self.assertIsInstance(df, pd.DataFrame)

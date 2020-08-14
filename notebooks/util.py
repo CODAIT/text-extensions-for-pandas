@@ -21,116 +21,18 @@ tp = importlib.reload(tp)
 from typing import *
 
 
-def combine_folds(fold_to_docs: Dict[str, List[pd.DataFrame]]):
-    """
-    Merge together multiple parts of a corpus (i.e. train, test, validation)
-    into a single dataframe of all tokens in the corpus.
-    
-    :param fold_to_docs: Mapping from fold name ("train", "test", etc.) to
-     list of per-document dataframes as produced by :func:`util.conll_to_bert`
-    
-    :returns: corpus wide DataFrame with some additional leading columns `fold`
-     and `doc_num` to tell what fold and document number within the fold each 
-     row of the dataframe comes from.
-    """
-    def prep_for_stacking(fold_name: str, doc_num: int, df: pd.DataFrame) -> pd.DataFrame:
-        return pd.DataFrame({
-            "fold": fold_name,
-            "doc_num": doc_num,
-            "token_id": df["id"],
-            "ent_iob": df["ent_iob"],
-            "ent_type": df["ent_type"],
-            "token_class": df["token_class"],
-            "token_class_id": df["token_class_id"],
-            "embedding": df["embedding"]
-        })
-    
-    to_stack = []  # Type: List[pd.DataFrame]
-    for fold_name, docs_in_fold in fold_to_docs.items():
-        to_stack.extend([
-            prep_for_stacking(fold_name, i, docs_in_fold[i])
-            for i in range(len(docs_in_fold))])
-
-    return pd.concat(to_stack).reset_index(drop=True)
-
-
-def predict_on_df(df: pd.DataFrame, id_to_class: Dict[int, str], predictor):
-    """
-    Run a trained model on a dataframe of tokens with embeddings.
-    
-    :param df: DataFrame of tokens for a document, containing the a column
-     "embedding" for each token.
-    :param id_to_class: Mapping from class ID to class name, as returned by
-     :func:`text_extensions_for_pandas.make_iob_tag_categories`
-    :param predictor: Python object with a `predict` method that accepts a
-     numpy array of embeddings.
-    :returns: A copy of `df`, with the following additional columns:
-     `predicted_id`, `predicted_class`, `predicted_iob`, and `predicted_type`.
-    """
-    id_to_class = df["token_class"].values.categories.values
-
-    X = df["embedding"].values
-    result_df = df.copy()
-    result_df["predicted_id"] = predictor.predict(X)
-    result_df["predicted_class"] = [id_to_class[i] for i in result_df["predicted_id"].values]
-    iobs, types = tp.decode_class_labels(result_df["predicted_class"].values)
-    result_df["predicted_iob"] = iobs
-    result_df["predicted_type"] = types
-    return result_df
-
-
-def align_model_outputs_to_tokens(model_results: pd.DataFrame, 
-                                  tokens_by_doc: Dict[str,List[pd.DataFrame]]) \
-        -> Dict[Tuple[str, int], pd.DataFrame]:
-    """
-    Join the results of running a model on an entire set of documents back with
-    dataframes of the token features for the individual documents.
-    
-    :param model_results: Dataframe containing results of prediction over a 
-     collection of documents. Should have the fields:
-     * "fold": What fold of the original collection each document came from
-     * "doc_num": Index of the document within the fold
-     * "token_id": Token offset of the token
-     * "predicted_iob"/"predicted_type": Model outputs
-    :param tokens_by_doc: One dataframe of tokens and labels per document, 
-     indexed by fold and document number (which must align with the values
-     in the "fold" and "doc_num" columns of `model_results`)
-    
-    :returns: A dictionary that maps (collection, offset into collection) 
-     to dataframe of results for that document
-    """
-    all_pairs = (
-        model_results[["fold", "doc_num"]]
-        .drop_duplicates()
-        .to_records(index=False)
-    )
-    indexed_df = (
-        model_results
-        .set_index(["fold", "doc_num", "token_id"], verify_integrity=True)
-        .sort_index()
-    )
-    results = {}  # Type: Dict[Tuple[str, int], pd.DataFrame]
-    for collection, doc_num in all_pairs:
-        doc_slice = indexed_df.loc[collection, doc_num].reset_index()
-        doc_toks = tokens_by_doc[collection][doc_num][
-            ["id", "char_span", "token_span", "ent_iob", "ent_type"]
-        ].rename(columns={"id": "token_id"})
-        result_df = doc_toks.copy().merge(
-            doc_slice[["token_id", "predicted_iob", "predicted_type"]])
-        results[(collection, doc_num)] = result_df
-    return results
-
-
-def train_reduced_model(X: np.ndarray, Y: np.ndarray, n_components: int, 
-                        seed: int) -> sklearn.base.BaseEstimator:
+def train_reduced_model(x_values: np.ndarray, y_values: np.ndarray, n_components: int,
+                        seed: int, max_iter: int = 10000) -> sklearn.base.BaseEstimator:
     """
     Train a reduced-quality model by putting a Gaussian random projection in
     front of the multinomial logistic regression stage of the pipeline.
     
-    :param X: input embeddings for training set
-    :param Y: integer labels corresponding to embeddings
+    :param x_values: input embeddings for training set
+    :param y_values: integer labels corresponding to embeddings
     :param n_components: Number of dimensions to reduce the embeddings to
     :param seed: Random seed to drive Gaussian random projection
+    :param max_iter: Maximum number of iterations of L-BGFS to run. The default
+     value of 10000 will achieve a tight fit but takes a while.
     
     :returns A model (Python object with a `predict()` method) fit on the
      input training data with the specified level of dimension reduction
@@ -143,74 +45,81 @@ def train_reduced_model(X: np.ndarray, Y: np.ndarray, n_components: int,
         )),
         ("mlogreg", sklearn.linear_model.LogisticRegression(
             multi_class="multinomial",
-            max_iter=10000
+            max_iter=max_iter
         ))
     ])
     print(f"Training model with n_components={n_components} and seed={seed}.")
-    return reduce_pipeline.fit(X, Y)
+    return reduce_pipeline.fit(x_values, y_values)
 
 
-def make_stats_df(gold_dfs: Dict[Tuple[str, int], pd.DataFrame],
-                  output_dfs: Dict[Tuple[str, int], pd.DataFrame]) \
-        -> pd.DataFrame:
+def predict_on_df(df: pd.DataFrame, id_to_class: Dict[int, str], predictor):
     """
-    Compute precision and recall statistics by document.
-    
-    :param gold_dfs: Gold-standard span/entity type pairs, as dictionary 
-     of dataframes, one dataframe per document, indexed by tuples of 
-     (collection name, offset into collection)
-    :param output_dfs: Model outputs, in the same format as `gold_dfs`
-     (i.e. exactly the same column names)
+    Run a trained model on a DataFrame of tokens with embeddings.
+
+    :param df: DataFrame of tokens for a document, containing a TokenSpan column
+     called "embedding" for each token.
+    :param id_to_class: Mapping from class ID to class name, as returned by
+     :func:`text_extensions_for_pandas.make_iob_tag_categories`
+    :param predictor: Python object with a `predict` method that accepts a
+     numpy array of embeddings.
+    :returns: A copy of `df`, with the following additional columns:
+     `predicted_id`, `predicted_class`, `predicted_iob`, and `predicted_type`.
     """
-    # Note that it's important for all of these lists to be in the same
-    # order; hence these expressions all iterate over gold_dfs.keys()
-    num_true_positives = [
-        len(gold_dfs[k].merge(output_dfs[k]).index) 
-        for k in gold_dfs.keys()]
-    num_extracted = [len(output_dfs[k].index) for k in gold_dfs.keys()]
-    num_entities = [len(gold_dfs[k].index)for k in gold_dfs.keys()]
-    collection_name = [t[0] for t in gold_dfs.keys()]
-    doc_num = [t[1] for t in gold_dfs.keys()]
-
-    stats_by_doc = pd.DataFrame({
-        "fold": collection_name,
-        "doc_num": doc_num,
-        "num_true_positives": num_true_positives,
-        "num_extracted": num_extracted,
-        "num_entities": num_entities
-    })
-    stats_by_doc["precision"] = stats_by_doc["num_true_positives"] / stats_by_doc["num_extracted"]
-    stats_by_doc["recall"] = stats_by_doc["num_true_positives"] / stats_by_doc["num_entities"]
-    stats_by_doc["F1"] = (
-        2.0 * (stats_by_doc["precision"] * stats_by_doc["recall"]) 
-        / (stats_by_doc["precision"] + stats_by_doc["recall"]))
-    return stats_by_doc
+    x_values = df["embedding"].values
+    result_df = df.copy()
+    result_df["predicted_id"] = predictor.predict(x_values)
+    result_df["predicted_class"] = [id_to_class[i]
+                                    for i in result_df["predicted_id"].values]
+    iobs, types = tp.decode_class_labels(result_df["predicted_class"].values)
+    result_df["predicted_iob"] = iobs
+    result_df["predicted_type"] = types
+    return result_df
 
 
-def compute_global_scores(stats_by_doc: pd.DataFrame):
+def align_model_outputs_to_tokens(model_results: pd.DataFrame,
+                                  tokens_by_doc: Dict[str, List[pd.DataFrame]]) \
+    -> Dict[Tuple[str, int], pd.DataFrame]:
     """
-    Compute collection-wide precision, recall, and F1 score from the 
-    output of :func:`make_stats_df`.
-    
-    :param stats_by_doc: Output of :func:`make_stats_df`
-    :returns: A Python dictionary of collection-level statistics about
-     result quality.
-    """
-    num_true_positives = stats_by_doc["num_true_positives"].sum()
-    num_entities = stats_by_doc["num_entities"].sum()
-    num_extracted = stats_by_doc["num_extracted"].sum()
+    Join the results of running a model on an entire corpus back with multiple
+    DataFrames of the token features for the individual documents.
 
-    precision = num_true_positives / num_extracted
-    recall = num_true_positives / num_entities
-    F1 = 2.0 * (precision * recall) / (precision + recall)
-    return {
-        "num_true_positives": num_true_positives,
-        "num_entities": num_entities,
-        "num_extracted": num_extracted,
-        "precision": precision,
-        "recall": recall,
-        "F1": F1
-    }
+    :param model_results: DataFrame containing results of prediction over a
+     collection of documents. Must have the fields:
+     * `fold`: What fold of the original collection each document came from
+     * `doc_num`: Index of the document within the fold
+     * `token_id`: Token offset of the token
+     * `predicted_iob`/`predicted_type`: Model outputs
+     Usually this DataFrame is the result of running :func:`predict_on_df()`
+    :param tokens_by_doc: One DataFrame of tokens and labels per document,
+     indexed by fold and document number (which must align with the values
+     in the "fold" and "doc_num" columns of `model_results`).
+     These DataFrames must contain columns `ent_iob` and `ent_type` that
+     correspond to the `predicted_iob` and `predicted_type` values in
+     `model_results`
+
+    :returns: A dictionary that maps (collection, offset into collection)
+     to DataFrame of results for that document
+    """
+    all_pairs = (
+        model_results[["fold", "doc_num"]]
+            .drop_duplicates()
+            .to_records(index=False)
+    )
+    indexed_df = (
+        model_results
+            .set_index(["fold", "doc_num", "token_id"], verify_integrity=True)
+            .sort_index()
+    )
+    results = {}  # Type: Dict[Tuple[str, int], pd.DataFrame]
+    for collection, doc_num in all_pairs:
+        doc_slice = indexed_df.loc[collection, doc_num].reset_index()
+        doc_toks = tokens_by_doc[collection][doc_num][
+            ["token_id", "char_span", "token_span", "ent_iob", "ent_type"]
+        ].rename(columns={"id": "token_id"})
+        result_df = doc_toks.copy().merge(
+            doc_slice[["token_id", "predicted_iob", "predicted_type"]])
+        results[(collection, doc_num)] = result_df
+    return results
 
 
 def analyze_model(target_df: pd.DataFrame, 
@@ -234,7 +143,7 @@ def analyze_model(target_df: pd.DataFrame,
      on which the model is based. Must include token labels as IOB2 tags.
      Indexed by fold name and index of document within fold.
     :param corpus_tokens_by_doc: Metadata about tokens for the tokenization 
-     of the original corpus. Required if `realign_to_tokens` is `True`
+     of the original corpus. Required if `expand_matches` is `True`
      Indexed by fold name and index of document within fold.
     :param expand_matches: `True` to expand model matches so that they
      align with the tokens in corpus_tokens_by_doc.
@@ -252,7 +161,7 @@ def analyze_model(target_df: pd.DataFrame,
     # results_df is flat, but all other values are one dataframe per 
     # document, indexed by (fold, offset into fold)
     results_by_doc = align_model_outputs_to_tokens(results_df,
-                                                   model_tokens_by_doc)
+                                                      model_tokens_by_doc)
     actual_spans_by_doc = {k: tp.iob_to_spans(v) 
                            for k, v in results_by_doc.items()}
     model_spans_by_doc = {k:
@@ -264,22 +173,24 @@ def analyze_model(target_df: pd.DataFrame,
     if expand_matches:
         if corpus_tokens_by_doc is None:
             raise ValueError("Must supply corpus_tokens_by_doc argument "
-                             "if realign_to_tokens is True.")
+                             "if expand_matches is True.")
         new_model_spans_by_doc = {}  # Type: Dict[Tuple[int, str], pd.DataFrame]
         for k, results_df in model_spans_by_doc.items():
             collection, doc_num = k
             tokens = corpus_tokens_by_doc[collection][doc_num]
-            new_model_spans_by_doc[k] = realign_to_tokens(results_df, tokens)
+            new_model_spans_by_doc[k] = tp.align_bert_tokens_to_corpus_tokens(results_df, tokens)
         model_spans_by_doc = new_model_spans_by_doc
     
-    stats_by_doc = make_stats_df(actual_spans_by_doc, model_spans_by_doc)
+    stats_by_doc = tp.compute_accuracy_by_document(actual_spans_by_doc,
+                                                   model_spans_by_doc)
     return {
         "results_by_doc": results_by_doc,
         "actual_spans_by_doc": actual_spans_by_doc,
         "model_spans_by_doc": model_spans_by_doc,
         "stats_by_doc": stats_by_doc,
-        "global_scores": compute_global_scores(stats_by_doc)
+        "global_scores": tp.compute_global_accuracy(stats_by_doc)
     }
+
 
 def merge_model_results(results: Dict[str, Dict[Tuple[str, int], pd.DataFrame]]) -> pd.DataFrame:
     """
@@ -326,45 +237,6 @@ def merge_model_results(results: Dict[str, Dict[Tuple[str, int], pd.DataFrame]])
     all_results = pd.concat(to_stack)
     return all_results
 
-
-def realign_to_tokens(spans_df: pd.DataFrame, corpus_toks_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Expand entity matches from a BERT-based model so that they align
-    with the corpus's original tokenization.
-    
-    :param spans_df: DataFrame of extracted entities. Must contain two
-     columns: "token_span" and "ent_type". Other columns ignored.
-    :param corpus_toks_df: DataFrame of the corpus's original tokenization,
-     one row per token.
-     Must contain a column "char_span" with character-based spans of
-     the tokens.
-     
-    :returns: A new dataframe with the schema ["token_span", "ent_type"],
-     where the "token_span" column contains token-based spans based off
-     the *corpus* tokenization in `corpus_toks_df["char_span"]`.
-    """
-    if len(spans_df.index) == 0:
-        return spans_df.copy()
-    overlaps_df = (
-        tp
-        .overlap_join(spans_df["token_span"], corpus_toks_df["char_span"],
-                     "token_span", "corpus_token")
-        .merge(spans_df)
-    )
-    agg_df = (
-        overlaps_df
-        .groupby("token_span")
-        .aggregate({"corpus_token": "sum", "ent_type": "first"})
-        .reset_index()
-    )
-    cons_df = (
-        tp.consolidate(agg_df, "corpus_token")
-        [["corpus_token", "ent_type"]]
-        .rename(columns={"corpus_token": "token_span"})
-    )
-    cons_df["token_span"] = tp.TokenSpanArray.align_to_tokens(
-            corpus_toks_df["char_span"], cons_df["token_span"])
-    return cons_df
 
 def csv_prep(counts_df: pd.DataFrame,
              counts_col_name: str):
