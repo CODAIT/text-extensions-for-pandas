@@ -56,11 +56,19 @@ conda create -y --name ${ENV_NAME} python=${PYTHON_VERSION}
 conda env update -n ${ENV_NAME} -f config/dev_env.yml
 
 ################################################################################
-# Second-best way to install packages: pip
 
 # All the installation steps that follow must be done from within the new
 # environment.
 conda activate ${ENV_NAME}
+
+# Ensure a specific version of Pandas is installed
+if [ -n "${PANDAS_VERSION}" ]; then
+    echo "Ensuring Pandas ${PANDAS_VERSION} is installed"
+    conda install pandas=${PANDAS_VERSION}
+fi
+
+################################################################################
+# Second-best way to install packages: pip
 
 # pip install with the project's requirements.txt so that any hard constraints
 # on package versions are respected in the created environment.
