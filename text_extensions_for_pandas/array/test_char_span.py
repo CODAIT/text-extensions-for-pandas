@@ -421,11 +421,6 @@ def data(dtype):
 
 
 @pytest.fixture
-def data_for_twos(dtype):
-    return pd.array(np.ones(100), dtype=dtype)
-
-
-@pytest.fixture
 def data_missing(dtype):
     spans = [span for span, _ in zip(_gen_spans(), range(2))]
     spans[0] = CharSpan(

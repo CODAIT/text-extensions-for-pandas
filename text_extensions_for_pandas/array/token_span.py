@@ -25,6 +25,9 @@ from typing import *
 
 import numpy as np
 import pandas as pd
+from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
+from pandas.core.indexers import check_array_indexer
+from pandas.api.types import is_bool_dtype
 from memoized_property import memoized_property
 
 # Internal imports
@@ -114,7 +117,7 @@ class TokenSpan(CharSpan):
 
     def __repr__(self) -> str:
         if TokenSpan.NULL_OFFSET_VALUE == self._begin_token:
-            return "Nil"
+            return "NA"
         elif TokenSpan.USE_TOKEN_OFFSETS_IN_REPR:
             return "[{}, {}): '{}'".format(
                 self.begin_token, self.end_token, textwrap.shorten(self.covered_text, 80)
@@ -271,6 +274,8 @@ class TokenSpanArray(CharSpanArray):
         :param begin_tokens: Array of begin offsets measured in tokens
         :param end_tokens: Array of end offsets measured in tokens
         """
+        if not isinstance(tokens, CharSpanArray):
+            raise TypeError(f"Expected CharSpanArray as tokens but got {type(tokens)}")
         if not isinstance(begin_tokens, (pd.Series, np.ndarray, list)):
             raise TypeError(f"begin_tokens is of unsupported type {type(begin_tokens)}. "
                             f"Supported types are Series, ndarray and List[int].")
@@ -299,6 +304,29 @@ class TokenSpanArray(CharSpanArray):
     def dtype(self) -> pd.api.extensions.ExtensionDtype:
         return TokenSpanType()
 
+    def astype(self, dtype, copy=True):
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        dtype = pd.api.types.pandas_dtype(dtype)
+        if isinstance(dtype, TokenSpanType):
+            data = self.copy() if copy else self
+        else:
+            na_value = TokenSpan(
+                self._tokens, TokenSpan.NULL_OFFSET_VALUE, TokenSpan.NULL_OFFSET_VALUE
+            )
+            data = self.to_numpy(dtype=dtype, copy=copy, na_value=na_value)
+        return data
+
+    @property
+    def nbytes(self) -> int:
+        """
+        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        for information about this method.
+        """
+        return self._begin_tokens.nbytes + self._end_tokens.nbytes + self._tokens.nbytes
+
     def __len__(self) -> int:
         return len(self._begin_tokens)
 
@@ -313,6 +341,7 @@ class TokenSpanArray(CharSpanArray):
             )
         else:
             # item not an int --> assume it's a numpy-compatible index
+            item = check_array_indexer(self, item)
             return TokenSpanArray(
                 self._tokens, self.begin_token[item], self.end_token[item]
             )
@@ -322,26 +351,40 @@ class TokenSpanArray(CharSpanArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        expected_key_types = (int, np.ndarray, list, slice)
-        expected_value_types = (TokenSpan, TokenSpanArray)
+        key = check_array_indexer(self, key)
+        if isinstance(value, ABCSeries) and isinstance(value.dtype, CharSpanType):
+            value = value.values
+
+        """expected_key_types = (int, np.ndarray, list, slice)
         if not isinstance(key, expected_key_types):
             raise NotImplementedError(
                 f"Don't understand key type "
                 f"'{type(key)}'; should be one of "
                 f"{expected_key_types}"
             )
-        if value is None:
+        """
+        if value is None or isinstance(value, Sequence) and len(value) == 0:
             self._begin_tokens[key] = TokenSpan.NULL_OFFSET_VALUE
             self._end_tokens[key] = TokenSpan.NULL_OFFSET_VALUE
-        elif not isinstance(value, expected_value_types):
-            raise ValueError(
-                f"Attempted to set element of TokenSpanArray with"
-                f"an object of type {type(value)}; current set of"
-                f"allowed types is {expected_value_types}"
-            )
-        else:
+        elif isinstance(value, TokenSpan) or \
+                ((isinstance(key, slice) or
+                  (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype))) and
+                 isinstance(value, CharSpanArray)):
             self._begin_tokens[key] = value.begin_token
             self._end_tokens[key] = value.end_token
+        elif isinstance(key, np.ndarray) and len(value) > 0 and len(value) == len(key) and \
+                ((isinstance(value, Sequence) and isinstance(value[0], TokenSpan)) or
+                 isinstance(value, TokenSpanArray)):
+            for k, v in zip(key, value):
+                self._begin_tokens[k] = v.begin_token
+                self._end_tokens[k] = v.end_token
+        else:
+            raise ValueError(
+                f"Attempted to set element of TokenSpanArray with "
+                f"an object of type {type(value)}; current set of "
+                f"allowed types is {(TokenSpan, TokenSpanArray)}"
+            )
+
         self._clear_cached_properties()
 
     def __eq__(self, other):
@@ -353,6 +396,9 @@ class TokenSpanArray(CharSpanArray):
 
         :return: Returns a boolean mask indicating which rows match `other`.
         """
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+            # Rely on pandas to unbox and dispatch to us.
+            return NotImplemented
         if isinstance(other, TokenSpan) and self.tokens.equals(other.tokens):
             mask = np.full(len(self), True, dtype=np.bool)
             mask[self.begin_token != other.begin_token] = False
@@ -419,6 +465,10 @@ class TokenSpanArray(CharSpanArray):
         for information about this method.
         """
         tokens = None
+        if isinstance(scalars, CharSpan):
+            scalars = [scalars]
+        if isinstance(scalars, TokenSpanArray):
+            tokens = scalars.tokens
         begin_tokens = np.full(len(scalars), TokenSpan.NULL_OFFSET_VALUE, np.int)
         end_tokens = np.full(len(scalars), TokenSpan.NULL_OFFSET_VALUE, np.int)
         i = 0
@@ -470,7 +520,8 @@ class TokenSpanArray(CharSpanArray):
         # From API docs: "[If allow_fill == True, then] negative values in
         # `indices` indicate missing values. These values are set to
         # `fill_value`.
-        if fill_value is None or np.math.isnan(fill_value):
+        if fill_value is None or \
+            (np.isscalar(fill_value) and np.math.isnan(fill_value)):
             # Replace with a "nan span"
             fill_value = TokenSpan(
                 self.tokens, TokenSpan.NULL_OFFSET_VALUE, TokenSpan.NULL_OFFSET_VALUE
@@ -507,6 +558,9 @@ class TokenSpanArray(CharSpanArray):
         :return: Returns a boolean mask indicating which rows are less than
          `other`. span1 < span2 if span1.end <= span2.begin.
         """
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+            # Rely on pandas to unbox and dispatch to us.
+            return NotImplemented
         if isinstance(other, (TokenSpanArray, TokenSpan)):
             # Use token offsets when available.
             return self.end_token <= other.begin_token
@@ -518,6 +572,17 @@ class TokenSpanArray(CharSpanArray):
                 "of types {} and {}"
                 "".format(self, other, type(self), type(other))
             )
+
+    def __gt__(self, other) -> np.ndarray:
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+            # Rely on pandas to unbox and dispatch to us.
+            return NotImplemented
+        if isinstance(other, (TokenSpanArray, TokenSpan)):
+            return other.__lt__(self)
+        else:
+            raise ValueError("'>' relationship not defined for {} and {} "
+                             "of types {} and {}"
+                             "".format(self, other, type(self), type(other)))
 
     def __le__(self, other):
         # TODO: Figure out what the semantics of this operation should be.
