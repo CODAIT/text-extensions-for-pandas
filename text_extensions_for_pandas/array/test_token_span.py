@@ -482,8 +482,12 @@ class TestPandasConstructors(base.BaseConstructorsTests):
         pass
 
     def test_construct_empty_dataframe(self, dtype):
-        with pytest.raises(TypeError, match="Expected CharSpanArray as tokens"):
-            super().test_construct_empty_dataframe(dtype)
+        try:
+            with pytest.raises(TypeError, match="Expected CharSpanArray as tokens"):
+                super().test_construct_empty_dataframe(dtype)
+        except AttributeError:
+            # Test added in Pandas 1.1.0, ignore for earlier versions
+            pass
 
 
 class TestPandasGetitem(base.BaseGetitemTests):
