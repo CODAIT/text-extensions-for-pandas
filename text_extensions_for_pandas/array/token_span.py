@@ -309,9 +309,13 @@ class TokenSpanArray(CharSpanArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
+        from pandas.core.arrays.string_ import StringDtype
+
         dtype = pd.api.types.pandas_dtype(dtype)
         if isinstance(dtype, TokenSpanType):
             data = self.copy() if copy else self
+        elif isinstance(dtype, StringDtype):
+            return dtype.construct_array_type()._from_sequence(self, copy=False)
         else:
             na_value = TokenSpan(
                 self._tokens, TokenSpan.NULL_OFFSET_VALUE, TokenSpan.NULL_OFFSET_VALUE

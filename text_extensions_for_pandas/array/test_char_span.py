@@ -604,10 +604,7 @@ class TestPandasMethods(base.BaseMethodsTests):
 
 
 class TestPandasCasting(base.BaseCastingTests):
-
-    @pytest.mark.skip("TypeError: data type not understood")
-    def test_astype_string(self, data):
-        pass
+    pass
 
 
 class TestPandasGroupby(base.BaseGroupbyTests):
