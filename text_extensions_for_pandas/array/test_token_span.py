@@ -403,18 +403,18 @@ def data_missing(dtype):
 
 @pytest.fixture
 def data_for_sorting(dtype):
-    spans = [span for span, _ in zip(_gen_spans(), range(5))]
-    reordered = [None] * 3
-    reordered[0] = spans[2]
-    reordered[1] = spans[3]
-    reordered[2] = spans[1]
+    spans = [span for span, _ in zip(_gen_spans(), range(3))]
+    reordered = [None] * len(spans)
+    reordered[0] = spans[1]
+    reordered[1] = spans[2]
+    reordered[2] = spans[0]
     return pd.array(reordered, dtype=dtype)
 
 
 @pytest.fixture
 def data_missing_for_sorting(dtype):
-    spans = [span for span, _ in zip(_gen_spans(), range(6))]
-    reordered = [None] * 3
+    spans = [span for span, _ in zip(_gen_spans(), range(3))]
+    reordered = [None] * len(spans)
     reordered[0] = spans[2]
     reordered[1] = TokenSpan(
         spans[0].tokens, TokenSpan.NULL_OFFSET_VALUE, TokenSpan.NULL_OFFSET_VALUE
