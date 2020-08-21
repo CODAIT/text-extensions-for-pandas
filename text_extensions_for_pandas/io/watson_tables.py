@@ -317,11 +317,12 @@ def _order_multiindex(headers, exploded_col, spot, header_df):
 def substitute_text_names(table_in, dfs_dict, sub_rows: bool = True, sub_cols: bool = True):
     """
     substitutes text names
-    :param table_in:
-    :param dfs_dict:
-    :param sub_rows:
-    :param sub_cols:
-    :return:
+    :param table_in: Table to operate on
+    :param dfs_dict: Parsed representation from watson response
+    :param sub_rows: Whether or not to attempt to substitute row headers
+    :param sub_cols: Whether or not to attempt to substitute column headers
+    :return: The original table, but with row and column headers that were title ID's replaced by the
+            plaintext header they actually correspond to
     """
     table = table_in.copy()
     if sub_rows and dfs_dict["row_headers"] is not None:
