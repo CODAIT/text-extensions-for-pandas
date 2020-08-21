@@ -315,8 +315,11 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         for information about this method.
         """
         dtype = pd.api.types.pandas_dtype(dtype)
+
         if isinstance(dtype, CharSpanType):
             data = self.copy() if copy else self
+        elif isinstance(dtype, pd.StringDtype):
+            return dtype.construct_array_type()._from_sequence(self, copy=False)
         else:
             na_value = CharSpan(
                 self.target_text, CharSpan.NULL_OFFSET_VALUE, CharSpan.NULL_OFFSET_VALUE
@@ -363,7 +366,10 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         if value is None or isinstance(value, Sequence) and len(value) == 0:
             self._begins[key] = CharSpan.NULL_OFFSET_VALUE
             self._ends[key] = CharSpan.NULL_OFFSET_VALUE
-        elif isinstance(value, CharSpan):
+        elif isinstance(value, CharSpan) or \
+                ((isinstance(key, slice) or
+                  (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype)))
+                 and isinstance(value, CharSpanArray)):
             self._begins[key] = value.begin
             self._ends[key] = value.end
         elif isinstance(key, np.ndarray) and len(value) > 0 and len(value) == len(key) and \
@@ -372,10 +378,6 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             for k, v in zip(key, value):
                 self._begins[k] = v.begin
                 self._ends[k] = v.end
-        elif (isinstance(key, slice) or (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype)))\
-                and isinstance(value, CharSpanArray):
-            self._begins[key] = value._begins
-            self._ends[key] = value._ends
         else:
             raise ValueError(
                 f"Attempted to set element of CharSpanArray with "

@@ -18,6 +18,9 @@ import os
 import tempfile
 import unittest
 
+from pandas.tests.extension import base
+import pytest
+
 from text_extensions_for_pandas.array.test_char_span import ArrayTestBase
 
 from text_extensions_for_pandas.array.token_span import *
@@ -363,6 +366,273 @@ class TokenSpanArrayIOTests(ArrayTestBase):
         # All columns together, TokenSpan arrays padded as needed
         df = pd.concat([df1, df2, df3, df4], axis=1)
         self.do_roundtrip(df)
+
+
+@pytest.fixture
+def dtype():
+    return TokenSpanType()
+
+
+def _gen_spans():
+    text = "1"
+    begins = [0]
+    ends = [1]
+    for i in range(1, 100):
+        s = str(i * 11)
+        text += f" {s}"
+        begins.append(ends[i - 1] + 1)
+        ends.append(begins[i] + len(s))
+    char_spans = [CharSpan(text, b, e) for b, e in zip(begins, ends)]
+    char_span_arr = pd.array(char_spans, dtype=CharSpanType())
+    return (TokenSpan(char_span_arr, i, i + 1) for i in range(len(char_spans)))
+
+
+@pytest.fixture
+def data(dtype):
+    return pd.array(list(_gen_spans()), dtype=dtype)
+
+
+@pytest.fixture
+def data_missing(dtype):
+    spans = [span for span, _ in zip(_gen_spans(), range(2))]
+    spans[0] = TokenSpan(
+        spans[0].tokens, TokenSpan.NULL_OFFSET_VALUE, TokenSpan.NULL_OFFSET_VALUE
+    )
+    return pd.array(spans, dtype=dtype)
+
+
+@pytest.fixture
+def data_for_sorting(dtype):
+    spans = [span for span, _ in zip(_gen_spans(), range(3))]
+    reordered = [None] * len(spans)
+    reordered[0] = spans[1]
+    reordered[1] = spans[2]
+    reordered[2] = spans[0]
+    return pd.array(reordered, dtype=dtype)
+
+
+@pytest.fixture
+def data_missing_for_sorting(dtype):
+    spans = [span for span, _ in zip(_gen_spans(), range(3))]
+    reordered = [None] * len(spans)
+    reordered[0] = spans[2]
+    reordered[1] = TokenSpan(
+        spans[0].tokens, TokenSpan.NULL_OFFSET_VALUE, TokenSpan.NULL_OFFSET_VALUE
+    )
+    reordered[2] = spans[1]
+    return pd.array(reordered, dtype=dtype)
+
+
+@pytest.fixture
+def na_cmp():
+    return lambda x, y: x.begin == TokenSpan.NULL_OFFSET_VALUE and \
+                        y.begin == TokenSpan.NULL_OFFSET_VALUE
+
+
+@pytest.fixture
+def na_value():
+    spans = [span for span, _ in zip(_gen_spans(), range(1))]
+    return TokenSpan(spans[0].tokens, TokenSpan.NULL_OFFSET_VALUE, TokenSpan.NULL_OFFSET_VALUE)
+
+
+@pytest.fixture
+def data_for_grouping(dtype):
+    spans = [span for span, _ in zip(_gen_spans(), range(3))]
+    a = spans[0]
+    b = spans[1]
+    c = spans[2]
+    na = TokenSpan(
+        spans[0].tokens, TokenSpan.NULL_OFFSET_VALUE, TokenSpan.NULL_OFFSET_VALUE
+    )
+    return pd.array([b, b, na, na, a, a, b, c], dtype=dtype)
+
+
+# Can't import due to dependencies, taken from pandas.conftest import all_compare_operators
+@pytest.fixture(params=["__eq__", "__ne__", "__lt__", "__gt__", "__le__", "__ge__"])
+def all_compare_operators(request):
+    return request.param
+
+
+@pytest.fixture(params=["sum"])
+def all_numeric_reductions(request):
+    return request.param
+
+
+@pytest.fixture(params=[None, lambda x: x])
+def sort_by_key(request):
+    return request.param
+
+# import pytest fixtures
+from pandas.tests.extension.conftest import all_data, as_array, as_frame, as_series, \
+    box_in_series, data_repeated, fillna_method, groupby_apply_op, use_numpy
+
+
+class TestPandasDtype(base.BaseDtypeTests):
+    pass
+
+
+class TestPandasInterface(base.BaseInterfaceTests):
+    pass
+
+
+class TestPandasConstructors(base.BaseConstructorsTests):
+
+    @pytest.mark.skip("Unsupported, sequence of all NaNs")
+    def test_series_constructor_no_data_with_index(self, dtype, na_value):
+        pass
+
+    def test_construct_empty_dataframe(self, dtype):
+        try:
+            with pytest.raises(TypeError, match="Expected CharSpanArray as tokens"):
+                super().test_construct_empty_dataframe(dtype)
+        except AttributeError:
+            # Test added in Pandas 1.1.0, ignore for earlier versions
+            pass
+
+
+class TestPandasGetitem(base.BaseGetitemTests):
+    pass
+
+
+class TestPandasSetitem(base.BaseSetitemTests):
+    pass
+
+
+class TestPandasMissing(base.BaseMissingTests):
+    pass
+
+
+@pytest.mark.skip("not applicable")
+class TestPandasArithmeticOps(base.BaseArithmeticOpsTests):
+    pass
+
+
+class TestPandasComparisonOps(base.BaseComparisonOpsTests):
+    def _compare_other(self, s, data, op_name, other):
+        if op_name in ["__le__", "__ge__"]:
+            pytest.skip("op not supported")
+        op = self.get_op_from_name(op_name)
+        if isinstance(other, int):
+            # Compare with other type of object
+            with pytest.raises(ValueError):
+                op(data, other)
+
+            # Compare with scalar
+            other = data[0]
+
+        # TODO check result
+        op(data, other)
+
+    @pytest.mark.skip("assert result is NotImplemented")
+    def test_direct_arith_with_series_returns_not_implemented(self, data):
+        pass
+
+
+class TestPandasReshaping(base.BaseReshapingTests):
+    @pytest.mark.skip(reason="resolve errors")
+    def test_unstack(self, data, index, obj):
+        pass
+
+    @pytest.mark.skip(reason="ValueError: CharSpans must all be over the same target text")
+    def test_concat_with_reindex(self, data):
+        pass
+
+
+class TestPandasMethods(base.BaseMethodsTests):
+    @pytest.mark.skip(reason="Unclear test")
+    def test_value_counts(self, all_data, dropna):
+        pass
+
+    @pytest.mark.skip(reason="invalid operator")
+    def test_combine_add(self, data_repeated):
+        pass
+
+    @pytest.mark.skip(reason="unsupported operation")
+    def test_container_shift(self, data, frame, periods, indices):
+        # TODO check if support required
+        pass
+
+    @pytest.mark.skip(reason="unsupported operation")
+    def test_shift_non_empty_array(self, data, periods, indices):
+        # TODO check if support required
+        pass
+
+    @pytest.mark.skip(reason="unsupported operation")
+    def test_where_series(self, data, na_value, as_frame):
+        # TODO setitem error: NotImplementedError: Setting multiple rows at once not implemented
+        pass
+
+    def test_searchsorted(self, data_for_sorting, as_series):
+        # TODO fails for series with TypeError: 'CharSpan' object is not iterable
+        if as_series is True:
+            pytest.skip("errors with Series")
+        super().test_searchsorted(data_for_sorting, as_series)
+
+    @pytest.mark.skip("AttributeError: 'CharSpanArray' object has no attribute 'value_counts'")
+    def test_value_counts_with_normalize(self, data):
+        pass
+
+    @pytest.mark.skip("Failed: DID NOT RAISE <class 'TypeError'>")
+    def test_not_hashable(self, data):
+        pass
+
+    @pytest.mark.parametrize("box", [pd.array, pd.Series, pd.DataFrame])
+    def test_equals(self, data, na_value, as_series, box):
+        from pandas.core.dtypes.generic import ABCPandasArray
+        if isinstance(box, ABCPandasArray):
+            pytest.skip("TypeError: equals() not defined for arguments of type <class 'NoneType'>")
+
+    def test_factorize_empty(self, data):
+        with pytest.raises(TypeError, match="Expected CharSpanArray"):
+            super().test_factorize_empty(data)
+
+    @pytest.mark.parametrize("repeats", [0, 1, 2, [1, 2, 3]])
+    def test_repeat(self, data, repeats, as_series, use_numpy):
+        if repeats == 0:
+            # Leads to empty array, unsupported???
+            with pytest.raises(TypeError, match="Expected CharSpanArray"):
+                super().test_repeat(data, repeats, as_series, use_numpy)
+        else:
+            super().test_repeat(data, repeats, as_series, use_numpy)
+
+
+class TestPandasCasting(base.BaseCastingTests):
+    pass
+
+
+class TestPandasGroupby(base.BaseGroupbyTests):
+    pass
+
+
+class TestPandasNumericReduce(base.BaseNumericReduceTests):
+    def check_reduce(self, s, op_name, skipna):
+        # TODO skipna has no bearing
+        result = getattr(s, op_name)(skipna=skipna)
+        first = s[0]
+        last = s[len(s) - 1]
+        expected = TokenSpan(first.tokens, first.begin_token, last.end_token)
+        assert result == expected
+
+
+@pytest.mark.skip("must support 'all', 'any' aggregations")
+class TestPandasBooleanReduce(base.BaseBooleanReduceTests):
+    pass
+
+
+class TestPandasPrinting(base.BasePrintingTests):
+    pass
+
+
+class TestPandasUnaryOps(base.BaseUnaryOpsTests):
+
+    @pytest.mark.skip("is supported?")
+    def test_invert(self, data):
+        pass
+
+
+@pytest.mark.skip("must implement _from_sequence_of_strings")
+class TestPandasParsing(base.BaseParsingTests):
+    pass
 
 
 if __name__ == "__main__":
