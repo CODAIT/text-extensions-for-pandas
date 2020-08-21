@@ -30,6 +30,7 @@ from typing import *
 import regex
 import text_extensions_for_pandas.io.watson_util as util
 
+
 #
 
 
@@ -128,6 +129,7 @@ def _explode_by_concat(df_in, column, agg_by: str = " "):
     :param agg_by: The character to place in between elements of the list. defaults to " " but can be set otherwise
     :return: the modified dataframe
     """
+
     def agg_horiz_headers(series):
         series[column] = agg_by.join(series[column])
         return series
@@ -198,7 +200,7 @@ def _infer_numeric_rows_cols(exploded_df, row_names, col_names):
     return rows, cols
 
 
-def _convert_val_to_numeric(val, cast_type=float, regex_exp='[^0-9.()-]'):
+def _convert_val_to_numeric(val, cast_type=float, regex_exp='[^0-9.-()]'):
     """
     converts a single value to a numeric type as specified, and removes all non-numeric characters
         If this is not possible, a warning is printed to the commandline and pd.NA is returned instead
@@ -209,16 +211,15 @@ def _convert_val_to_numeric(val, cast_type=float, regex_exp='[^0-9.()-]'):
     :return: an int or float, extracted from the input val
     """
     multiplier = 1
+
     try:
-        if len(val) >=4 and val[-4:] =="pts.": # note: we probably need more advanced logic for points. as they have various meanings
-            multiplier = multiplier/100
-            val = val[:-4]
         stripped = regex.sub(regex_exp, '', val)
-        if len(stripped) >=2 and stripped[0] == '(' and stripped[-1] == ')':
+        if len(stripped) >= 2 and stripped[0] == '(' and stripped[-1] == ')':
+            multiplier = multiplier*-1
             ans = cast_type(stripped[1:-1])
         else:
             ans = cast_type(regex.sub(regex_exp, '', val))
-        ans = ans*multiplier
+        ans = ans * multiplier
     except ValueError:
         ans = pd.NA
         print(f"ERROR READING VALUE:\"{val}\"\t Filling with <NA>")
@@ -243,6 +244,7 @@ def _convert_labelled_numeric_items(table, exploded_df, row_header_cols, col_hea
     :param cast_type:       The type that the element is to be cast to. Defaults to ``float``
     :return:        the converted DataFrame
     """
+
     def convert_val(val):
         return _convert_val_to_numeric(val, cast_type, f'[^0-9{decimal_pt}()-]')
 
@@ -254,7 +256,7 @@ def _convert_labelled_numeric_items(table, exploded_df, row_header_cols, col_hea
 
 
 def convert_cols_to_numeric(df_in: pd.DataFrame, columns=None, rows=None, decimal_pt='.',
-                             cast_type=float) -> pd.DataFrame:
+                            cast_type=float) -> pd.DataFrame:
     """
     converts inputted columns or rows to numeric format.
         if none are given, it converts all elements to numeric types
@@ -288,7 +290,7 @@ def convert_cols_to_numeric(df_in: pd.DataFrame, columns=None, rows=None, decima
     return df
 
 
-def _order_index(headers, exploded_col, spot, header_df):
+def _order_multiindex(headers, exploded_col, spot, header_df):
     """
     recursive function that orders a subset of headers of a multiindex table
     :param headers: the multiindex headers to be operating on
@@ -297,39 +299,39 @@ def _order_index(headers, exploded_col, spot, header_df):
     :param header_df: the "row_header" or "column_header" dataframe, with the subset of headers used.
     :return:
     """
-    col = exploded_col[spot]
-    uniques = headers[col].unique()
-    uniques_sorted = header_df[header_df["text"].isin(uniques)].sort_values("column_index_begin")["text"].drop_duplicates().to_list()
+    uniques = headers[spot].unique()
+    uniques_sorted = header_df[header_df["text"].isin(uniques)].sort_values("column_index_begin")[
+        "text"].drop_duplicates().to_list()
     ans = []
     for unique in uniques_sorted:
-        if spot < (len(exploded_col)-1):
-            arr = _order_index(headers.loc[unique], exploded_col, spot+1, header_df)
+        if spot < (len(exploded_col) - 1):
+            arr = _order_multiindex(headers.loc[unique], exploded_col, spot + 1, header_df)
             for ar in arr:
-                ar.insert(0,unique)
+                ar.insert(0, unique)
                 ans.append(ar)
         else:
             ans.append([unique])
     return ans
 
 
-def substitute_text_names(table_in,dfs_dict, sub_rows:bool=True, sub_cols:bool = True):
+def substitute_text_names(table_in, dfs_dict, sub_rows: bool = True, sub_cols: bool = True):
     """
     substitutes text names
-    :param table_in:
-    :param dfs_dict:
-    :param sub_rows:
-    :param sub_cols:
-    :return:
+    :param table_in: Table to operate on
+    :param dfs_dict: Parsed representation from watson response
+    :param sub_rows: Whether or not to attempt to substitute row headers
+    :param sub_cols: Whether or not to attempt to substitute column headers
+    :return: The original table, but with row and column headers that were title ID's replaced by the
+            plaintext header they actually correspond to
     """
     table = table_in.copy()
-    if sub_rows:
+    if sub_rows and dfs_dict["row_headers"] is not None:
         row_dict = dfs_dict["row_headers"].set_index("cell_id")["text"].to_dict()
         table.rename(index=row_dict, inplace=True)
-    if sub_cols:
+    if sub_cols and dfs_dict["col_headers"] is not None:
         col_dict = dfs_dict["col_headers"].set_index("cell_id")["text"].to_dict()
-        table.rename(columns=col_dict, inplace =True)
+        table.rename(columns=col_dict, inplace=True)
     return table
-
 
 
 def watson_tables_parse_response(response: Dict[str, Any], select_table=None) -> Dict[str, pd.DataFrame]:
@@ -359,7 +361,7 @@ def watson_tables_parse_response(response: Dict[str, Any], select_table=None) ->
     if type(select_table) == tuple:
         select_no = select_table[1]
         select_table = select_table[0]
-    else: # otherwise take the first table that meets the criterion
+    else:  # otherwise take the first table that meets the criterion
         select_no = 0
 
     table_number = None
@@ -375,8 +377,10 @@ def watson_tables_parse_response(response: Dict[str, Any], select_table=None) ->
             for i, table in enumerate(tables):
                 if table["section_title"] != {} and select_table.lower() in table["section_title"]["text"].lower():
                     table_number = i
-                    if select_no_temp == 0: break
-                    else: select_no_temp = select_no_temp - 1
+                    if select_no_temp == 0:
+                        break
+                    else:
+                        select_no_temp = select_no_temp - 1
 
     if table_number is None:
         table_number = 0
@@ -410,6 +414,7 @@ def watson_tables_parse_response(response: Dict[str, Any], select_table=None) ->
 
     return return_dict
 
+
 def get_raw_html(doc_response, parsed_table):
     raw_html = doc_response["document"]["html"]
     given_begin = parsed_table["given_loc"]["begin"]
@@ -421,7 +426,8 @@ def get_raw_html(doc_response, parsed_table):
 
 
 def make_table(dfs_dict: Dict[str, pd.DataFrame], value_col="text", row_explode_by: str = None,
-               col_explode_by: str = None, concat_with: str = " | ", convert_numeric_items=True):
+               col_explode_by: str = None, concat_with: str = " | ", convert_numeric_items:bool =True,
+               sort_headers:bool=True, prevent_id_explode:bool =False):
     """
     Runs the end-to-end process of creating the table, starting with the parsed response from the Compare & Comply or
     Watson Discovery engine, and returns the completed table.
@@ -436,18 +442,35 @@ def make_table(dfs_dict: Dict[str, pd.DataFrame], value_col="text", row_explode_
                                 if "title", the title field will be used to arrange rows
                                 if "title_id", the title_id feild will be used to arrange rows
                                 if "index", the row / column locations given will be used to arrange rows
-    :param concat_with: the delimiter to use when concatinating duplicate entries. Using an empty string, "" will fuse entries
+    :param concat_with: the delimiter to use when concatinating duplicate entries. Using an empty string, "" will fuse
+                                entries
     :param convert_numeric_items: if `True`, auto-detect and convert numeric rows and columns to numeric datatypes
+    :param sort_headers: If ``True`` the headers will be sorted into their original ordering from the table.
+                                Will be a little slower. Note: sorting headers is still experimental on multindex tables
+                                where not all headers have the same number of elements
+    :param prevent_id_explode: If ``True``, prevents default behaviour of exploding by index, which creates
+                                higher-fidelity versions of the parsed output, but may make more complex
+                                and less idiomatic tables. This does not affect behaviour when either `row_explode_by`
+                                or `column_explode_by` are set to `"title_id"`
+
     :return: the reconstructed table. should be a 1:1 translation of original table
 
     """
+    #use special mode if no explode by method is specified; explode by id then substitute names
+    row_headers_by_id = row_explode_by is None and not prevent_id_explode
+    col_headers_by_id = col_explode_by is None and not prevent_id_explode
+    row_explode_by = "title_id" if row_headers_by_id else row_explode_by
+    col_explode_by = "title_id" if col_headers_by_id else col_explode_by
+
     exploded, row_heading_names, col_heading_names = make_exploded_df(dfs_dict, row_explode_by=row_explode_by,
                                                                       col_explode_by=col_explode_by,
                                                                       keep_all_cols=True)
-    return make_table_from_exploded_df(exploded, row_heading_names, col_heading_names,
+    table =  make_table_from_exploded_df(exploded, row_heading_names, col_heading_names,
                                        value_col=value_col, concat_with=concat_with,
-                                       convert_numeric_items=convert_numeric_items, dfs_dict=dfs_dict)
-
+                                       convert_numeric_items=convert_numeric_items, dfs_dict=dfs_dict,
+                                       sort_headers=sort_headers)
+    table = substitute_text_names(table,dfs_dict,row_headers_by_id,col_headers_by_id)
+    return table
 
 def make_exploded_df(dfs_dict: Dict[str, pd.DataFrame], drop_original: bool = True,
                      row_explode_by: str = None,
@@ -491,14 +514,14 @@ def make_exploded_df(dfs_dict: Dict[str, pd.DataFrame], drop_original: bool = Tr
         exploded, col_header_names = _horiz_explode(body, "column_header_texts", drop_original=drop_original)
     elif col_explode_by == "title_id":
         # prevent from crashing if no column headers exist
-        if(dfs_dict["col_headers"] is None) or len(dfs_dict["col_headers"]) == 0:
+        if (dfs_dict["col_headers"] is None) or len(dfs_dict["col_headers"]) == 0:
             exploded, col_header_names = _explode_indexes(body, "column", drop_original=drop_original)
         else:
             exploded, col_header_names = _horiz_explode(body, "column_header_ids", drop_original=drop_original)
     elif col_explode_by == "index":
         exploded, col_header_names = _explode_indexes(body, "column", drop_original=drop_original)
     elif col_explode_by == "concat":
-        if(dfs_dict["col_headers"] is None) or len(dfs_dict["col_headers"]) == 0:
+        if (dfs_dict["col_headers"] is None) or len(dfs_dict["col_headers"]) == 0:
             exploded, col_header_names = _explode_indexes(body, "column", drop_original=drop_original)
         else:
             exploded, col_header_names = _explode_by_concat(body, "column_header_texts")
@@ -510,15 +533,15 @@ def make_exploded_df(dfs_dict: Dict[str, pd.DataFrame], drop_original: bool = Tr
     if row_explode_by == "title":
         exploded, row_header_names = _horiz_explode(exploded, "row_header_texts", drop_original=drop_original)
     elif row_explode_by == "title_id":
-        #prevent from crashing if no column headers exist
-        if(dfs_dict["row_headers"] is None) or len(dfs_dict["row_headers"]) == 0:
+        # prevent from crashing if no column headers exist
+        if (dfs_dict["row_headers"] is None) or len(dfs_dict["row_headers"]) == 0:
             exploded, row_header_names = _explode_indexes(exploded, "row", drop_original=drop_original)
         else:
             exploded, row_header_names = _horiz_explode(exploded, "row_header_ids", drop_original=drop_original)
     elif row_explode_by == "index":
         exploded, row_header_names = _explode_indexes(exploded, "row", drop_original=drop_original)
     elif row_explode_by == "concat":
-        if(dfs_dict["row_headers"] is None) or len(dfs_dict["row_headers"]) == 0:
+        if (dfs_dict["row_headers"] is None) or len(dfs_dict["row_headers"]) == 0:
             exploded, row_header_names = _explode_indexes(exploded, "row", drop_original=drop_original)
         else:
             exploded, row_header_names = _explode_by_concat(exploded, "row_header_texts")
@@ -537,7 +560,7 @@ def make_exploded_df(dfs_dict: Dict[str, pd.DataFrame], drop_original: bool = Tr
 
 def make_table_from_exploded_df(exploded_df: pd.DataFrame, row_heading_cols, column_heading_cols, dfs_dict=None,
                                 value_col: str = "text", concat_with: str = " | ",
-                                convert_numeric_items=False) -> pd.DataFrame:
+                                convert_numeric_items=False, sort_headers=True) -> pd.DataFrame:
     """
     takes in the exploded dataframe, and converts it into the reconstructed table
 
@@ -552,6 +575,10 @@ def make_table_from_exploded_df(exploded_df: pd.DataFrame, row_heading_cols, col
                      their original format. If not, the reordering will not take place
     :param convert_numeric_items: if True, rows or columns with numeric items will be detected and converted
                                   to floats or ints
+    :param sort_headers: If ``True`` the headers will be sorted into their original ordering from the table.
+                            Will be a little slower. Note: sorting headers is still experimental on multindex tables
+                            where not all headers have the same number of elements
+
     :return: the reconstructed table. should be a 1:1 translation of original table, but both machine and human readable
     """
     for heading_col in (row_heading_cols + column_heading_cols):
@@ -564,34 +591,50 @@ def make_table_from_exploded_df(exploded_df: pd.DataFrame, row_heading_cols, col
     row_nones = [None for _ in range((table.index.nlevels))]
     col_nones = [None for _ in range((table.columns.nlevels))]
 
+    table = table.rename_axis(index=row_nones, columns=col_nones)
+
     if convert_numeric_items:
         num_rows, num_cols = _infer_numeric_rows_cols(exploded_df, row_heading_cols, column_heading_cols)
         table = convert_cols_to_numeric(table, num_cols, num_rows)
 
-    if column_heading_cols != ["column_index"] and len(column_heading_cols) == 1 and dfs_dict is not None:
+    if sort_headers and column_heading_cols != ["column_index"] and len(
+            column_heading_cols) == 1 and dfs_dict is not None:
         col_headings = table.columns.to_list()
         cols = dfs_dict["col_headers"][dfs_dict["col_headers"]["text"].isin(col_headings)]
         cols = cols.sort_values("column_index_begin")
         col_headings_sorted = cols["text"].to_list()
+
+        not_inc_headings = [x for x in col_headings if x not in col_headings_sorted]
+        col_headings_sorted = col_headings_sorted + not_inc_headings
         table = table[col_headings_sorted]
 
-    # elif column_heading_cols != ["column_index"] and len(column_heading_cols) > 1 and dfs_dict is not None:
-    #     headers = table.columns.to_frame()
-    #     sorted_headers_arr = _order_index(headers, column_heading_cols, 0, dfs_dict["col_headers"])
-    #     sorted_headers = [tuple(header) for header in sorted_headers_arr]
-    #     table = table[sorted_headers]
+    elif sort_headers and column_heading_cols != ["column_index"] and len(
+            column_heading_cols) > 1 and dfs_dict is not None:
+        headers = table.columns.to_frame()
+        sorted_headers_arr = _order_multiindex(headers, column_heading_cols, 0, dfs_dict["col_headers"])
+        sorted_headers = [tuple(header) for header in sorted_headers_arr]
+        not_inc_headings = [x for x in table.columns.to_list() if x not in sorted_headers]
+        sorted_headers = sorted_headers + not_inc_headings
+        table = table[sorted_headers]
 
-    if row_heading_cols != ["row_index"] and len(row_heading_cols) == 1 and dfs_dict is not None:
+    if sort_headers and row_heading_cols != ["row_index"] and len(row_heading_cols) == 1 and dfs_dict is not None:
         row_headings = table.index.to_list()
         rows = dfs_dict["row_headers"][dfs_dict["row_headers"]["text"].isin(row_headings)]
         rows = rows.sort_values("row_index_begin")
         row_headings_sorted = rows["text"].to_list()
+
+        not_inc_headings = [x for x in row_headings if x not in row_headings_sorted]
+        row_headings_sorted = row_headings_sorted + not_inc_headings
+
         table = table.reindex(row_headings_sorted)
 
-    # elif row_heading_cols != ["column_index"] and len(row_heading_cols) > 1 and dfs_dict is not None:
-    #     headers = table.index.to_frame()
-    #     sorted_headers_arr = _order_index(headers, row_heading_cols, 0, dfs_dict["row_headers"])
-    #     sorted_headers = [tuple(header) for header in sorted_headers_arr]
-    #     table = table.reindex(sorted_headers)
+    elif sort_headers and row_heading_cols != ["column_index"] and len(row_heading_cols) > 1 and dfs_dict is not None:
+        headers = table.index.to_frame()
+        sorted_headers_arr = _order_multiindex(headers, row_heading_cols, 0, dfs_dict["row_headers"])
+        sorted_headers = [tuple(header) for header in sorted_headers_arr]
 
-    return table.rename_axis(index=row_nones, columns=col_nones)
+        not_inc_headings = [x for x in table.index.to_list() if x not in sorted_headers]
+        sorted_headers = sorted_headers + not_inc_headings
+        table = table.reindex(sorted_headers)
+
+    return table
