@@ -448,19 +448,19 @@ class TestTables(unittest.TestCase):
     def test_make_table(self):
         double_header_table = make_table(watson_tables_parse_response(self.responses_dict["double_header_table"]))
         self.assertEqual(repr(double_header_table), """\
-                     Nine months ended setptember 30        \\
-                                                2004  2005   
-Statatory tax rate                              38.0  37.0   
-IRS audit settlement                            15.2  58.0   
-Dividends received                               4.7  15.4   
-Total tax rate                                  15.1  38.8   
+                     Three months ended setptember 30        \\
+                                                 2005  2004   
+Statatory tax rate                               35.0  36.0   
+IRS audit settlement                             97.0  35.5   
+Dividends received                               13.2   3.3   
+Total tax rate                                   76.1   4.3   
 
-                     Three months ended setptember 30        
-                                                 2004  2005  
-Statatory tax rate                               36.0  35.0  
-IRS audit settlement                             35.5  97.0  
-Dividends received                                3.3  13.2  
-Total tax rate                                    4.3  76.1  \
+                     Nine months ended setptember 30        
+                                                2005  2004  
+Statatory tax rate                              37.0  38.0  
+IRS audit settlement                            58.0  15.2  
+Dividends received                              15.4   4.7  
+Total tax rate                                  38.8  15.1  \
 """)
 
         countries_table = make_table(watson_tables_parse_response(self.responses_dict["20-populous-countries"]))
