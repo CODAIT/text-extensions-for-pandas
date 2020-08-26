@@ -27,6 +27,7 @@ import numpy as np
 import pandas as pd
 from pandas.compat import set_function_name
 from pandas.core import ops
+from pandas.core.indexers import check_array_indexer, validate_indices
 
 
 @pd.api.extensions.register_extension_dtype
@@ -185,16 +186,19 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        values = self._tensor.take(indices, axis=0)
         if allow_fill:
             # From API docs: "[If allow_fill == True, then] negative values in
-            # `indices` indicate missing values. These values are set to
-            # `fill_value`.
-            for i in range(len(indices)):
-                if indices[i] < 0:
-                    # Note that Numpy will broadcast the fill value to the shape
-                    # of each row.
-                    values[i] = fill_value
+            # `indices` indicate missing values and are set to `fill_value`
+            indices = np.asarray(indices, dtype=np.intp)
+            validate_indices(indices, len(self._tensor))
+            if fill_value is None:
+                fill_value = np.nan
+            values = np.full((len(indices),) + self._tensor.shape[1:], fill_value)
+            for i, idx in enumerate(indices):
+                if idx >= 0:
+                    values[i] = self._tensor[idx]
+        else:
+            values = self._tensor.take(indices, axis=0)
         return TensorArray(values)
 
     @property
@@ -255,6 +259,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         if isinstance(item, int):
             return self._tensor[item]
         else:
+            item = check_array_indexer(self, item)
             return TensorArray(self._tensor[item])
 
     def __setitem__(self, key: Union[int, np.ndarray], value: Any) -> None:

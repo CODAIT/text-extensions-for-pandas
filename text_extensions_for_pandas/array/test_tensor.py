@@ -477,7 +477,8 @@ def data_missing_for_sorting(dtype):
 
 @pytest.fixture
 def na_cmp():
-    return lambda x, y: np.all(np.isnan(x)) and np.all(np.isnan(y))
+    return lambda x, y: (np.isnan(x) or np.all(np.isnan(x))) and \
+                        (np.isnan(y) or np.all(np.isnan(y)))
 
 
 @pytest.fixture
@@ -538,41 +539,7 @@ class TestPandasConstructors(base.BaseConstructorsTests):
 
 
 class TestPandasGetitem(base.BaseGetitemTests):
-    @pytest.mark.skip("resolve errors")
-    def test_getitem_boolean_array_mask(self, data):
-        # Need to support __getitem__ with boolean array mask
-        pass
-
-    @pytest.mark.skip("resolve errors")
-    def test_getitem_boolean_na_treated_as_false(self, data):
-        # Need to support __getitem__ with boolean array mask
-        pass
-
-    @pytest.mark.skip("resolve errors")
-    def test_getitem_integer_array(self, data, idx):
-        # Need to support __getitem__ with integer array
-        pass
-
-    @pytest.mark.skip("resolve errors")
-    def test_getitem_integer_with_missing_raises(self, data, idx):
-        # Need to support __getitem__ with arrays
-        pass
-
-    @pytest.mark.skip("resolve errors")
-    def test_take(self, data, na_value, na_cmp):
-        # values[i] = fill_value
-        # ValueError: cannot convert float NaN to integer
-        pass
-
-    @pytest.mark.skip("resolve errors")
-    def test_take_empty(self, data, na_value, na_cmp):
-        # IndexError: cannot do a non-empty take from an empty axes.
-        pass
-
-    @pytest.mark.skip("resolve errors")
-    def test_reindex(self, data, na_value):
-        # ValueError: cannot convert float NaN to integer
-        pass
+    pass
 
 
 @pytest.mark.skip("resolve errors")
