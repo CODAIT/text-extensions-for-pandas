@@ -62,6 +62,13 @@ class TestTensor(unittest.TestCase):
         s_copy = s.copy()
         self.assertEqual(len(s), len(s_copy))
 
+    def test_create_from_scalars(self):
+        x = [1, 2, 3, 4, 5]
+        s = TensorArray(x)
+        self.assertEqual(s.to_numpy().shape, (len(x), 1))
+        expected = np.array(x).reshape(len(x), 1)
+        npt.assert_array_equal(s.to_numpy(), expected)
+
     def test_create_series(self):
         x = np.array([[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]] * 100)
         a = TensorArray(x)
@@ -451,11 +458,6 @@ def data(dtype):
 
 
 @pytest.fixture
-def data_for_twos(dtype):
-    return pd.array(np.ones(100), dtype=dtype)
-
-
-@pytest.fixture
 def data_missing(dtype):
     values = np.array([[np.nan], [9]])
     return pd.array(values, dtype=dtype)
@@ -463,13 +465,13 @@ def data_missing(dtype):
 
 @pytest.fixture
 def data_for_sorting(dtype):
-    values = np.array([[3], [1], [2]])
+    values = np.array([[2], [3], [1]])
     return pd.array(values, dtype=dtype)
 
 
 @pytest.fixture
 def data_missing_for_sorting(dtype):
-    values = np.array([[3], [1], [np.nan]])
+    values = np.array([[2], [np.nan], [1]])
     return pd.array(values, dtype=dtype)
 
 
@@ -485,11 +487,32 @@ def na_value():
 
 @pytest.fixture
 def data_for_grouping(dtype):
-    b = [2]
     a = [1]
+    b = [2]
+    c = [3]
     na = [np.nan]
-    values = np.array([b, b, na, na, a, a, b])
+    values = np.array([b, b, na, na, a, a, b, c])
     return pd.array(values, dtype=dtype)
+
+
+# Can't import due to dependencies, taken from pandas.conftest import all_compare_operators
+@pytest.fixture(params=["__eq__", "__ne__", "__lt__", "__gt__", "__le__", "__ge__"])
+def all_compare_operators(request):
+    return request.param
+
+
+@pytest.fixture(params=["sum"])
+def all_numeric_reductions(request):
+    return request.param
+
+
+@pytest.fixture(params=[None, lambda x: x])
+def sort_by_key(request):
+    return request.param
+
+# import pytest fixtures
+from pandas.tests.extension.conftest import all_data, as_array, as_frame, as_series, \
+    box_in_series, data_repeated, fillna_method, groupby_apply_op, use_numpy
 
 
 class TestPandasDtype(base.BaseDtypeTests):
@@ -501,13 +524,17 @@ class TestPandasInterface(base.BaseInterfaceTests):
 
 
 class TestPandasConstructors(base.BaseConstructorsTests):
+
+    @pytest.mark.skip("using dtype=object unsupported")
     def test_pandas_array_dtype(self, data):
         # Fails making PandasArray with result = pd.array(data, dtype=np.dtype(object))
         pass
 
-    @pytest.mark.skip("ValueError: Length of passed values is 1, index implies 3.")
     def test_series_constructor_scalar_with_index(self, data, dtype):
-        pass
+        scalar = data[0][0]
+        result = pd.Series(scalar, index=[1, 2, 3], dtype=dtype)
+        expected = pd.Series([scalar] * 3, index=[1, 2, 3], dtype=dtype)
+        self.assert_series_equal(result, expected)
 
 
 class TestPandasGetitem(base.BaseGetitemTests):

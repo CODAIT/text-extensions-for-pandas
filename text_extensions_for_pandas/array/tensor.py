@@ -112,7 +112,13 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         if isinstance(values, np.ndarray):
             self._tensor = values
         elif isinstance(values, Sequence):
-            self._tensor = np.stack(values, axis=0) if len(values) > 0 else np.array([])
+            if len(values) == 0:
+                self._tensor = np.array([])
+            else:
+                self._tensor = np.stack(values, axis=0)
+                if np.isscalar(values[0]):
+                    # reshape scalar sequence so outer dim is 1
+                    self._tensor = self._tensor.reshape(len(values), 1)
         elif isinstance(values, TensorArray):
             raise TypeError("Use the copy() method to create a copy of a TensorArray")
         else:
