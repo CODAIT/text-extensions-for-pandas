@@ -532,6 +532,7 @@ class TestPandasConstructors(base.BaseConstructorsTests):
         pass
 
     def test_series_constructor_scalar_with_index(self, data, dtype):
+        # Must extract a scalar value from data element
         scalar = data[0][0]
         result = pd.Series(scalar, index=[1, 2, 3], dtype=dtype)
         expected = pd.Series([scalar] * 3, index=[1, 2, 3], dtype=dtype)
@@ -539,7 +540,11 @@ class TestPandasConstructors(base.BaseConstructorsTests):
 
 
 class TestPandasGetitem(base.BaseGetitemTests):
-    pass
+
+    def test_reindex(self, data, na_value):
+        # Must make na_value same shape as data element
+        na_value = np.array([na_value])
+        super().test_reindex(data, na_value)
 
 
 @pytest.mark.skip("resolve errors")
