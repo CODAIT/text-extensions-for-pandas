@@ -577,7 +577,6 @@ class TestPandasMethods(base.BaseMethodsTests):
     pass
 
 
-@pytest.mark.skip("resolve errors")
 class TestPandasCasting(base.BaseCastingTests):
     pass
 

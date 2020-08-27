@@ -222,8 +222,8 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        dtype = pd.api.types.pandas_dtype(dtype)
         if dtype is not None:
+            dtype = pd.api.types.pandas_dtype(dtype)
             if copy:
                 values = np.array(self._tensor, dtype=dtype, copy=True)
             else:
@@ -240,8 +240,16 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         for information about this method.
         """
         dtype = pd.api.types.pandas_dtype(dtype)
+
         if isinstance(dtype, TensorType):
             values = TensorArray(self._tensor.copy() if copy else self._tensor)
+        elif not pd.api.types.is_object_dtype(dtype) and \
+                pd.api.types.is_string_dtype(dtype):
+            values = np.array([str(t) for t in self._tensor])
+            if isinstance(dtype, pd.StringDtype):
+                return dtype.construct_array_type()._from_sequence(values, copy=False)
+            else:
+                return values
         else:
             values = self._tensor.astype(dtype, copy=copy)
         return values
