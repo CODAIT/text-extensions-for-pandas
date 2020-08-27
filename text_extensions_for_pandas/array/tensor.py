@@ -27,6 +27,7 @@ import numpy as np
 import pandas as pd
 from pandas.compat import set_function_name
 from pandas.core import ops
+from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
 from pandas.core.indexers import check_array_indexer, validate_indices
 
 
@@ -275,7 +276,13 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        if isinstance(key, (int, slice)):
+        key = check_array_indexer(self, key)
+        if isinstance(value, ABCSeries) and isinstance(value.dtype, TensorType):
+            value = value.values
+        if value is None or isinstance(value, Sequence) and len(value) == 0:
+            nan_fill = np.full_like(self._tensor[key], np.nan)
+            self._tensor[key] = nan_fill
+        elif isinstance(key, (int, slice, np.ndarray)):
             self._tensor[key] = value
         else:
             raise NotImplementedError(f"__setitem__ with key type '{type(key)}' "

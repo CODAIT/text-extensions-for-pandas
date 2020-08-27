@@ -547,9 +547,57 @@ class TestPandasGetitem(base.BaseGetitemTests):
         super().test_reindex(data, na_value)
 
 
-@pytest.mark.skip("resolve errors")
 class TestPandasSetitem(base.BaseSetitemTests):
-    pass
+
+    def test_setitem_sequence_broadcasts(self, data, box_in_series):
+        if box_in_series:
+            pytest.skip("ExtensionBlock fails indexer validation because value to set is an ndarray")
+        super().test_setitem_sequence_broadcasts(data, box_in_series)
+
+    def test_setitem_mask_boolean_array_with_na(self, data, box_in_series):
+        mask = pd.array(np.zeros(data.shape, dtype="bool"), dtype="boolean")
+        mask[:3] = True
+        mask[3:5] = pd.NA
+
+        if box_in_series:
+            data = pd.Series(data)
+
+        data[mask] = data[0]
+
+        result = data[:3]
+        if box_in_series:
+            # Must unwrap Series
+            result = result.values
+
+        # Must compare all values of result
+        assert np.all(result == data[0])
+
+    def test_setitem_slice(self, data, box_in_series):
+        if box_in_series:
+            pytest.skip("ExtensionBlock fails indexer validation because value to set is an ndarray")
+        super().test_setitem_slice(data, box_in_series)
+
+    @pytest.mark.skip("ExtensionBlock fails indexer validation because value to set is an ndarray")
+    def test_setitem_loc_iloc_slice(self, data):
+        pass
+
+    @pytest.mark.parametrize(
+        "idx",
+        [[0, 1, 2], pd.array([0, 1, 2], dtype="Int64"), np.array([0, 1, 2])],
+        ids=["list", "integer-array", "numpy-array"],
+    )
+    def test_setitem_integer_array(self, data, idx, box_in_series):
+        if box_in_series:
+            pytest.skip("ExtensionBlock fails indexer validation because value to set is an ndarray")
+        super().test_setitem_integer_array(data, idx, box_in_series)
+
+    @pytest.mark.parametrize("setter", ["loc", None])
+    def test_setitem_mask_broadcast(self, data, setter):
+        if setter is not None:
+            # Skip setter==loc
+            pytest.skip("ExtensionBlock fails indexer validation because value to set is an ndarray")
+
+        super().test_setitem_mask_broadcast(data, setter)
 
 
 @pytest.mark.skip("resolve errors")
