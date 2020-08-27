@@ -253,6 +253,7 @@ def render_parse_tree(
     import spacy.displacy
 
     return spacy.displacy.render(
-        token_features_to_tree(token_features, text_col, tag_col, label_col),
+        token_features_to_tree(token_features, text_col, tag_col, label_col,
+                               head_col),
         manual=True,
     )
