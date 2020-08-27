@@ -22,8 +22,8 @@
 #
 
 # For now we expose every symbol of the subpackages
-from text_extensions_for_pandas.array.char_span import *
-from text_extensions_for_pandas.array.token_span import *
+from text_extensions_for_pandas.array.span import *
 from text_extensions_for_pandas.array.tensor import *
 from text_extensions_for_pandas.array.accessor import *
+
 

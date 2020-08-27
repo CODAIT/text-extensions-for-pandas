@@ -115,6 +115,9 @@ class CharSpan:
     def __ge__(self, other):
         return other <= self
 
+    def __add__(self, other):
+        return text_extensions_for_pandas.array.span.add_spans(self, other)
+
     @property
     def begin(self):
         return self._begin
@@ -633,6 +636,11 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
     def __ge__(self, other):
         # TODO: Figure out what the semantics of this operation should be.
         raise NotImplementedError()
+
+    def __add__(self, other):
+        raise NotImplementedError(
+            "This method should be overwritten by code in span_mixins.py"
+        )
 
     def _reduce(self, name, skipna=True, **kwargs):
         """
