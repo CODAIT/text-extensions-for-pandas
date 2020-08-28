@@ -516,6 +516,11 @@ from pandas.tests.extension.conftest import all_data, as_array, as_frame, as_ser
     box_in_series, data_repeated, fillna_method, groupby_apply_op, use_numpy
 
 
+def is_pandas_1_0_x():
+    from distutils.version import LooseVersion
+    return LooseVersion(pd.__version__) < LooseVersion("1.1.0")
+
+
 class TestPandasDtype(base.BaseDtypeTests):
     pass
 
@@ -555,6 +560,8 @@ class TestPandasSetitem(base.BaseSetitemTests):
         super().test_setitem_sequence_broadcasts(data, box_in_series)
 
     def test_setitem_mask_boolean_array_with_na(self, data, box_in_series):
+        if box_in_series and is_pandas_1_0_x():
+            pytest.skip("Pandas 1.0.5 error: TypeError: len() of unsized object")
         mask = pd.array(np.zeros(data.shape, dtype="bool"), dtype="boolean")
         mask[:3] = True
         mask[3:5] = pd.NA
@@ -591,11 +598,28 @@ class TestPandasSetitem(base.BaseSetitemTests):
             pytest.skip("ExtensionBlock fails indexer validation because value to set is an ndarray")
         super().test_setitem_integer_array(data, idx, box_in_series)
 
+    @pytest.mark.parametrize(
+        "mask",
+        [
+            np.array([True, True, True, False, False]),
+            pd.array([True, True, True, False, False], dtype="boolean"),
+            pd.array([True, True, True, pd.NA, pd.NA], dtype="boolean"),
+        ],
+        ids=["numpy-array", "boolean-array", "boolean-array-na"],
+    )
+    def test_setitem_mask(self, data, mask, box_in_series):
+        if box_in_series and is_pandas_1_0_x():
+            pytest.skip("Pandas 1.0.5 error: TypeError: len() of unsized object")
+        super().test_setitem_mask(data, mask, box_in_series)
+
     @pytest.mark.parametrize("setter", ["loc", None])
     def test_setitem_mask_broadcast(self, data, setter):
         if setter is not None:
             # Skip setter==loc
             pytest.skip("ExtensionBlock fails indexer validation because value to set is an ndarray")
+
+        if is_pandas_1_0_x():
+            pytest.skip("Pandas 1.0.5 error: TypeError: len() of unsized object")
 
         super().test_setitem_mask_broadcast(data, setter)
 
