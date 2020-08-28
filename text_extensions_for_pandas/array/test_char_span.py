@@ -22,8 +22,7 @@ from pandas.tests.extension import base
 # noinspection PyPackageRequirements
 import pytest
 
-# Import span.py, not char_span.py, so that we get polymorphic mixins
-from text_extensions_for_pandas.array.span import *
+from text_extensions_for_pandas.array.char_span import *
 
 from text_extensions_for_pandas.util import TestBase
 

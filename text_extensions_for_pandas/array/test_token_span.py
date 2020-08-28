@@ -23,8 +23,7 @@ import pytest
 
 from text_extensions_for_pandas.array.test_char_span import ArrayTestBase
 
-# Import span.py, not token_span.py, so that we get polymorphic mixins
-from text_extensions_for_pandas.array.span import *
+from text_extensions_for_pandas.array.token_span import *
 
 
 class TokenSpanTest(ArrayTestBase):

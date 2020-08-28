@@ -31,7 +31,6 @@ from pandas.api.types import is_bool_dtype
 from memoized_property import memoized_property
 
 # Internal imports
-import text_extensions_for_pandas.util as util
 import text_extensions_for_pandas.jupyter as jupyter
 
 
@@ -116,7 +115,9 @@ class CharSpan:
         return other <= self
 
     def __add__(self, other):
-        return text_extensions_for_pandas.array.span.add_spans(self, other)
+        # Inline import to prevent circular dependencies
+        import text_extensions_for_pandas.array.span_util
+        return text_extensions_for_pandas.array.span_util.add_spans(self, other)
 
     @property
     def begin(self):
@@ -638,9 +639,9 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         raise NotImplementedError()
 
     def __add__(self, other):
-        raise NotImplementedError(
-            "This method should be overwritten by code in span_mixins.py"
-        )
+        # Inline import to prevent circular dependencies
+        import text_extensions_for_pandas.array.span_util
+        return text_extensions_for_pandas.array.span_util.add_spans(self, other)
 
     def _reduce(self, name, skipna=True, **kwargs):
         """

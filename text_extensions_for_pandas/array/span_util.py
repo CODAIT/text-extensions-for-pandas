@@ -14,14 +14,11 @@
 #
 
 #
-# span_mixins.py
+# span_util.py
 #
 # Part of text_extensions_for_pandas
 #
-# Top-level import for span types.
-#
-# Polymorphic code that uses classes from both token_span.py and char_span.py
-# also lives in this file.
+# Common code that uses classes from both token_span.py and char_span.py.
 #
 
 import numpy as np
@@ -98,9 +95,4 @@ def add_spans(span1: Union[TokenSpan, TokenSpanArray, CharSpan, CharSpanArray],
     else:
         raise TypeError(f"Unexpected combination of span types for add operation: "
                         f"{type(span1)} and {type(span2)}")
-
-
-# Add polymorphic methods to the span classes
-CharSpan.__add__ = lambda self, other: add_spans(self, other)
-CharSpanArray.__add__ = lambda self, other: add_spans(self, other)
 
