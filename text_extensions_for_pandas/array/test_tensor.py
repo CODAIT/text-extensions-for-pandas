@@ -55,18 +55,27 @@ class TestTensor(unittest.TestCase):
         with self.assertRaises(ValueError):
             TensorArray(x)
 
-        with self.assertRaises(TypeError):
-            TensorArray(2112)
-
         # Copy constructor
         s_copy = s.copy()
         self.assertEqual(len(s), len(s_copy))
 
+    def test_create_from_scalar(self):
+        s = TensorArray(2112)
+        self.assertEqual(len(s), 1)
+        self.assertTupleEqual(s.to_numpy().shape, (1,))
+        self.assertEqual(s[0], 2112)
+
+        s = pd.Series(np.nan, index=[0, 1, 2], dtype=TensorType())
+        self.assertEqual(len(s), 3)
+        self.assertTupleEqual(s.to_numpy().shape, (3,))
+        result = s.isna()
+        self.assertTrue(np.all(result.to_numpy()))
+
     def test_create_from_scalars(self):
         x = [1, 2, 3, 4, 5]
         s = TensorArray(x)
-        self.assertEqual(s.to_numpy().shape, (len(x), 1))
-        expected = np.array(x).reshape(len(x), 1)
+        self.assertTupleEqual(s.to_numpy().shape, (len(x),))
+        expected = np.array(x)
         npt.assert_array_equal(s.to_numpy(), expected)
 
     def test_create_series(self):

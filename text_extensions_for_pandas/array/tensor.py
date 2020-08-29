@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 from pandas.compat import set_function_name
 from pandas.core import ops
-from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
+from pandas.core.dtypes.generic import ABCSeries
 from pandas.core.indexers import check_array_indexer, validate_indices
 
 
@@ -105,7 +105,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     Each tensor must have the same shape.
     """
 
-    def __init__(self, values: Union[np.ndarray, Sequence[np.ndarray]],
+    def __init__(self, values: Union[np.ndarray, Sequence[np.ndarray], Any],
                  make_contiguous: bool = True):
         """
         :param values: A `numpy.ndarray` or sequence of `numpy.ndarray`s of equal shape.
@@ -118,12 +118,9 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
                 self._tensor = np.array([])
             else:
                 self._tensor = np.stack(values, axis=0)
-                if np.isscalar(values[0]):
-                    # reshape scalar sequence so outer dim is 1
-                    self._tensor = self._tensor.reshape(len(values), 1)
         elif np.isscalar(values):
             # `values` is a single element: pd.Series(np.nan, index=[1, 2, 3], dtype=TensorType())
-            self._tensor = np.array([[values]])
+            self._tensor = np.array([values])
         elif isinstance(values, TensorArray):
             raise TypeError("Use the copy() method to create a copy of a TensorArray")
         else:
