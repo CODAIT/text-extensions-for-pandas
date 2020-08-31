@@ -31,7 +31,6 @@ from pandas.api.types import is_bool_dtype
 from memoized_property import memoized_property
 
 # Internal imports
-import text_extensions_for_pandas.util as util
 from text_extensions_for_pandas.array.char_span import (
     CharSpan,
     CharSpanArray,
@@ -149,35 +148,6 @@ class TokenSpan(CharSpan):
             return self.end_token <= other.begin_token
         else:
             return CharSpan.__lt__(self, other)
-
-    def __add__(self, other):
-        """
-        span1 + span2 == minimal span that covers both spans
-        :param other: Other span to add to this one. Currently constrained to
-            be a single TokenSpan. Eventually this argument will permit
-            CharSpan, CharSpanArray, and TokenSpanArray
-        :return: minimal span that covers both spans
-        """
-        if isinstance(other, TokenSpan):
-            if not self.tokens.equals(other.tokens):
-                raise ValueError(
-                    "Can't combine TokenSpans over different sets " "of tokens"
-                )
-            if (
-                self.begin_token == TokenSpan.NULL_OFFSET_VALUE
-                or other.begin_token == TokenSpan.NULL_OFFSET_VALUE
-            ):
-                return TokenSpan.make_null(self.tokens)
-            else:
-                return TokenSpan(
-                    self.tokens,
-                    min(self.begin_token, other.begin_token),
-                    max(self.end_token, other.end_token),
-                )
-        else:
-            raise NotImplementedError(
-                f"Adding TokenSpan and {type(other)} " f"not yet implemented"
-            )
 
     @property
     def tokens(self):
@@ -594,27 +564,6 @@ class TokenSpanArray(CharSpanArray):
     def __ge__(self, other):
         # TODO: Figure out what the semantics of this operation should be.
         raise NotImplementedError()
-
-    def __add__(self, other):
-        """
-        span1 + span2 == minimal span that covers both spans
-        :param other: Other span or array of spans to add to this array's spans.
-        :return: minimal span that covers both spans
-        """
-        if not isinstance(other, (TokenSpan, TokenSpanArray)):
-            # TODO: Support adding CharSpan and TokenSpan to TokenSpanArray
-            raise NotImplementedError(
-                f"Adding TokenSpanArray and {type(other)} " f"not yet implemented"
-            )
-
-        if not self.tokens.equals(other.tokens):
-            raise ValueError(
-                f"Cannot add TokenSpans over different sets of tokens "
-                f"(got {self.tokens} and {other.tokens})"
-            )
-        new_begin_tokens = np.minimum(self.begin_token, other.begin_token)
-        new_end_tokens = np.maximum(self.end_token, other.end_token)
-        return TokenSpanArray(self.tokens, new_begin_tokens, new_end_tokens)
 
     def _reduce(self, name, skipna=True, **kwargs):
         """

@@ -31,7 +31,6 @@ from pandas.api.types import is_bool_dtype
 from memoized_property import memoized_property
 
 # Internal imports
-import text_extensions_for_pandas.util as util
 import text_extensions_for_pandas.jupyter as jupyter
 
 
@@ -114,6 +113,11 @@ class CharSpan:
 
     def __ge__(self, other):
         return other <= self
+
+    def __add__(self, other):
+        # Inline import to prevent circular dependencies
+        import text_extensions_for_pandas.array.span_util
+        return text_extensions_for_pandas.array.span_util.add_spans(self, other)
 
     @property
     def begin(self):
@@ -633,6 +637,11 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
     def __ge__(self, other):
         # TODO: Figure out what the semantics of this operation should be.
         raise NotImplementedError()
+
+    def __add__(self, other):
+        # Inline import to prevent circular dependencies
+        import text_extensions_for_pandas.array.span_util
+        return text_extensions_for_pandas.array.span_util.add_spans(self, other)
 
     def _reduce(self, name, skipna=True, **kwargs):
         """

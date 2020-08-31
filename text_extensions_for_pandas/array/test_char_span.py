@@ -13,15 +13,17 @@
 #  limitations under the License.
 #
 
-import numpy as np
+import pandas as pd
 import os
 import tempfile
 import unittest
 
 from pandas.tests.extension import base
+# noinspection PyPackageRequirements
 import pytest
 
 from text_extensions_for_pandas.array.char_span import *
+
 from text_extensions_for_pandas.util import TestBase
 
 

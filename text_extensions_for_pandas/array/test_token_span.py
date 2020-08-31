@@ -13,7 +13,7 @@
 #  limitations under the License.
 #
 
-import numpy as np
+import pandas as pd
 import os
 import tempfile
 import unittest
@@ -120,8 +120,13 @@ class TokenSpanTest(ArrayTestBase):
         s1 = TokenSpan(toks, 0, 3)
         s2 = TokenSpan(toks, 2, 3)
         s3 = TokenSpan(toks, 3, 4)
+        char_s1 = CharSpan(s1.target_text, s1.begin, s1.end)
+        char_s2 = CharSpan(s2.target_text, s2.begin, s2.end)
 
         self.assertEqual(s1 + s2, s1)
+        self.assertEqual(char_s1 + s2, char_s1)
+        self.assertEqual(s2 + char_s1, char_s1)
+        self.assertEqual(char_s2 + char_s1, char_s1)
         self.assertEqual(s2 + s3, TokenSpan(toks, 2, 4))
 
     def test_hash(self):
@@ -270,15 +275,49 @@ class TokenSpanArrayTest(ArrayTestBase):
         s3 = TokenSpan(toks, 3, 4)
         s4 = TokenSpan(toks, 2, 4)
         s5 = TokenSpan(toks, 0, 3)
+        char_s1 = CharSpan(s1.target_text, s1.begin, s1.end)
+        char_s2 = CharSpan(s2.target_text, s2.begin, s2.end)
+        char_s3 = CharSpan(s3.target_text, s3.begin, s3.end)
+        char_s4 = CharSpan(s4.target_text, s4.begin, s4.end)
+        char_s5 = CharSpan(s5.target_text, s5.begin, s5.end)
 
+        # TokenSpanArray + TokenSpanArray
         self._assertArrayEquals(
             TokenSpanArray._from_sequence([s1, s2, s3])
             + TokenSpanArray._from_sequence([s2, s3, s3]),
             TokenSpanArray._from_sequence([s1, s4, s3]),
         )
+        # CharSpanArray + TokenSpanArray
+        self._assertArrayEquals(
+            CharSpanArray._from_sequence([char_s1, char_s2, char_s3])
+            + TokenSpanArray._from_sequence([s2, s3, s3]),
+            CharSpanArray._from_sequence([char_s1, char_s4, char_s3]),
+        )
+        # TokenSpanArray + CharSpanArray
+        self._assertArrayEquals(
+            TokenSpanArray._from_sequence([s1, s2, s3])
+            + CharSpanArray._from_sequence([char_s2, char_s3, char_s3]),
+            CharSpanArray._from_sequence([char_s1, char_s4, char_s3]),
+        )
+        # TokenSpanArray + TokenSpan
         self._assertArrayEquals(
             TokenSpanArray._from_sequence([s1, s2, s3]) + s2,
             TokenSpanArray._from_sequence([s5, s2, s4]),
+        )
+        # TokenSpan + TokenSpanArray
+        self._assertArrayEquals(
+            s2 + TokenSpanArray._from_sequence([s1, s2, s3]),
+            TokenSpanArray._from_sequence([s5, s2, s4]),
+        )
+        # TokenSpanArray + CharSpan
+        self._assertArrayEquals(
+            TokenSpanArray._from_sequence([s1, s2, s3]) + char_s2,
+            CharSpanArray._from_sequence([char_s5, char_s2, char_s4]),
+        )
+        # CharSpan + CharSpanArray
+        self._assertArrayEquals(
+            char_s2 + CharSpanArray._from_sequence([char_s1, char_s2, char_s3]),
+            CharSpanArray._from_sequence([char_s5, char_s2, char_s4]),
         )
 
     def test_reduce(self):

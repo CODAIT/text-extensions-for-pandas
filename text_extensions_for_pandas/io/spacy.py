@@ -142,6 +142,7 @@ def token_features_to_tree(
     text_col: str = "token_span",
     tag_col: str = "tag",
     label_col: str = "dep",
+    head_col: str = "head",
 ):
     """
     Convert a DataFrame in the format returned by `make_tokens_and_features()`
@@ -164,6 +165,9 @@ def token_features_to_tree(
     label for each edge of the parse tree should be extracted; or `None`
     to leave those labels blank.
 
+    :param head_col: Name of the column in `token_features` from which the
+     head node of each parse tree node should be extracted.
+
     :returns: Native Python type representation of the parse tree in a format
     suitable to pass to `displacy.render(manual=True ...)`
     See https://spacy.io/usage/visualizers for the specification of this format.
@@ -183,7 +187,7 @@ def token_features_to_tree(
     tok_map = {token_features.index[i]: i for i in range(len(token_features.index))}
     # Note that we turn any links to tokens not in our input rows into
     # self-links, which will get removed later on.
-    head_tok = token_features["head"].values
+    head_tok = token_features[head_col].values
     remapped_head_tok = []
     for i in range(len(token_features.index)):
         remapped_head_tok.append(tok_map[head_tok[i]] if head_tok[i] in tok_map else i)
@@ -223,10 +227,13 @@ def render_parse_tree(
     text_col: str = "token_span",
     tag_col: str = "tag",
     label_col: str = "dep",
-):
+    head_col: str = "head",
+) -> None:
     """
     Display a DataFrame in the format returned by `make_tokens_and_features()`
     using displaCy's dependency tree renderer.
+    See https://spacy.io/usage/visualizers for more information on displaCy.
+
     :param token_features: A subset of a token features DataFrame in the format
     returned by `make_tokens_and_features()`. Must at a minimum contain the
     `head` column and an integer index that corresponds to the ints
@@ -240,13 +247,13 @@ def render_parse_tree(
     :param label_col: Name of the column in `token_features` from which the
     label for each edge of the parse tree should be extracted; or `None`
     to leave those labels blank.
-    :returns: Native Python type representation of the parse tree in a format
-    suitable to pass to `displacy.render(manual=True ...)`
-    See https://spacy.io/usage/visualizers for the specification of this format.
+    :param head_col: Name of the column in `token_features` from which the
+     head node of each parse tree node should be extracted.
     """
     import spacy.displacy
 
     return spacy.displacy.render(
-        token_features_to_tree(token_features, text_col, tag_col, label_col),
+        token_features_to_tree(token_features, text_col, tag_col, label_col,
+                               head_col),
         manual=True,
     )
