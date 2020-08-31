@@ -25,14 +25,14 @@
 import pandas as pd
 
 # Internal imports
-from text_extensions_for_pandas.array.char_span import CharSpanType
+from text_extensions_for_pandas.array.span import SpanDtype
 
 
 @pd.api.extensions.register_series_accessor("span")
 class SpanAccessor:
     """
     Pandas custom series accessor that creates a "span" namespace that can be
-    used to call span-specific methods of the `CharSpanArray`
+    used to call span-specific methods of the `SpanArray`
     or `TokenSpanArray` that backs a particular column of spans.
     """
 
@@ -50,7 +50,7 @@ class SpanAccessor:
     @staticmethod
     def _validate(obj):
         dtype = getattr(obj, "dtype", obj)
-        if not isinstance(dtype, CharSpanType):
+        if not isinstance(dtype, SpanDtype):
             raise AttributeError("Cannot use 'span' accessor on objects of "
                                  "dtype '{}'.".format(obj.dtype))
 

@@ -30,10 +30,10 @@ import pandas as pd
 # import spacy.tokens
 
 from text_extensions_for_pandas.array import (
-    CharSpanArray,
+    SpanArray,
     TokenSpanArray,
-    CharSpanType,
-    TokenSpanType,
+    SpanDtype,
+    TokenSpanDtype,
 )
 
 
@@ -42,12 +42,12 @@ def make_tokens(target_text: str, tokenizer) -> pd.Series:
     :param target_text: Text to tokenize
     :param tokenizer: Preconfigured `spacy.tokenizer.Tokenizer` object
     :return: The tokens (and underlying text) as a Pandas Series wrapped around
-        a `CharSpanArray` value.
+        a `SpanArray` value.
     """
     spacy_doc = tokenizer(target_text)
     tok_begins = np.array([t.idx for t in spacy_doc])
     tok_ends = np.array([t.idx + len(t) for t in spacy_doc])
-    return pd.Series(CharSpanArray(target_text, tok_begins, tok_ends))
+    return pd.Series(SpanArray(target_text, tok_begins, tok_ends))
 
 
 def make_tokens_and_features(
@@ -74,7 +74,7 @@ def make_tokens_and_features(
     # Represent the character spans of the tokens
     tok_begins = np.array([t.idx for t in spacy_doc])
     tok_ends = np.array([t.idx + len(t) for t in spacy_doc])
-    tokens_array = CharSpanArray(target_text, tok_begins, tok_ends)
+    tokens_array = SpanArray(target_text, tok_begins, tok_ends)
     tokens_series = pd.Series(tokens_array)
     # Also build single-token token-based spans to make it easier to build
     # larger token-based spans.
@@ -88,8 +88,7 @@ def make_tokens_and_features(
     iob2_dtype = pd.CategoricalDtype(["O", "B", "I"], ordered=False)
     df_cols = {
         "id": range(len(tok_begins)),
-        "char_span": tokens_series,
-        "token_span": token_spans,
+        "span": tokens_series,
         "lemma": [t.lemma_ for t in spacy_doc],
         "pos": pd.Categorical([str(t.pos_) for t in spacy_doc]),
         "tag": pd.Categorical([str(t.tag_) for t in spacy_doc]),
@@ -114,7 +113,7 @@ def make_tokens_and_features(
     return pd.DataFrame(df_cols)
 
 
-def _make_sentences_series(spacy_doc, tokens: CharSpanArray):
+def _make_sentences_series(spacy_doc, tokens: SpanArray):
     """
     Subroutine of `make_tokens_and_features()`
 
@@ -122,7 +121,7 @@ def _make_sentences_series(spacy_doc, tokens: CharSpanArray):
      model
 
     :param tokens: Token information for the current document as a
-    `CharSpanArray` object. Must contain the same tokens as `spacy_doc`.
+    `SpanArray` object. Must contain the same tokens as `spacy_doc`.
 
     :return: a Pandas DataFrame Series containing the token span of the (single)
     sentence that the token is in
@@ -139,7 +138,7 @@ def _make_sentences_series(spacy_doc, tokens: CharSpanArray):
 
 def token_features_to_tree(
     token_features: pd.DataFrame,
-    text_col: str = "token_span",
+    text_col: str = "span",
     tag_col: str = "tag",
     label_col: str = "dep",
     head_col: str = "head",
@@ -178,7 +177,7 @@ def token_features_to_tree(
         if col_name is None:
             return np.zeros(shape=len(token_features.index), dtype=str)
         series = token_features[col_name]
-        if isinstance(series.dtype, (CharSpanType, TokenSpanType)):
+        if isinstance(series.dtype, (SpanDtype, TokenSpanDtype)):
             return series.values.covered_text
         else:
             return series.astype(str)
@@ -224,7 +223,7 @@ def token_features_to_tree(
 
 def render_parse_tree(
     token_features: pd.DataFrame,
-    text_col: str = "token_span",
+    text_col: str = "span",
     tag_col: str = "tag",
     label_col: str = "dep",
     head_col: str = "head",

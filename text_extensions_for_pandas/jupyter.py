@@ -66,7 +66,7 @@ def run_with_progress_bar(num_items: int, fn: Callable, item_type: str = "doc") 
     return result
 
 
-def pretty_print_html(column: Union["CharSpanArray", "TokenSpanArray"],
+def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
                       show_offsets: bool) -> str:
     """
     HTML pretty-printing of a series of spans for Jupyter notebooks.

@@ -23,7 +23,7 @@
 
 import pandas as pd
 
-from text_extensions_for_pandas.array import CharSpanArray
+from text_extensions_for_pandas.array import SpanArray
 
 
 def consolidate(df: pd.DataFrame, on: str, how: str = "left_to_right") -> pd.DataFrame:
@@ -43,7 +43,7 @@ def consolidate(df: pd.DataFrame, on: str, how: str = "left_to_right") -> pd.Dat
     policy to the spans in the column specified by `on`.
     """
     spans = df[on].values
-    if not isinstance(spans, CharSpanArray):
+    if not isinstance(spans, SpanArray):
         raise TypeError(f"Column '{on}' of dataframe is of type "
                         f"{df[on].dtype}, which is not a span type.")
     if how != "left_to_right":

@@ -30,13 +30,13 @@ from typing import *
 from text_extensions_for_pandas.array import *
 
 
-def extract_dict(tokens: Union[CharSpanArray, pd.Series],
+def extract_dict(tokens: Union[SpanArray, pd.Series],
                  dictionary: pd.DataFrame,
                  output_col_name: str = "match"):
     """
     Identify all matches of a dictionary on a sequence of tokens.
 
-    :param tokens: `CharSpanArray` of token information, optionally wrapped in a
+    :param tokens: `SpanArray` of token information, optionally wrapped in a
     `pd.Series`.
 
     :param dictionary: The dictionary to match, encoded as a `pd.DataFrame` in
@@ -48,7 +48,7 @@ def extract_dict(tokens: Union[CharSpanArray, pd.Series],
     :return: a single-column DataFrame of token ID spans of dictionary matches
     """
     # Box tokens into a pd.Series if not already boxed.
-    if isinstance(tokens, CharSpanArray):
+    if isinstance(tokens, SpanArray):
         tokens = pd.Series(tokens)
 
     # Wrap the important parts of the tokens series in a temporary dataframe.
@@ -106,7 +106,7 @@ def extract_dict(tokens: Union[CharSpanArray, pd.Series],
 
 
 def extract_regex_tok(
-        tokens: Union[CharSpanArray, pd.Series],
+        tokens: Union[SpanArray, pd.Series],
         compiled_regex: regex.Regex,
         min_len=1,
         max_len=1,
@@ -115,7 +115,7 @@ def extract_regex_tok(
     Identify all (possibly overlapping) matches of a regular expression
     that start and end on token boundaries.
 
-    :param tokens: `CharSpanArray` of token information, optionally wrapped in a
+    :param tokens: `SpanArray` of token information, optionally wrapped in a
     `pd.Series`.
 
     :param compiled_regex: Regular expression to evaluate.

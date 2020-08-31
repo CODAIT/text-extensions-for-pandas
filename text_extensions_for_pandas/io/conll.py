@@ -28,9 +28,9 @@ import os
 
 from text_extensions_for_pandas.array import (
     TokenSpan,
-    CharSpanArray,
+    SpanArray,
     TokenSpanArray,
-    CharSpanType
+    SpanDtype
 )
 
 # Special token that CoNLL-2003 format uses to delineate the documents in
@@ -372,11 +372,9 @@ def _doc_to_df(doc: List[_SentenceData],
      punctuation characters (and after left parentheses)
      when reconstructing the text of the document.
     :return: DataFrame with four columns:
-    * `char_span`: Span of each token, with character offsets.
+    * `span`: Span of each token, with character offsets.
       Backed by the concatenation of the tokens in the document into
       a single string with one sentence per line.
-    * `token_span`: Span of each token, with token offsets.
-      Backed by the contents of the `char_span` column.
     * `ent_iob`: IOB2-format tags of tokens, exactly as they appeared
       in the original file, with no corrections applied.
     * `ent_type`: Entity type names for tokens tagged "I" or "B" in
@@ -454,17 +452,12 @@ def _doc_to_df(doc: List[_SentenceData],
     begins = np.concatenate(begins_list)
     ends = np.concatenate(ends_list)
     doc_text = "\n".join(sentences_list)
-    char_spans = CharSpanArray(doc_text, begins, ends)
-    token_begins = np.arange(len(begins))
-    token_spans = TokenSpanArray(char_spans, token_begins, token_begins + 1)
+    char_spans = SpanArray(doc_text, begins, ends)
     sentence_spans = TokenSpanArray(char_spans,
                                     np.concatenate(sentence_begins_list),
                                     np.concatenate(sentence_ends_list))
 
-    ret = pd.DataFrame(
-        {"char_span": char_spans,
-         "token_span": token_spans
-         })
+    ret = pd.DataFrame({"span": char_spans})
     for k, v in meta_lists.items():
         ret[k] = v
     ret["sentence"] = sentence_spans
@@ -490,11 +483,9 @@ def _output_doc_to_df(tokens: pd.DataFrame,
      will be added to each dataframe.
     :param copy_tokens: `True` if token information should be deep-copied.
     :return: DataFrame with four columns:
-    * `char_span`: Span of each token, with character offsets.
+    * `span`: Span of each token, with character offsets.
       Backed by the concatenation of the tokens in the document into
       a single string with one sentence per line.
-    * `token_span`: Span of each token, with token offsets.
-      Backed by the contents of the `char_span` column.
     * `ent_iob`: IOB2-format tags of tokens, corrected so that every
       entity begins with a "B" tag.
     * `ent_type`: Entity type names for tokens tagged "I" or "B" in
@@ -502,15 +493,13 @@ def _output_doc_to_df(tokens: pd.DataFrame,
     """
     if copy_tokens:
         return pd.DataFrame(
-            {"char_span": tokens["char_span"].copy(),
-             "token_span": tokens["token_span"].copy(),
+            {"span": tokens["span"].copy(),
              f"{column_name}_iob": np.array(outputs["iob"]),
              f"{column_name}_type": np.array(outputs["entity"]),
              "sentence": tokens["sentence"].copy()})
     else:
         return pd.DataFrame(
-            {"char_span": tokens["char_span"],
-             "token_span": tokens["token_span"],
+            {"span": tokens["span"],
              f"{column_name}_iob": np.array(outputs["iob"]),
              f"{column_name}_type": np.array(outputs["entity"]),
              "sentence": tokens["sentence"]})
@@ -522,7 +511,7 @@ def _output_doc_to_df(tokens: pd.DataFrame,
 def iob_to_spans(
     token_features: pd.DataFrame,
     iob_col_name: str = "ent_iob",
-    char_span_col_name: str = "char_span",
+    char_span_col_name: str = "span",
     entity_type_col_name: str = "ent_type",
 ):
     """
@@ -534,12 +523,12 @@ def iob_to_spans(
      `make_tokens_and_features`.
     :param iob_col_name: Name of a column in `token_features` that contains the
      IOB2 tags as strings, "I", "O", or "B".
-    :param char_span_col_name: Name of a column in `token_features` that
-     contains the tokens as a `CharSpanArray`.
+    :param span_col_name: Name of a column in `token_features` that
+     contains the tokens as a `SpanArray`.
     :param entity_type_col_name: Optional name of a column in `token_features`
      that contains entity type information; or `None` if no such column exists.
     :return: A `pd.DataFrame` with the following columns:
-    * `token_span`: Span (with token offsets) of each entity
+    * `span`: Span (with token offsets) of each entity
     * `<value of entity_type_col_name>`: (optional) Entity type
     """
     # Start out with 1-token prefixes of all entities.
@@ -594,11 +583,11 @@ def iob_to_spans(
         all_entities["end"].values,
     )
     if entity_type_col_name is None:
-        return pd.DataFrame({"token_span": entity_spans_array})
+        return pd.DataFrame({"span": entity_spans_array})
     else:
         return pd.DataFrame(
             {
-                "token_span": entity_spans_array,
+                "span": entity_spans_array,
                 entity_type_col_name: all_entities["ent_type"].values,
             }
         )
@@ -707,11 +696,9 @@ def conll_2003_to_dataframes(input_file: str,
 
     :returns: A list containing, for each document in the input file,
     a separate `pd.DataFrame` of four columns:
-    * `char_span`: Span of each token, with character offsets.
+    * `span`: Span of each token, with character offsets.
       Backed by the concatenation of the tokens in the document into
       a single string with one sentence per line.
-    * `token_span`: Span of each token, with token offsets.
-      Backed by the contents of the `char_span` column.
     * `ent_iob`: IOB2-format tags of tokens, corrected so that every
       entity begins with a "B" tag.
     * `ent_type`: Entity type names for tokens tagged "I" or "B" in
@@ -759,18 +746,17 @@ def conll_2003_output_to_dataframes(doc_dfs: List[pd.DataFrame],
 
     :return: A list containing, for each document in the input file,
     a separate `pd.DataFrame` of four columns:
-    * `char_span`: Span of each token, with character offsets.
+    * `span`: Span of each token, with character offsets.
       Backed by the concatenation of the tokens in the document into
       a single string with one sentence per line.
     * `token_span`: Span of each token, with token offsets.
-      Backed by the contents of the `char_span` column.
+      Backed by the contents of the `span` column.
     * `<column_name>_iob`: IOB2-format tags of tokens, corrected so that every
       entity begins with a "B" tag.
     * `<column_name>_type`: Entity type names for tokens tagged "I" or "B" in
       the `<column_name>_iob` column; `None` everywhere else.
     """
     docs_list = _parse_conll_output_file(doc_dfs, input_file)
-
 
     return [
         _iob_to_iob2(_output_doc_to_df(tokens, outputs, column_name, copy_tokens),
@@ -908,7 +894,7 @@ def _prep_for_stacking(fold_name: str, doc_num: int, df: pd.DataFrame) -> pd.Dat
         "doc_num": doc_num,
     }
     for colname in df.columns:
-        if isinstance(df[colname].dtype, CharSpanType):
+        if isinstance(df[colname].dtype, SpanDtype):
             # Convert to objects to allow mixing spans from different documents.
             # TODO: Remove this conversion once issue 73 is complete
             df_values[colname] = df[colname].astype(object)
@@ -922,9 +908,9 @@ def combine_folds(fold_to_docs: Dict[str, List[pd.DataFrame]]):
     Merge together multiple parts of a corpus (i.e. train, test, validation)
     into a single DataFrame of all tokens in the corpus.
 
-    **NOTE: Since `CharSpanArray` and `TokenSpanArray` currently only support spans
+    **NOTE: Since `SpanArray` and `TokenSpanArray` currently only support spans
     over one document at a time, this function converts columns of those types to
-    columns of type `Object` with `CharSpan`/`TokenSpan` objects. See
+    columns of type `Object` with `Span`/`TokenSpan` objects. See
     [issue 73](https://github.com/CODAIT/text-extensions-for-pandas/issues/73)
     for more information.**
 

@@ -34,12 +34,12 @@ from memoized_property import memoized_property
 import text_extensions_for_pandas.jupyter as jupyter
 
 
-class CharSpan:
+class Span:
     """
     Python object representation of a single span with character offsets; that
-    is, a single row of a `CharSpanArray`.
+    is, a single row of a `SpanArray`.
 
-    An offset of `CharSpan.NULL_OFFSET_VALUE` (currently -1) indicates
+    An offset of `Span.NULL_OFFSET_VALUE` (currently -1) indicates
     "not a span" in the sense that NaN is "not a number".
     """
 
@@ -54,12 +54,12 @@ class CharSpan:
             begin: Begin offset (inclusive) within `text`
             end: End offset (exclusive, one past the last char) within `text`
         """
-        if CharSpan.NULL_OFFSET_VALUE == begin:
-            if CharSpan.NULL_OFFSET_VALUE != end:
+        if Span.NULL_OFFSET_VALUE == begin:
+            if Span.NULL_OFFSET_VALUE != end:
                 raise ValueError("Begin offset with special 'null' value {} "
                                  "must be paired with an end offset of {}",
-                                 CharSpan.NULL_OFFSET_VALUE,
-                                 CharSpan.NULL_OFFSET_VALUE)
+                                 Span.NULL_OFFSET_VALUE,
+                                 Span.NULL_OFFSET_VALUE)
         elif begin < 0:
             raise ValueError("begin must be >= 0")
         elif end < 0:
@@ -72,18 +72,18 @@ class CharSpan:
         self._end = end
 
     def __repr__(self) -> str:
-        if self.begin == CharSpan.NULL_OFFSET_VALUE:
+        if self.begin == Span.NULL_OFFSET_VALUE:
             return "NA"
         else:
             return "[{}, {}): '{}'".format(self.begin, self.end,
                                            textwrap.shorten(self.covered_text, 80))
 
     def __eq__(self, other):
-        if isinstance(other, CharSpan):
+        if isinstance(other, Span):
             return (self.begin == other.begin
                     and self.end == other.end
                     and self.target_text == other.target_text)
-        elif isinstance(other, CharSpanArray):
+        elif isinstance(other, SpanArray):
             return other == self
         else:
             # Different type ==> not equal
@@ -98,7 +98,7 @@ class CharSpan:
         span1 < span2 if span1.end <= span2.begin
         """
         # TODO: Should we compare target strings?
-        if isinstance(other, (CharSpan, CharSpanArray)):
+        if isinstance(other, (Span, SpanArray)):
             return self.end <= other.begin
         else:
             raise ValueError("Less-than relationship not defined for {} and {} "
@@ -134,17 +134,17 @@ class CharSpan:
     @memoized_property
     def covered_text(self):
         """
-        Returns the substring of `self.target_text` that this `CharSpan`
+        Returns the substring of `self.target_text` that this `Span`
         represents.
         """
-        if CharSpan.NULL_OFFSET_VALUE == self._begin:
+        if Span.NULL_OFFSET_VALUE == self._begin:
             return None
         else:
             return self.target_text[self.begin:self.end]
 
-    def overlaps(self, other: "CharSpan"):
+    def overlaps(self, other: "Span"):
         """
-        :param other: Another CharSpan or TokenSpan
+        :param other: Another Span or TokenSpan
         :return: True if the two spans overlap. Also True if a zero-length
             span is contained within the other.
         """
@@ -158,9 +158,9 @@ class CharSpan:
         else:  # other.begin < self.end and other.end >= self.begin
             return True
 
-    def contains(self, other: "CharSpan"):
+    def contains(self, other: "Span"):
         """
-        :param other: Another CharSpan or TokenSpan
+        :param other: Another Span or TokenSpan
         :return: True if `other` is entirely within the bounds of this span. Also
             True if a zero-length span is contained within the other.
         """
@@ -185,7 +185,7 @@ class CharSpan:
 
 
 @pd.api.extensions.register_extension_dtype
-class CharSpanType(pd.api.extensions.ExtensionDtype):
+class SpanDtype(pd.api.extensions.ExtensionDtype):
     """
     Panda datatype for a span that represents a range of characters within a
     target string.
@@ -193,13 +193,13 @@ class CharSpanType(pd.api.extensions.ExtensionDtype):
 
     @property
     def type(self):
-        # The type for a single row of a column of type CharSpan
-        return CharSpan
+        # The type for a single row of a column of type Span
+        return Span
 
     @property
     def name(self) -> str:
         """A string representation of the dtype."""
-        return "CharSpanType"
+        return "SpanDtype"
 
     @classmethod
     def construct_from_string(cls, string: str):
@@ -225,18 +225,18 @@ class CharSpanType(pd.api.extensions.ExtensionDtype):
         See docstring in `ExtensionDType` class in `pandas/core/dtypes/base.py`
         for information about this method.
         """
-        return CharSpanArray
+        return SpanArray
 
     def __from_arrow__(self, extension_array):
         """
         Convert the given extension array of type ArrowCharSpanType to a
-        CharSpanArray.
+        SpanArray.
         """
         from text_extensions_for_pandas.array.arrow_conversion import arrow_to_char_span
         return arrow_to_char_span(extension_array)
 
 
-class CharSpanArray(pd.api.extensions.ExtensionArray):
+class SpanArray(pd.api.extensions.ExtensionArray):
     """
     A Pandas `ExtensionArray` that represents a column of character-based spans
     over a single target text.
@@ -294,7 +294,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
 
     def _shared_init(self):
         """
-        Initialization steps shared between CharSpanArray and TokenSpanArray
+        Initialization steps shared between SpanArray and TokenSpanArray
         """
         # Cached hash value of this array
         self._hash = None
@@ -311,7 +311,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        return CharSpanType()
+        return SpanDtype()
 
     def astype(self, dtype, copy=True):
         """
@@ -320,13 +320,13 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         """
         dtype = pd.api.types.pandas_dtype(dtype)
 
-        if isinstance(dtype, CharSpanType):
+        if isinstance(dtype, SpanDtype):
             data = self.copy() if copy else self
         elif isinstance(dtype, pd.StringDtype):
             return dtype.construct_array_type()._from_sequence(self, copy=False)
         else:
-            na_value = CharSpan(
-                self.target_text, CharSpan.NULL_OFFSET_VALUE, CharSpan.NULL_OFFSET_VALUE
+            na_value = Span(
+                self.target_text, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE
             )
             data = self.to_numpy(dtype=dtype, copy=copy, na_value=na_value)
         return data
@@ -342,20 +342,20 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
     def __len__(self) -> int:
         return len(self._begins)
 
-    def __getitem__(self, item) -> Union[CharSpan, "CharSpanArray"]:
+    def __getitem__(self, item) -> Union[Span, "SpanArray"]:
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
         if isinstance(item, int):
-            return CharSpan(self._text, int(self._begins[item]),
-                            int(self._ends[item]))
+            return Span(self._text, int(self._begins[item]),
+                        int(self._ends[item]))
         else:
             # item not an int --> assume it's a numpy-compatible index
             item = check_array_indexer(self, item)
-            return CharSpanArray(self._text,
-                                 self._begins[item],
-                                 self._ends[item])
+            return SpanArray(self._text,
+                             self._begins[item],
+                             self._ends[item])
 
     def __setitem__(self, key: Union[int, np.ndarray], value: Any) -> None:
         """
@@ -364,27 +364,27 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         """
 
         key = check_array_indexer(self, key)
-        if isinstance(value, ABCSeries) and isinstance(value.dtype, CharSpanType):
+        if isinstance(value, ABCSeries) and isinstance(value.dtype, SpanDtype):
             value = value.values
 
         if value is None or isinstance(value, Sequence) and len(value) == 0:
-            self._begins[key] = CharSpan.NULL_OFFSET_VALUE
-            self._ends[key] = CharSpan.NULL_OFFSET_VALUE
-        elif isinstance(value, CharSpan) or \
+            self._begins[key] = Span.NULL_OFFSET_VALUE
+            self._ends[key] = Span.NULL_OFFSET_VALUE
+        elif isinstance(value, Span) or \
                 ((isinstance(key, slice) or
                   (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype)))
-                 and isinstance(value, CharSpanArray)):
+                 and isinstance(value, SpanArray)):
             self._begins[key] = value.begin
             self._ends[key] = value.end
         elif isinstance(key, np.ndarray) and len(value) > 0 and len(value) == len(key) and \
-                ((isinstance(value, Sequence) and isinstance(value[0], CharSpan)) or
-                 isinstance(value, CharSpanArray)):
+                ((isinstance(value, Sequence) and isinstance(value[0], Span)) or
+                 isinstance(value, SpanArray)):
             for k, v in zip(key, value):
                 self._begins[k] = v.begin
                 self._ends[k] = v.end
         else:
             raise ValueError(
-                f"Attempted to set element of CharSpanArray with "
+                f"Attempted to set element of SpanArray with "
                 f"an object of type {type(value)}")
         # We just changed the contents of this array, so invalidate any cached
         # results computed from those contents.
@@ -402,13 +402,13 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
-        if isinstance(other, CharSpan):
+        if isinstance(other, Span):
             mask = np.full(len(self), True, dtype=np.bool)
             mask[self.target_text != other.target_text] = False
             mask[self.begin != other.begin] = False
             mask[self.end != other.end] = False
             return mask
-        elif isinstance(other, CharSpanArray):
+        elif isinstance(other, SpanArray):
             if len(self) != len(other):
                 raise ValueError("Can't compare arrays of differing lengths "
                                  "{} and {}".format(len(self), len(other)))
@@ -433,14 +433,14 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
                                self._ends.tobytes()))
         return self._hash
 
-    def equals(self, other: "CharSpanArray"):
+    def equals(self, other: "SpanArray"):
         """
-        :param other: A second `CharSpanArray`
+        :param other: A second `SpanArray`
         :return: True if both arrays have the same target text (can be a
         different string object with the same contents) and the same spans
         in the same order.
         """
-        if not isinstance(other, CharSpanArray):
+        if not isinstance(other, SpanArray):
             raise TypeError(f"equals() not defined for arguments of type "
                             f"{type(other)}")
         if self is other:
@@ -490,7 +490,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
 
         begins = np.concatenate([a.begin for a in to_concat])
         ends = np.concatenate([a.end for a in to_concat])
-        return CharSpanArray(text, begins, ends)
+        return SpanArray(text, begins, ends)
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
@@ -499,17 +499,17 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         for information about this method.
         """
         text = None
-        if isinstance(scalars, CharSpan):
+        if isinstance(scalars, Span):
             scalars = [scalars]
-        if isinstance(scalars, CharSpanArray):
+        if isinstance(scalars, SpanArray):
             text = scalars.target_text
-        begins = np.full(len(scalars), CharSpan.NULL_OFFSET_VALUE, np.int)
-        ends = np.full(len(scalars), CharSpan.NULL_OFFSET_VALUE, np.int)
+        begins = np.full(len(scalars), Span.NULL_OFFSET_VALUE, np.int)
+        ends = np.full(len(scalars), Span.NULL_OFFSET_VALUE, np.int)
         i = 0
         for s in scalars:
-            if not isinstance(s, CharSpan):
-                raise ValueError(f"Can only convert a sequence of CharSpan "
-                                 f"objects to a CharSpanArray. Found an "
+            if not isinstance(s, Span):
+                raise ValueError(f"Can only convert a sequence of Span "
+                                 f"objects to a SpanArray. Found an "
                                  f"object of type {type(s)}")
             if text is None:
                 text = s.target_text
@@ -521,7 +521,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             begins[i] = s.begin
             ends[i] = s.end
             i += 1
-        return CharSpanArray(text, begins, ends)
+        return SpanArray(text, begins, ends)
 
     @classmethod
     def _from_factorized(cls, values, original):
@@ -536,8 +536,8 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        na_value = CharSpan(self.target_text, CharSpan.NULL_OFFSET_VALUE,
-                            CharSpan.NULL_OFFSET_VALUE)
+        na_value = Span(self.target_text, Span.NULL_OFFSET_VALUE,
+                        Span.NULL_OFFSET_VALUE)
         return self.astype(object), na_value
 
     def isna(self) -> np.array:
@@ -545,14 +545,14 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        return np.equal(self._begins, CharSpan.NULL_OFFSET_VALUE)
+        return np.equal(self._begins, Span.NULL_OFFSET_VALUE)
 
-    def copy(self) -> "CharSpanArray":
+    def copy(self) -> "SpanArray":
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        ret = CharSpanArray(
+        ret = SpanArray(
             self.target_text,
             self.begin.copy(),
             self.end.copy()
@@ -563,7 +563,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
     def take(
         self, indices: Sequence[int], allow_fill: bool = False,
         fill_value: Any = None
-    ) -> "CharSpanArray":
+    ) -> "SpanArray":
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
@@ -575,17 +575,17 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             if fill_value is None or \
                (np.isscalar(fill_value) and np.math.isnan(fill_value)):
                 # Replace with a "nan span"
-                fill_value = CharSpan(
+                fill_value = Span(
                     self.target_text,
-                    CharSpan.NULL_OFFSET_VALUE,
-                    CharSpan.NULL_OFFSET_VALUE)
-            elif not isinstance(fill_value, CharSpan):
-                raise ValueError("Fill value must be Null, nan, or a CharSpan "
+                    Span.NULL_OFFSET_VALUE,
+                    Span.NULL_OFFSET_VALUE)
+            elif not isinstance(fill_value, Span):
+                raise ValueError("Fill value must be Null, nan, or a Span "
                                  "(was {})".format(fill_value))
         else:
             # Dummy fill value to keep code below happy
-            fill_value = CharSpan(self.target_text, CharSpan.NULL_OFFSET_VALUE,
-                                  CharSpan.NULL_OFFSET_VALUE)
+            fill_value = Span(self.target_text, Span.NULL_OFFSET_VALUE,
+                              Span.NULL_OFFSET_VALUE)
 
         # Pandas' internal implementation of take() does most of the heavy
         # lifting.
@@ -597,7 +597,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             self.end, indices, allow_fill=allow_fill,
             fill_value=fill_value.end
         )
-        return CharSpanArray(self.target_text, begins, ends)
+        return SpanArray(self.target_text, begins, ends)
 
     def __lt__(self, other):
         """
@@ -612,7 +612,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
-        if isinstance(other, (CharSpanArray, CharSpan)):
+        if isinstance(other, (SpanArray, Span)):
             return self.end <= other.begin
         else:
             raise ValueError("'<' relationship not defined for {} and {} "
@@ -623,7 +623,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
-        if isinstance(other, (CharSpanArray, CharSpan)):
+        if isinstance(other, (SpanArray, Span)):
             return other.__lt__(self)
         else:
             raise ValueError("'>' relationship not defined for {} and {} "
@@ -651,28 +651,28 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         if name == "sum":
             # Sum ==> combine, i.e. return the smallest span that contains all
             #         spans in the series
-            return CharSpan(self.target_text, np.min(self.begin),
-                            np.max(self.end))
+            return Span(self.target_text, np.min(self.begin),
+                        np.max(self.end))
         else:
             raise TypeError(f"'{name}' aggregation not supported on a series "
-                            f"backed by a CharSpanArray")
+                            f"backed by a SpanArray")
 
     ####################################################
     # Methods that don't override the superclass go here
 
     @classmethod
-    def make_array(cls, o) -> "CharSpanArray":
+    def make_array(cls, o) -> "SpanArray":
         """
-        Make a `CharSpanArray` object out of any of several types of input.
+        Make a `SpanArray` object out of any of several types of input.
 
-        :param o: a CharSpanArray object represented as a `pd.Series`, a list
-        of `TokenSpan` objects, or maybe just an actual `CharSpanArray`
+        :param o: a SpanArray object represented as a `pd.Series`, a list
+        of `TokenSpan` objects, or maybe just an actual `SpanArray`
         (or `TokenSpanArray`) object.
 
-        :return: CharSpanArray version of `o`, which may be a pointer to `o` or
+        :return: SpanArray version of `o`, which may be a pointer to `o` or
         one of its fields.
         """
-        if isinstance(o, CharSpanArray):
+        if isinstance(o, SpanArray):
             return o
         elif isinstance(o, pd.Series):
             return cls.make_array(o.values)
@@ -738,7 +738,7 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
         # Need dtype=np.object so we can return nulls
         result = np.zeros(len(self), dtype=np.object)
         for i in range(len(self)):
-            if self._begins[i] == CharSpan.NULL_OFFSET_VALUE:
+            if self._begins[i] == Span.NULL_OFFSET_VALUE:
                 # Null value at this index
                 result[i] = None
             else:
@@ -767,18 +767,18 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
             "covered_text": self.covered_text
         })
 
-    def overlaps(self, other: Union["CharSpanArray", CharSpan]):
+    def overlaps(self, other: Union["SpanArray", Span]):
         """
         :param other: Either a single span or an array of spans of the same
             length as this one
         :return: Numpy array containing a boolean mask of all entries that
             overlap the corresponding element of `other`
         """
-        if not isinstance(other, (CharSpan, CharSpanArray)):
+        if not isinstance(other, (Span, SpanArray)):
             raise TypeError(f"overlaps not defined for input type "
                             f"{type(other)}")
 
-        # Replicate the logic in CharSpan.overlaps() with boolean masks
+        # Replicate the logic in Span.overlaps() with boolean masks
         exact_equal_mask = np.logical_and(self.begin == other.begin,
                                           self.end == other.end)
         begin_ge_end_mask = other.begin >= self.end
@@ -791,18 +791,18 @@ class CharSpanArray(pd.api.extensions.ExtensionArray):
                                  np.logical_or(begin_ge_end_mask,
                                                end_le_begin_mask)))
 
-    def contains(self, other: Union["CharSpanArray", CharSpan]):
+    def contains(self, other: Union["SpanArray", Span]):
         """
         :param other: Either a single span or an array of spans of the same
             length as this one
         :return: Numpy array containing a boolean mask of all entries that
             contain the corresponding element of `other`
         """
-        if not isinstance(other, (CharSpan, CharSpanArray)):
+        if not isinstance(other, (Span, SpanArray)):
             raise TypeError(f"contains not defined for input type "
                             f"{type(other)}")
 
-        # Replicate the logic in CharSpan.contains() with boolean masks
+        # Replicate the logic in Span.contains() with boolean masks
         begin_ge_begin_mask = other.begin >= self.begin
         end_le_end_mask = other.end <= self.end
         return np.logical_and(begin_ge_begin_mask, end_le_end_mask)

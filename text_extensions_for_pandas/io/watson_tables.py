@@ -24,7 +24,7 @@
 # For convience, a Python SDK is available at https://github.com/watson-developer-cloud/python-sdk that
 # can be used to authenticate and make requests to the service.
 
-from text_extensions_for_pandas.array import CharSpanArray
+from text_extensions_for_pandas.array import SpanArray
 import pandas as pd
 from typing import *
 import regex

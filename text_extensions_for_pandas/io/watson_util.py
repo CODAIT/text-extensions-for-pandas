@@ -26,7 +26,7 @@ import warnings
 import pandas as pd
 import pyarrow as pa
 
-from text_extensions_for_pandas import CharSpanArray
+from text_extensions_for_pandas import SpanArray
 
 
 def schema_to_names(schema):
@@ -112,4 +112,4 @@ def make_char_span(location_col, text_col, original_text):
             text_col = pa.concat_arrays(text_col.iterchunks())
         original_text = build_original_text(text_col, begins)
 
-    return CharSpanArray(original_text, begins, ends)
+    return SpanArray(original_text, begins, ends)

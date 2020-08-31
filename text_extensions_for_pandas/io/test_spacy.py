@@ -47,7 +47,7 @@ class IOTest(unittest.TestCase):
                 8       [37, 41): 'hazy'
                 9        [42, 45): 'bog'
                 10       [45, 48): '...'
-                dtype: CharSpanType"""
+                dtype: SpanDtype"""
             ),
         )
 
@@ -60,15 +60,15 @@ class IOTest(unittest.TestCase):
             str(df.to_records()),
             textwrap.dedent(
                 """\
-                [(0, 0, [0, 3): 'She', [0, 3): 'She', '-PRON-', 'PRON', 'PRP', 'nsubj', 1, 'Xxx', 'O', '',  True,  True, [0, 35): 'She sold c shills by the Sith Lord.')
-                 (1, 1, [4, 8): 'sold', [4, 8): 'sold', 'sell', 'VERB', 'VBD', 'ROOT', 1, 'xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.')
-                 (2, 2, [9, 10): 'c', [9, 10): 'c', 'c', 'NOUN', 'NN', 'det', 3, 'x', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.')
-                 (3, 3, [11, 17): 'shills', [11, 17): 'shills', 'shill', 'NOUN', 'NNS', 'dobj', 1, 'xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.')
-                 (4, 4, [18, 20): 'by', [18, 20): 'by', 'by', 'ADP', 'IN', 'prep', 3, 'xx', 'O', '',  True,  True, [0, 35): 'She sold c shills by the Sith Lord.')
-                 (5, 5, [21, 24): 'the', [21, 24): 'the', 'the', 'DET', 'DT', 'det', 7, 'xxx', 'O', '',  True,  True, [0, 35): 'She sold c shills by the Sith Lord.')
-                 (6, 6, [25, 29): 'Sith', [25, 29): 'Sith', 'Sith', 'PROPN', 'NNP', 'compound', 7, 'Xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.')
-                 (7, 7, [30, 34): 'Lord', [30, 34): 'Lord', 'Lord', 'PROPN', 'NNP', 'pobj', 4, 'Xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.')
-                 (8, 8, [34, 35): '.', [34, 35): '.', '.', 'PUNCT', '.', 'punct', 1, '.', 'O', '', False, False, [0, 35): 'She sold c shills by the Sith Lord.')]"""
+                [(0, 0, [0, 3): 'She', '-PRON-', 'PRON', 'PRP', 'nsubj', 1, 'Xxx', 'O', '',  True,  True, [0, 35): 'She sold c shills by the Sith Lord.')
+                 (1, 1, [4, 8): 'sold', 'sell', 'VERB', 'VBD', 'ROOT', 1, 'xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.')
+                 (2, 2, [9, 10): 'c', 'c', 'NOUN', 'NN', 'det', 3, 'x', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.')
+                 (3, 3, [11, 17): 'shills', 'shill', 'NOUN', 'NNS', 'dobj', 1, 'xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.')
+                 (4, 4, [18, 20): 'by', 'by', 'ADP', 'IN', 'prep', 3, 'xx', 'O', '',  True,  True, [0, 35): 'She sold c shills by the Sith Lord.')
+                 (5, 5, [21, 24): 'the', 'the', 'DET', 'DT', 'det', 7, 'xxx', 'O', '',  True,  True, [0, 35): 'She sold c shills by the Sith Lord.')
+                 (6, 6, [25, 29): 'Sith', 'Sith', 'PROPN', 'NNP', 'compound', 7, 'Xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.')
+                 (7, 7, [30, 34): 'Lord', 'Lord', 'PROPN', 'NNP', 'pobj', 4, 'Xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.')
+                 (8, 8, [34, 35): '.', '.', 'PUNCT', '.', 'punct', 1, '.', 'O', '', False, False, [0, 35): 'She sold c shills by the Sith Lord.')]"""
             ),
         )
         df2 = make_tokens_and_features(
@@ -81,15 +81,15 @@ class IOTest(unittest.TestCase):
             str(df2.to_records()),
             textwrap.dedent(
                 """\
-                [(0, 0, [0, 3): 'She', [0, 3): 'She', '-PRON-', 'PRON', 'PRP', 'nsubj', 1, 'Xxx', 'O', '',  True,  True, [0, 35): 'She sold c shills by the Sith Lord.', <NA>, 1)
-                 (1, 1, [4, 8): 'sold', [4, 8): 'sold', 'sell', 'VERB', 'VBD', 'ROOT', 1, 'xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.', 0, 2)
-                 (2, 2, [9, 10): 'c', [9, 10): 'c', 'c', 'NOUN', 'NN', 'det', 3, 'x', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.', 1, 3)
-                 (3, 3, [11, 17): 'shills', [11, 17): 'shills', 'shill', 'NOUN', 'NNS', 'dobj', 1, 'xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.', 2, 4)
-                 (4, 4, [18, 20): 'by', [18, 20): 'by', 'by', 'ADP', 'IN', 'prep', 3, 'xx', 'O', '',  True,  True, [0, 35): 'She sold c shills by the Sith Lord.', 3, 5)
-                 (5, 5, [21, 24): 'the', [21, 24): 'the', 'the', 'DET', 'DT', 'det', 7, 'xxx', 'O', '',  True,  True, [0, 35): 'She sold c shills by the Sith Lord.', 4, 6)
-                 (6, 6, [25, 29): 'Sith', [25, 29): 'Sith', 'Sith', 'PROPN', 'NNP', 'compound', 7, 'Xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.', 5, 7)
-                 (7, 7, [30, 34): 'Lord', [30, 34): 'Lord', 'Lord', 'PROPN', 'NNP', 'pobj', 4, 'Xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.', 6, 8)
-                 (8, 8, [34, 35): '.', [34, 35): '.', '.', 'PUNCT', '.', 'punct', 1, '.', 'O', '', False, False, [0, 35): 'She sold c shills by the Sith Lord.', 7, <NA>)]"""
+                [(0, 0, [0, 3): 'She', '-PRON-', 'PRON', 'PRP', 'nsubj', 1, 'Xxx', 'O', '',  True,  True, [0, 35): 'She sold c shills by the Sith Lord.', <NA>, 1)
+                 (1, 1, [4, 8): 'sold', 'sell', 'VERB', 'VBD', 'ROOT', 1, 'xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.', 0, 2)
+                 (2, 2, [9, 10): 'c', 'c', 'NOUN', 'NN', 'det', 3, 'x', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.', 1, 3)
+                 (3, 3, [11, 17): 'shills', 'shill', 'NOUN', 'NNS', 'dobj', 1, 'xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.', 2, 4)
+                 (4, 4, [18, 20): 'by', 'by', 'ADP', 'IN', 'prep', 3, 'xx', 'O', '',  True,  True, [0, 35): 'She sold c shills by the Sith Lord.', 3, 5)
+                 (5, 5, [21, 24): 'the', 'the', 'DET', 'DT', 'det', 7, 'xxx', 'O', '',  True,  True, [0, 35): 'She sold c shills by the Sith Lord.', 4, 6)
+                 (6, 6, [25, 29): 'Sith', 'Sith', 'PROPN', 'NNP', 'compound', 7, 'Xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.', 5, 7)
+                 (7, 7, [30, 34): 'Lord', 'Lord', 'PROPN', 'NNP', 'pobj', 4, 'Xxxx', 'O', '',  True, False, [0, 35): 'She sold c shills by the Sith Lord.', 6, 8)
+                 (8, 8, [34, 35): '.', '.', 'PUNCT', '.', 'punct', 1, '.', 'O', '', False, False, [0, 35): 'She sold c shills by the Sith Lord.', 7, <NA>)]"""
             ),
         )
 

@@ -42,7 +42,7 @@ searching for men to join the Knights of the Round Table. Along the way, he
 recruits Sir Bedevere the Wise, Sir Lancelot the Brave, Sir Galahad the Pure...
 """
 _TOKENS_SERIES = make_tokens(_TEXT, _tokenizer)
-_TOKENS_ARRAY = _TOKENS_SERIES.values  # Type: CharSpanArray
+_TOKENS_ARRAY = _TOKENS_SERIES.values  # Type: SpanArray
 _TOKEN_SPANS_ARRAY = TokenSpanArray.from_char_offsets(_TOKENS_ARRAY)
 _CAPS_WORD = extract_regex_tok(_TOKENS_ARRAY, regex.compile("[A-Z][a-z]*"))
 _CAPS_WORDS = extract_regex_tok(
