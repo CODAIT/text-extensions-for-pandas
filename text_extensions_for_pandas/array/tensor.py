@@ -27,6 +27,8 @@ import numpy as np
 import pandas as pd
 from pandas.compat import set_function_name
 from pandas.core import ops
+from pandas.core.dtypes.generic import ABCSeries
+from pandas.core.indexers import check_array_indexer, validate_indices
 
 
 @pd.api.extensions.register_extension_dtype
@@ -103,7 +105,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     Each tensor must have the same shape.
     """
 
-    def __init__(self, values: Union[np.ndarray, Sequence[np.ndarray]],
+    def __init__(self, values: Union[np.ndarray, Sequence[np.ndarray], Any],
                  make_contiguous: bool = True):
         """
         :param values: A `numpy.ndarray` or sequence of `numpy.ndarray`s of equal shape.
@@ -112,7 +114,13 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         if isinstance(values, np.ndarray):
             self._tensor = values
         elif isinstance(values, Sequence):
-            self._tensor = np.stack(values, axis=0) if len(values) > 0 else np.array([])
+            if len(values) == 0:
+                self._tensor = np.array([])
+            else:
+                self._tensor = np.stack(values, axis=0)
+        elif np.isscalar(values):
+            # `values` is a single element: pd.Series(np.nan, index=[1, 2, 3], dtype=TensorType())
+            self._tensor = np.array([values])
         elif isinstance(values, TensorArray):
             raise TypeError("Use the copy() method to create a copy of a TensorArray")
         else:
@@ -179,16 +187,19 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        values = self._tensor.take(indices, axis=0)
         if allow_fill:
             # From API docs: "[If allow_fill == True, then] negative values in
-            # `indices` indicate missing values. These values are set to
-            # `fill_value`.
-            for i in range(len(indices)):
-                if indices[i] < 0:
-                    # Note that Numpy will broadcast the fill value to the shape
-                    # of each row.
-                    values[i] = fill_value
+            # `indices` indicate missing values and are set to `fill_value`
+            indices = np.asarray(indices, dtype=np.intp)
+            validate_indices(indices, len(self._tensor))
+            if fill_value is None:
+                fill_value = np.nan
+            values = np.full((len(indices),) + self._tensor.shape[1:], fill_value)
+            for i, idx in enumerate(indices):
+                if idx >= 0:
+                    values[i] = self._tensor[idx]
+        else:
+            values = self._tensor.take(indices, axis=0)
         return TensorArray(values)
 
     @property
@@ -212,8 +223,8 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        dtype = pd.api.types.pandas_dtype(dtype)
         if dtype is not None:
+            dtype = pd.api.types.pandas_dtype(dtype)
             if copy:
                 values = np.array(self._tensor, dtype=dtype, copy=True)
             else:
@@ -230,8 +241,16 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         for information about this method.
         """
         dtype = pd.api.types.pandas_dtype(dtype)
+
         if isinstance(dtype, TensorType):
             values = TensorArray(self._tensor.copy() if copy else self._tensor)
+        elif not pd.api.types.is_object_dtype(dtype) and \
+                pd.api.types.is_string_dtype(dtype):
+            values = np.array([str(t) for t in self._tensor])
+            if isinstance(dtype, pd.StringDtype):
+                return dtype.construct_array_type()._from_sequence(values, copy=False)
+            else:
+                return values
         else:
             values = self._tensor.astype(dtype, copy=copy)
         return values
@@ -249,6 +268,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         if isinstance(item, int):
             return self._tensor[item]
         else:
+            item = check_array_indexer(self, item)
             return TensorArray(self._tensor[item])
 
     def __setitem__(self, key: Union[int, np.ndarray], value: Any) -> None:
@@ -256,7 +276,13 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        if isinstance(key, (int, slice)):
+        key = check_array_indexer(self, key)
+        if isinstance(value, ABCSeries) and isinstance(value.dtype, TensorType):
+            value = value.values
+        if value is None or isinstance(value, Sequence) and len(value) == 0:
+            nan_fill = np.full_like(self._tensor[key], np.nan)
+            self._tensor[key] = nan_fill
+        elif isinstance(key, (int, slice, np.ndarray)):
             self._tensor[key] = value
         else:
             raise NotImplementedError(f"__setitem__ with key type '{type(key)}' "

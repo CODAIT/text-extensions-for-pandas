@@ -55,12 +55,28 @@ class TestTensor(unittest.TestCase):
         with self.assertRaises(ValueError):
             TensorArray(x)
 
-        with self.assertRaises(TypeError):
-            TensorArray(2112)
-
         # Copy constructor
         s_copy = s.copy()
         self.assertEqual(len(s), len(s_copy))
+
+    def test_create_from_scalar(self):
+        s = TensorArray(2112)
+        self.assertEqual(len(s), 1)
+        self.assertTupleEqual(s.to_numpy().shape, (1,))
+        self.assertEqual(s[0], 2112)
+
+        s = pd.Series(np.nan, index=[0, 1, 2], dtype=TensorType())
+        self.assertEqual(len(s), 3)
+        self.assertTupleEqual(s.to_numpy().shape, (3,))
+        result = s.isna()
+        self.assertTrue(np.all(result.to_numpy()))
+
+    def test_create_from_scalars(self):
+        x = [1, 2, 3, 4, 5]
+        s = TensorArray(x)
+        self.assertTupleEqual(s.to_numpy().shape, (len(x),))
+        expected = np.array(x)
+        npt.assert_array_equal(s.to_numpy(), expected)
 
     def test_create_series(self):
         x = np.array([[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]] * 100)
@@ -451,11 +467,6 @@ def data(dtype):
 
 
 @pytest.fixture
-def data_for_twos(dtype):
-    return pd.array(np.ones(100), dtype=dtype)
-
-
-@pytest.fixture
 def data_missing(dtype):
     values = np.array([[np.nan], [9]])
     return pd.array(values, dtype=dtype)
@@ -463,19 +474,20 @@ def data_missing(dtype):
 
 @pytest.fixture
 def data_for_sorting(dtype):
-    values = np.array([[3], [1], [2]])
+    values = np.array([[2], [3], [1]])
     return pd.array(values, dtype=dtype)
 
 
 @pytest.fixture
 def data_missing_for_sorting(dtype):
-    values = np.array([[3], [1], [np.nan]])
+    values = np.array([[2], [np.nan], [1]])
     return pd.array(values, dtype=dtype)
 
 
 @pytest.fixture
 def na_cmp():
-    return lambda x, y: np.all(np.isnan(x)) and np.all(np.isnan(y))
+    return lambda x, y: (np.isnan(x) or np.all(np.isnan(x))) and \
+                        (np.isnan(y) or np.all(np.isnan(y)))
 
 
 @pytest.fixture
@@ -485,11 +497,37 @@ def na_value():
 
 @pytest.fixture
 def data_for_grouping(dtype):
-    b = [2]
     a = [1]
+    b = [2]
+    c = [3]
     na = [np.nan]
-    values = np.array([b, b, na, na, a, a, b])
+    values = np.array([b, b, na, na, a, a, b, c])
     return pd.array(values, dtype=dtype)
+
+
+# Can't import due to dependencies, taken from pandas.conftest import all_compare_operators
+@pytest.fixture(params=["__eq__", "__ne__", "__lt__", "__gt__", "__le__", "__ge__"])
+def all_compare_operators(request):
+    return request.param
+
+
+@pytest.fixture(params=["sum"])
+def all_numeric_reductions(request):
+    return request.param
+
+
+@pytest.fixture(params=[None, lambda x: x])
+def sort_by_key(request):
+    return request.param
+
+# import pytest fixtures
+from pandas.tests.extension.conftest import all_data, as_array, as_frame, as_series, \
+    box_in_series, data_repeated, fillna_method, groupby_apply_op, use_numpy
+
+
+def is_pandas_1_0_x():
+    from distutils.version import LooseVersion
+    return LooseVersion(pd.__version__) < LooseVersion("1.1.0")
 
 
 class TestPandasDtype(base.BaseDtypeTests):
@@ -501,56 +539,98 @@ class TestPandasInterface(base.BaseInterfaceTests):
 
 
 class TestPandasConstructors(base.BaseConstructorsTests):
+
+    @pytest.mark.skip("using dtype=object unsupported")
     def test_pandas_array_dtype(self, data):
         # Fails making PandasArray with result = pd.array(data, dtype=np.dtype(object))
         pass
 
-    @pytest.mark.skip("ValueError: Length of passed values is 1, index implies 3.")
     def test_series_constructor_scalar_with_index(self, data, dtype):
-        pass
+        # Must extract a scalar value from data element
+        scalar = data[0][0]
+        result = pd.Series(scalar, index=[1, 2, 3], dtype=dtype)
+        expected = pd.Series([scalar] * 3, index=[1, 2, 3], dtype=dtype)
+        self.assert_series_equal(result, expected)
 
 
 class TestPandasGetitem(base.BaseGetitemTests):
-    @pytest.mark.skip("resolve errors")
-    def test_getitem_boolean_array_mask(self, data):
-        # Need to support __getitem__ with boolean array mask
-        pass
 
-    @pytest.mark.skip("resolve errors")
-    def test_getitem_boolean_na_treated_as_false(self, data):
-        # Need to support __getitem__ with boolean array mask
-        pass
-
-    @pytest.mark.skip("resolve errors")
-    def test_getitem_integer_array(self, data, idx):
-        # Need to support __getitem__ with integer array
-        pass
-
-    @pytest.mark.skip("resolve errors")
-    def test_getitem_integer_with_missing_raises(self, data, idx):
-        # Need to support __getitem__ with arrays
-        pass
-
-    @pytest.mark.skip("resolve errors")
-    def test_take(self, data, na_value, na_cmp):
-        # values[i] = fill_value
-        # ValueError: cannot convert float NaN to integer
-        pass
-
-    @pytest.mark.skip("resolve errors")
-    def test_take_empty(self, data, na_value, na_cmp):
-        # IndexError: cannot do a non-empty take from an empty axes.
-        pass
-
-    @pytest.mark.skip("resolve errors")
     def test_reindex(self, data, na_value):
-        # ValueError: cannot convert float NaN to integer
+        # Must make na_value same shape as data element
+        na_value = np.array([na_value])
+        super().test_reindex(data, na_value)
+
+
+class TestPandasSetitem(base.BaseSetitemTests):
+
+    def test_setitem_sequence_broadcasts(self, data, box_in_series):
+        if box_in_series:
+            pytest.skip("ExtensionBlock fails indexer validation because value to set is an ndarray")
+        super().test_setitem_sequence_broadcasts(data, box_in_series)
+
+    def test_setitem_mask_boolean_array_with_na(self, data, box_in_series):
+        if box_in_series and is_pandas_1_0_x():
+            pytest.skip("Pandas 1.0.5 error: TypeError: len() of unsized object")
+        mask = pd.array(np.zeros(data.shape, dtype="bool"), dtype="boolean")
+        mask[:3] = True
+        mask[3:5] = pd.NA
+
+        if box_in_series:
+            data = pd.Series(data)
+
+        data[mask] = data[0]
+
+        result = data[:3]
+        if box_in_series:
+            # Must unwrap Series
+            result = result.values
+
+        # Must compare all values of result
+        assert np.all(result == data[0])
+
+    def test_setitem_slice(self, data, box_in_series):
+        if box_in_series:
+            pytest.skip("ExtensionBlock fails indexer validation because value to set is an ndarray")
+        super().test_setitem_slice(data, box_in_series)
+
+    @pytest.mark.skip("ExtensionBlock fails indexer validation because value to set is an ndarray")
+    def test_setitem_loc_iloc_slice(self, data):
         pass
 
+    @pytest.mark.parametrize(
+        "idx",
+        [[0, 1, 2], pd.array([0, 1, 2], dtype="Int64"), np.array([0, 1, 2])],
+        ids=["list", "integer-array", "numpy-array"],
+    )
+    def test_setitem_integer_array(self, data, idx, box_in_series):
+        if box_in_series:
+            pytest.skip("ExtensionBlock fails indexer validation because value to set is an ndarray")
+        super().test_setitem_integer_array(data, idx, box_in_series)
 
-@pytest.mark.skip("resolve errors")
-class TestPandasSetitem(base.BaseSetitemTests):
-    pass
+    @pytest.mark.parametrize(
+        "mask",
+        [
+            np.array([True, True, True, False, False]),
+            pd.array([True, True, True, False, False], dtype="boolean"),
+            pd.array([True, True, True, pd.NA, pd.NA], dtype="boolean"),
+        ],
+        ids=["numpy-array", "boolean-array", "boolean-array-na"],
+    )
+    def test_setitem_mask(self, data, mask, box_in_series):
+        if box_in_series and is_pandas_1_0_x():
+            pytest.skip("Pandas 1.0.5 error: TypeError: len() of unsized object")
+        super().test_setitem_mask(data, mask, box_in_series)
+
+    @pytest.mark.parametrize("setter", ["loc", None])
+    def test_setitem_mask_broadcast(self, data, setter):
+        if setter is not None:
+            # Skip setter==loc
+            pytest.skip("ExtensionBlock fails indexer validation because value to set is an ndarray")
+
+        if is_pandas_1_0_x():
+            pytest.skip("Pandas 1.0.5 error: TypeError: len() of unsized object")
+
+        super().test_setitem_mask_broadcast(data, setter)
 
 
 @pytest.mark.skip("resolve errors")
@@ -578,7 +658,6 @@ class TestPandasMethods(base.BaseMethodsTests):
     pass
 
 
-@pytest.mark.skip("resolve errors")
 class TestPandasCasting(base.BaseCastingTests):
     pass
 
