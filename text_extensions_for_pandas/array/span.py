@@ -229,11 +229,11 @@ class SpanDtype(pd.api.extensions.ExtensionDtype):
 
     def __from_arrow__(self, extension_array):
         """
-        Convert the given extension array of type ArrowCharSpanType to a
+        Convert the given extension array of type ArrowSpanType to a
         SpanArray.
         """
-        from text_extensions_for_pandas.array.arrow_conversion import arrow_to_char_span
-        return arrow_to_char_span(extension_array)
+        from text_extensions_for_pandas.array.arrow_conversion import arrow_to_span
+        return arrow_to_span(extension_array)
 
 
 class SpanArray(pd.api.extensions.ExtensionArray):
@@ -829,7 +829,7 @@ class SpanArray(pd.api.extensions.ExtensionArray):
         """
         Conversion of this Array to a pyarrow.ExtensionArray.
         :param type: Optional type passed to arrow for conversion, not used
-        :return: pyarrow.ExtensionArray of type ArrowCharSpanType
+        :return: pyarrow.ExtensionArray of type ArrowSpanType
         """
         from text_extensions_for_pandas.array.arrow_conversion import char_span_to_arrow
         return char_span_to_arrow(self)

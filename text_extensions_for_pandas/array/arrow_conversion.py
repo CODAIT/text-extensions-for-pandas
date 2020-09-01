@@ -27,7 +27,7 @@ import pyarrow as pa
 from text_extensions_for_pandas.array import SpanArray, TensorArray, TokenSpanArray
 
 
-class ArrowCharSpanType(pa.PyExtensionType):
+class ArrowSpanType(pa.PyExtensionType):
     """
     PyArrow extension type definition for conversions to/from Span columns
     """
@@ -59,7 +59,7 @@ class ArrowCharSpanType(pa.PyExtensionType):
     def __reduce__(self):
         index_dtype = self.storage_type[self.BEGINS_NAME].type
         metadata = self.storage_type[self.BEGINS_NAME].metadata
-        return ArrowCharSpanType, (index_dtype, metadata)
+        return ArrowSpanType, (index_dtype, metadata)
 
 
 class ArrowTokenSpanType(pa.PyExtensionType):
@@ -67,7 +67,7 @@ class ArrowTokenSpanType(pa.PyExtensionType):
     PyArrow extension type definition for conversions to/from TokenSpan columns
     """
 
-    TARGET_TEXT_KEY = ArrowCharSpanType.TARGET_TEXT_KEY
+    TARGET_TEXT_KEY = ArrowSpanType.TARGET_TEXT_KEY
     BEGINS_NAME = "token_begins"
     ENDS_NAME = "token_ends"
 
@@ -93,16 +93,16 @@ class ArrowTokenSpanType(pa.PyExtensionType):
         # Span arrays fit into single fields
         if num_char_span_splits == 0:
             char_span_fields = [
-                pa.field(ArrowCharSpanType.BEGINS_NAME, index_dtype),
-                pa.field(ArrowCharSpanType.ENDS_NAME, index_dtype)
+                pa.field(ArrowSpanType.BEGINS_NAME, index_dtype),
+                pa.field(ArrowSpanType.ENDS_NAME, index_dtype)
             ]
         # Store splits of Span as multiple fields
         else:
             char_span_fields = []
             for i in range(num_char_span_splits):
                 n = "_{}".format(i)
-                begin_field = pa.field(ArrowCharSpanType.BEGINS_NAME + n, index_dtype)
-                end_field = pa.field(ArrowCharSpanType.ENDS_NAME + n, index_dtype)
+                begin_field = pa.field(ArrowSpanType.BEGINS_NAME + n, index_dtype)
+                end_field = pa.field(ArrowSpanType.ENDS_NAME + n, index_dtype)
                 char_span_fields.extend([begin_field, end_field])
 
         fields = token_span_fields + char_span_fields
@@ -120,7 +120,7 @@ class ArrowTokenSpanType(pa.PyExtensionType):
 def char_span_to_arrow(char_span: SpanArray) -> pa.ExtensionArray:
     """
     Convert a SpanArray to a pyarrow.ExtensionArray with a type
-    of ArrowCharSpanType and struct as the storage type. The resulting
+    of ArrowSpanType and struct as the storage type. The resulting
     extension array can be serialized and transferred with standard
     Arrow protocols.
 
@@ -131,7 +131,7 @@ def char_span_to_arrow(char_span: SpanArray) -> pa.ExtensionArray:
     begins_array = pa.array(char_span.begin)
     ends_array = pa.array(char_span.end)
 
-    typ = ArrowCharSpanType(begins_array.type, char_span.target_text)
+    typ = ArrowSpanType(begins_array.type, char_span.target_text)
     fields = list(typ.storage_type)
 
     storage = pa.StructArray.from_arrays([begins_array, ends_array], fields=fields)
@@ -139,12 +139,12 @@ def char_span_to_arrow(char_span: SpanArray) -> pa.ExtensionArray:
     return pa.ExtensionArray.from_storage(typ, storage)
 
 
-def arrow_to_char_span(extension_array: pa.ExtensionArray) -> SpanArray:
+def arrow_to_span(extension_array: pa.ExtensionArray) -> SpanArray:
     """
-    Convert a pyarrow.ExtensionArray with type ArrowCharSpanType to
+    Convert a pyarrow.ExtensionArray with type ArrowSpanType to
     a SpanArray.
 
-    :param extension_array: pyarrow.ExtensionArray with type ArrowCharSpanType
+    :param extension_array: pyarrow.ExtensionArray with type ArrowSpanType
     :return: SpanArray
     """
     if isinstance(extension_array, pa.ChunkedArray):
@@ -155,14 +155,14 @@ def arrow_to_char_span(extension_array: pa.ExtensionArray) -> SpanArray:
     assert pa.types.is_struct(extension_array.storage.type)
 
     # Get target text from the begins field metadata and decode string
-    metadata = extension_array.storage.type[ArrowCharSpanType.BEGINS_NAME].metadata
-    target_text = metadata[ArrowCharSpanType.TARGET_TEXT_KEY]
+    metadata = extension_array.storage.type[ArrowSpanType.BEGINS_NAME].metadata
+    target_text = metadata[ArrowSpanType.TARGET_TEXT_KEY]
     if isinstance(target_text, bytes):
         target_text = target_text.decode()
 
     # Get the begins/ends pyarrow arrays
-    begins_array = extension_array.storage.field(ArrowCharSpanType.BEGINS_NAME)
-    ends_array = extension_array.storage.field(ArrowCharSpanType.ENDS_NAME)
+    begins_array = extension_array.storage.field(ArrowSpanType.BEGINS_NAME)
+    ends_array = extension_array.storage.field(ArrowSpanType.ENDS_NAME)
 
     # Zero-copy convert arrays to numpy
     begins = begins_array.to_numpy()
@@ -261,7 +261,7 @@ def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
 
     # Get target text from the begins field metadata and decode string
     metadata = extension_array.storage.type[ArrowTokenSpanType.BEGINS_NAME].metadata
-    target_text = metadata[ArrowCharSpanType.TARGET_TEXT_KEY]
+    target_text = metadata[ArrowSpanType.TARGET_TEXT_KEY]
     if isinstance(target_text, bytes):
         target_text = target_text.decode()
 
@@ -276,14 +276,14 @@ def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
         char_ends_splits = []
         for i in range(num_char_span_splits):
             char_begins_splits.append(
-                extension_array.storage.field(ArrowCharSpanType.BEGINS_NAME + "_{}".format(i)))
+                extension_array.storage.field(ArrowSpanType.BEGINS_NAME + "_{}".format(i)))
             char_ends_splits.append(
-                extension_array.storage.field(ArrowCharSpanType.ENDS_NAME + "_{}".format(i)))
+                extension_array.storage.field(ArrowSpanType.ENDS_NAME + "_{}".format(i)))
         char_begins_array = pa.concat_arrays(char_begins_splits)
         char_ends_array = pa.concat_arrays(char_ends_splits)
     else:
-        char_begins_array = extension_array.storage.field(ArrowCharSpanType.BEGINS_NAME)
-        char_ends_array = extension_array.storage.field(ArrowCharSpanType.ENDS_NAME)
+        char_begins_array = extension_array.storage.field(ArrowSpanType.BEGINS_NAME)
+        char_ends_array = extension_array.storage.field(ArrowSpanType.ENDS_NAME)
 
     # Remove any trailing padding
     if char_begins_array.null_count > 0:

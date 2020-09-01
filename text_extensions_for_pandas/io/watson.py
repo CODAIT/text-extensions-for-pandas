@@ -74,7 +74,7 @@ _semantic_roles_schema = [
 ]
 
 _syntax_schema = [
-    ("span", "ArrowCharSpanType"),
+    ("span", "ArrowSpanType"),
     ("part_of_speech", "string"),
     ("lemma", "string"),
     ("sentence", " ArrowTokenSpanType"),
