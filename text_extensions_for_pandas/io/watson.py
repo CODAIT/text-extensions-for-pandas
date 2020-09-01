@@ -31,7 +31,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 
-from text_extensions_for_pandas.array import CharSpanArray, TokenSpanArray
+from text_extensions_for_pandas.array import SpanArray, TokenSpanArray
 from text_extensions_for_pandas.io import watson_util
 from text_extensions_for_pandas.spanner import contain_join
 
@@ -74,8 +74,7 @@ _semantic_roles_schema = [
 ]
 
 _syntax_schema = [
-    ("char_span", "ArrowCharSpanType"),
-    ("token_span", "ArrowTokenSpanType"),
+    ("span", "ArrowSpanType"),
     ("part_of_speech", "string"),
     ("lemma", "string"),
     ("sentence", " ArrowTokenSpanType"),
@@ -109,15 +108,13 @@ def _make_syntax_dataframes(syntax_response, original_text):
         location_col, location_name = watson_util.find_column(token_table, "location")
         text_col, text_name = watson_util.find_column(token_table, "text")
         char_span = watson_util.make_char_span(location_col, text_col, original_text)
-        token_span = TokenSpanArray.from_char_offsets(char_span)
 
         # Drop location, text columns that is duplicated in char_span
         token_table = token_table.drop([location_name, text_name])
 
         # Add the span columns to the DataFrames
         token_df = token_table.to_pandas()
-        token_df['char_span'] = char_span
-        token_df['token_span'] = token_span
+        token_df['span'] = char_span
     else:
         char_span = None
         token_df = pd.DataFrame()
@@ -130,7 +127,7 @@ def _make_syntax_dataframes(syntax_response, original_text):
             text_col, _ = watson_util.find_column(sentence_table, "text")
             sentence_char_span = watson_util.make_char_span(location_col, text_col, original_text)
             sentence_span = TokenSpanArray.align_to_tokens(char_span, sentence_char_span)
-            sentence_df['char_span'] = sentence_char_span
+            sentence_df['span'] = sentence_char_span
             sentence_df['sentence_span'] = sentence_span
     else:
         sentence_df = pd.DataFrame()
@@ -143,9 +140,9 @@ def _merge_syntax_dataframes(token_df, sentence_series):
     df = token_df.merge(
         contain_join(
             sentence_series,
-            token_df['token_span'],
+            token_df['span'],
             first_name="sentence",
-            second_name="token_span",
+            second_name="span",
         ), how="outer"
     )
 
@@ -372,9 +369,9 @@ def watson_nlu_parse_response(response: Dict[str, Any],
     >>> dfs.keys()
     dict_keys(['syntax', 'entities', 'keywords', 'relations', 'semantic_roles'])
     >>> dfs["syntax"].head()
-               char_span         token_span part_of_speech   lemma  \
-    0    [0, 5): 'Monty'    [0, 5): 'Monty'          PROPN    None
-    1  [6, 12): 'Python'  [6, 12): 'Python'          PROPN  python
+       span part_of_speech      lemma  \
+    0  [0, 5): 'Monty'          PROPN    None
+    1  [6, 12): 'Python'        PROPN  python
 
                                                 sentence
     0  [0, 273): 'Monty Python and the Holy Grail is ...
@@ -402,10 +399,10 @@ def watson_nlu_parse_response(response: Dict[str, Any],
         syntax_df = pd.concat([token_df, sentence_df], axis=1)
     dfs["syntax"] = watson_util.apply_schema(syntax_df, _syntax_schema, apply_standard_schema)
 
-    if original_text is None and "char_span" in dfs["syntax"].columns:
-        char_span = dfs["syntax"]["char_span"]
-        if isinstance(char_span, CharSpanArray):
-            original_text = dfs["syntax"]["char_span"].target_text
+    if original_text is None and "span" in dfs["syntax"].columns:
+        char_span = dfs["syntax"]["span"]
+        if isinstance(char_span, SpanArray):
+            original_text = dfs["syntax"]["span"].target_text
         else:
             warnings.warn("Did not receive and could not build original text")
 
@@ -436,7 +433,7 @@ def watson_nlu_parse_response(response: Dict[str, Any],
     return dfs
 
 
-def make_span_from_entities(char_span: CharSpanArray,
+def make_span_from_entities(char_span: SpanArray,
                             entities_frame: pd.DataFrame,
                             entity_col: str = "text") -> TokenSpanArray:
     """

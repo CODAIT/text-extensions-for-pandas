@@ -23,7 +23,7 @@ import pandas as pd
 from typing import *
 
 from text_extensions_for_pandas.array import (
-    CharSpanArray,
+    SpanArray,
     TokenSpanArray,
     TensorArray,
 )
@@ -44,8 +44,7 @@ def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
 
     :returns: A `pd.DataFrame` with the following columns:
      * "id": unique integer ID for each token
-     * "char_span": span of the token with character offsets
-     * "token_span": span of the token with token offsets
+     * "span": span of the token (with offsets measured in characters)
      * "input_id": integer ID suitable for input to a BERT embedding model
      * "token_type_id": list of token type ids to be fed to a model
      * "attention_mask": list of indices specifying which tokens should be
@@ -87,18 +86,12 @@ def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
     ends = offset_df["end"].fillna(method="ffill").astype("int32")
     begins = offset_df["begin"].mask(special_tokens_mask, other=ends).astype("int32")
 
-    # Create char and token span arrays
-    char_spans = CharSpanArray(target_text, begins, ends)
-    token_spans = TokenSpanArray(
-        char_spans, np.arange(len(char_spans)), np.arange(1, len(char_spans) + 1)
-    )
+    spans = SpanArray(target_text, begins, ends)
 
     token_features = pd.DataFrame(
         {
             "token_id": special_tokens_mask.index,
-            # Use values instead of series because different indexes
-            "char_span": pd.Series(char_spans).values,
-            "token_span": pd.Series(token_spans).values,
+            "span": spans,
             "input_id": tokenized_result["input_ids"],
             "token_type_id": tokenized_result["token_type_ids"],
             "attention_mask": tokenized_result["attention_mask"],
@@ -159,10 +152,10 @@ def conll_to_bert(df: pd.DataFrame, tokenizer: Any, bert: Any,
      and token class labels.
     """
     spans_df = conll.iob_to_spans(df)
-    bert_toks_df = make_bert_tokens(df["char_span"].values[0].target_text,
+    bert_toks_df = make_bert_tokens(df["span"].values[0].target_text,
                                     tokenizer)
-    bert_token_spans = TokenSpanArray.align_to_tokens(bert_toks_df["char_span"],
-                                                         spans_df["token_span"])
+    bert_token_spans = TokenSpanArray.align_to_tokens(bert_toks_df["span"],
+                                                      spans_df["span"])
     bert_toks_df[["ent_iob", "ent_type"]] = conll.spans_to_iob(bert_token_spans,
                                                                spans_df["ent_type"])
     bert_toks_df = conll.add_token_classes(bert_toks_df, token_class_dtype)
@@ -178,7 +171,7 @@ def align_bert_tokens_to_corpus_tokens(
     with the corpus's original tokenization.
 
     :param spans_df: DataFrame of extracted entities. Must contain two
-     columns: "token_span" and "ent_type". Other columns ignored.
+     columns: "span" and "ent_type". Other columns ignored.
     :param corpus_toks_df: DataFrame of the corpus's original tokenization,
      one row per token.
      Must contain a column "char_span" with character-based spans of
@@ -192,23 +185,23 @@ def align_bert_tokens_to_corpus_tokens(
         return spans_df.copy()
     overlaps_df = (
         spanner
-            .overlap_join(spans_df["token_span"], corpus_toks_df["char_span"],
-                          "token_span", "corpus_token")
+            .overlap_join(spans_df["span"], corpus_toks_df["span"],
+                          "span", "corpus_token")
             .merge(spans_df)
     )
     agg_df = (
         overlaps_df
-            .groupby("token_span")
+            .groupby("span")
             .aggregate({"corpus_token": "sum", "ent_type": "first"})
             .reset_index()
     )
     cons_df = (
         spanner.consolidate(agg_df, "corpus_token")
         [["corpus_token", "ent_type"]]
-            .rename(columns={"corpus_token": "token_span"})
+            .rename(columns={"corpus_token": "span"})
     )
-    cons_df["token_span"] = TokenSpanArray.align_to_tokens(
-        corpus_toks_df["char_span"], cons_df["token_span"])
+    cons_df["span"] = TokenSpanArray.align_to_tokens(
+        corpus_toks_df["span"], cons_df["span"])
     return cons_df
 
 

@@ -26,7 +26,7 @@ class ProjectTest(TestBase):
         test_text = "If Barbie is so popular, why do you have to buy Barbie's friends?"
         df = make_tokens_and_features(test_text, _SPACY_LANGUAGE_MODEL)
         self.assertIn("lemma", df.columns)
-        norm = lemmatize(df["token_span"], df)
+        norm = lemmatize(df["span"], df)
         expected = ['if', 'Barbie', 'be', 'so', 'popular', ',', 'why', 'do', '-PRON-', 'have',
                     'to', 'buy', 'Barbie', "'s", 'friend', '?']
         self.assertListEqual(norm, expected)

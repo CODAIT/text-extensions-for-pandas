@@ -31,26 +31,26 @@ from pandas.api.types import is_bool_dtype
 from memoized_property import memoized_property
 
 # Internal imports
-from text_extensions_for_pandas.array.char_span import (
-    CharSpan,
-    CharSpanArray,
-    CharSpanType,
+from text_extensions_for_pandas.array.span import (
+    Span,
+    SpanArray,
+    SpanDtype,
 )
 
 
-class TokenSpan(CharSpan):
+class TokenSpan(Span):
     """
     Python object representation of a single span with token offsets; that
     is, a single row of a `TokenSpanArray`.
 
-    This class is also a subclass of `CharSpan` and can return character-level
+    This class is also a subclass of `Span` and can return character-level
     information.
 
     An offset of `TokenSpan.NULL_OFFSET_VALUE` (currently -1) indicates
     "not a span" in the sense that NaN is "not a number".
     """
 
-    def __init__(self, tokens: CharSpanArray, begin_token: int, end_token: int):
+    def __init__(self, tokens: SpanArray, begin_token: int, end_token: int):
         """
         :param tokens: Tokenization information about the document, including
         the target text.
@@ -86,7 +86,7 @@ class TokenSpan(CharSpan):
                     TokenSpan.NULL_OFFSET_VALUE,
                     TokenSpan.NULL_OFFSET_VALUE,
                 )
-            begin_char_off = end_char_off = CharSpan.NULL_OFFSET_VALUE
+            begin_char_off = end_char_off = Span.NULL_OFFSET_VALUE
         else:
             begin_char_off = tokens.begin[begin_token]
             end_char_off = (
@@ -133,11 +133,11 @@ class TokenSpan(CharSpan):
                 and self.end_token == other.end_token)
         else:
             # Different tokens, or no tokens, or not a span ==> Fall back on superclass
-            return CharSpan.__eq__(self, other)
+            return Span.__eq__(self, other)
 
     def __hash__(self):
         # Use superclass hash function so that hash and __eq__ are consistent
-        return CharSpan.__hash__(self)
+        return Span.__hash__(self)
 
     def __lt__(self, other):
         """
@@ -147,7 +147,7 @@ class TokenSpan(CharSpan):
             # Use token offsets when available
             return self.end_token <= other.begin_token
         else:
-            return CharSpan.__lt__(self, other)
+            return Span.__lt__(self, other)
 
     @property
     def tokens(self):
@@ -163,7 +163,7 @@ class TokenSpan(CharSpan):
 
 
 @pd.api.extensions.register_extension_dtype
-class TokenSpanType(CharSpanType):
+class TokenSpanDtype(SpanDtype):
     """
     Pandas datatype for a span that represents a range of tokens within a
     target string.
@@ -177,7 +177,7 @@ class TokenSpanType(CharSpanType):
     @property
     def name(self) -> str:
         """:return: A string representation of the dtype."""
-        return "TokenSpanType"
+        return "TokenSpanDtype"
 
     @classmethod
     def construct_array_type(cls):
@@ -196,20 +196,22 @@ class TokenSpanType(CharSpanType):
         return arrow_to_token_span(extension_array)
 
 
-class TokenSpanArray(CharSpanArray):
+class TokenSpanArray(SpanArray):
     """
     A Pandas `ExtensionArray` that represents a column of token-based spans
     over a single target text.
 
-    Spans are represented as `[begin_token, end_token)` intervals, where
-    `begin_token` and `end_token` are token offsets into the target text.
+    Spans are represented internaly as `[begin_token, end_token)` intervals, where
+    the properties `begin_token` and `end_token` are *token* offsets into the target
+    text. As with the parent class `SpanArray`, the properties `begin` and `end`
+    of a `TokenSpanArray` return *character* offsets.
 
     Null values are encoded with begin and end offsets of
     `TokenSpan.NULL_OFFSET_VALUE`.
 
     Fields:
     * `self._tokens`: Reference to the target string's tokens as a
-        `CharSpanArray`. For now, references to different `CharSpanArray`
+        `SpanArray`. For now, references to different `SpanArray`
         objects are treated as different even if the arrays have the same
         contents.
     * `self._begin_tokens`: Numpy array of integer offsets in tokens. An offset
@@ -218,7 +220,7 @@ class TokenSpanArray(CharSpanArray):
     """
 
     @staticmethod
-    def from_char_offsets(tokens: CharSpanArray) -> "TokenSpanArray":
+    def from_char_offsets(tokens: SpanArray) -> "TokenSpanArray":
         """
         Convenience factory method for wrapping the character-level spans of a
         series of tokens into single-token token-based spans.
@@ -233,7 +235,7 @@ class TokenSpanArray(CharSpanArray):
 
     def __init__(
         self,
-        tokens: CharSpanArray,
+        tokens: SpanArray,
         begin_tokens: Union[pd.Series, np.ndarray, Sequence[int]] = None,
         end_tokens: Union[pd.Series, np.ndarray, Sequence[int]] = None,
     ):
@@ -244,8 +246,8 @@ class TokenSpanArray(CharSpanArray):
         :param begin_tokens: Array of begin offsets measured in tokens
         :param end_tokens: Array of end offsets measured in tokens
         """
-        if not isinstance(tokens, CharSpanArray):
-            raise TypeError(f"Expected CharSpanArray as tokens but got {type(tokens)}")
+        if not isinstance(tokens, SpanArray):
+            raise TypeError(f"Expected SpanArray as tokens but got {type(tokens)}")
         if not isinstance(begin_tokens, (pd.Series, np.ndarray, list)):
             raise TypeError(f"begin_tokens is of unsupported type {type(begin_tokens)}. "
                             f"Supported types are Series, ndarray and List[int].")
@@ -260,19 +262,18 @@ class TokenSpanArray(CharSpanArray):
             np.array(end_tokens) if not isinstance(end_tokens, np.ndarray)
             else end_tokens
         )
-        self._tokens = tokens  # Type: CharSpanArray
+        self._tokens = tokens  # Type: SpanArray
         self._begin_tokens = begin_tokens  # Type: np.ndarray
         self._end_tokens = end_tokens  # Type: np.ndarray
 
         self._shared_init()
-
 
     ##########################################
     # Overrides of superclass methods go here.
 
     @property
     def dtype(self) -> pd.api.extensions.ExtensionDtype:
-        return TokenSpanType()
+        return TokenSpanDtype()
 
     def astype(self, dtype, copy=True):
         """
@@ -281,7 +282,7 @@ class TokenSpanArray(CharSpanArray):
         """
         dtype = pd.api.types.pandas_dtype(dtype)
 
-        if isinstance(dtype, TokenSpanType):
+        if isinstance(dtype, SpanDtype):
             data = self.copy() if copy else self
         elif isinstance(dtype, pd.StringDtype):
             return dtype.construct_array_type()._from_sequence(self, copy=False)
@@ -325,7 +326,7 @@ class TokenSpanArray(CharSpanArray):
         for information about this method.
         """
         key = check_array_indexer(self, key)
-        if isinstance(value, ABCSeries) and isinstance(value.dtype, CharSpanType):
+        if isinstance(value, ABCSeries) and isinstance(value.dtype, SpanDtype):
             value = value.values
 
         """expected_key_types = (int, np.ndarray, list, slice)
@@ -342,7 +343,7 @@ class TokenSpanArray(CharSpanArray):
         elif isinstance(value, TokenSpan) or \
                 ((isinstance(key, slice) or
                   (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype))) and
-                 isinstance(value, CharSpanArray)):
+                 isinstance(value, SpanArray)):
             self._begin_tokens[key] = value.begin_token
             self._end_tokens[key] = value.end_token
         elif isinstance(key, np.ndarray) and len(value) > 0 and len(value) == len(key) and \
@@ -388,13 +389,13 @@ class TokenSpanArray(CharSpanArray):
             )
         else:
             # Different tokens, no tokens, unexpected type ==> fall back on superclass
-            return CharSpanArray.__eq__(self, other)
+            return SpanArray.__eq__(self, other)
 
     def __hash__(self):
         if self._hash is None:
             # Use superclass hash function so that hash() and == are consistent
             # across type.
-            self._hash = CharSpanArray.__hash__(self)
+            self._hash = SpanArray.__hash__(self)
         return self._hash
 
     @classmethod
@@ -438,7 +439,7 @@ class TokenSpanArray(CharSpanArray):
         for information about this method.
         """
         tokens = None
-        if isinstance(scalars, CharSpan):
+        if isinstance(scalars, Span):
             scalars = [scalars]
         if isinstance(scalars, TokenSpanArray):
             tokens = scalars.tokens
@@ -537,7 +538,7 @@ class TokenSpanArray(CharSpanArray):
         if isinstance(other, (TokenSpanArray, TokenSpan)):
             # Use token offsets when available.
             return self.end_token <= other.begin_token
-        elif isinstance(other, (CharSpanArray, CharSpan)):
+        elif isinstance(other, (SpanArray, Span)):
             return self.end <= other.begin
         else:
             raise ValueError(
@@ -610,14 +611,14 @@ class TokenSpanArray(CharSpanArray):
         tokenization, producing a `TokenSpanArray` of token-based spans.
 
         :param tokens: The tokens to align to, as any type that
-         `CharSpanArray.make_array()` accepts.
+         `SpanArray.make_array()` accepts.
         :param spans: The spans to align.
         :return: An array of `TokenSpan`s aligned to the tokens of `tokens`.
          Raises `ValueError` if any of the spans in `spans` doesn't start and
          end on a token boundary.
         """
-        tokens = CharSpanArray.make_array(tokens)
-        spans = CharSpanArray.make_array(spans)
+        tokens = SpanArray.make_array(tokens)
+        spans = SpanArray.make_array(spans)
 
         # Create and join temporary dataframes
         tokens_df = pd.DataFrame({
@@ -671,7 +672,7 @@ class TokenSpanArray(CharSpanArray):
                               begins_and_ends["token_index_end"] + 1)
 
     @property
-    def tokens(self) -> CharSpanArray:
+    def tokens(self) -> SpanArray:
         return self._tokens
 
     @property

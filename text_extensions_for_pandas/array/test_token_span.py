@@ -17,12 +17,13 @@ import pandas as pd
 import os
 import tempfile
 import unittest
-
-from pandas.tests.extension import base
+# noinspection PyPackageRequirements
 import pytest
 
-from text_extensions_for_pandas.array.test_char_span import ArrayTestBase
+from pandas.tests.extension import base
 
+from text_extensions_for_pandas.array.test_span import ArrayTestBase
+from text_extensions_for_pandas.array.span import *
 from text_extensions_for_pandas.array.token_span import *
 
 
@@ -53,7 +54,7 @@ class TokenSpanTest(ArrayTestBase):
         s1 = TokenSpan(toks, 0, 2)
         self.assertEqual(repr(s1), "[0, 7): 'This is'")
 
-        toks2 = CharSpanArray(
+        toks2 = SpanArray(
             "This is a really really really really really really really really "
             "really long string.",
             np.array([0, 5, 8, 10, 17, 24, 31, 38, 45, 52, 59, 66, 73, 78, 84]),
@@ -95,8 +96,8 @@ class TokenSpanTest(ArrayTestBase):
         s2 = TokenSpan(toks, 0, 2)
         s3 = TokenSpan(toks, 0, 3)
         s4 = TokenSpan(other_toks, 0, 2)
-        s5 = CharSpan(toks.target_text, s4.begin, s4.end)
-        s6 = CharSpan(toks.target_text, s4.begin, s4.end + 1)
+        s5 = Span(toks.target_text, s4.begin, s4.end)
+        s6 = Span(toks.target_text, s4.begin, s4.end + 1)
 
         self.assertEqual(s1, s2)
         self.assertNotEqual(s1, s3)
@@ -120,8 +121,8 @@ class TokenSpanTest(ArrayTestBase):
         s1 = TokenSpan(toks, 0, 3)
         s2 = TokenSpan(toks, 2, 3)
         s3 = TokenSpan(toks, 3, 4)
-        char_s1 = CharSpan(s1.target_text, s1.begin, s1.end)
-        char_s2 = CharSpan(s2.target_text, s2.begin, s2.end)
+        char_s1 = Span(s1.target_text, s1.begin, s1.end)
+        char_s2 = Span(s2.target_text, s2.begin, s2.end)
 
         self.assertEqual(s1 + s2, s1)
         self.assertEqual(char_s1 + s2, char_s1)
@@ -161,7 +162,7 @@ class TokenSpanArrayTest(ArrayTestBase):
 
     def test_dtype(self):
         arr = self._make_spans()
-        self.assertTrue(isinstance(arr.dtype, TokenSpanType))
+        self.assertTrue(isinstance(arr.dtype, TokenSpanDtype))
 
     def test_len(self):
         self.assertEqual(len(self._make_spans()), 7)
@@ -196,7 +197,7 @@ class TokenSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(arr == arr, [True] * 7)
         self._assertArrayEquals(arr == arr2, [True] * 7)
         self._assertArrayEquals(arr[0:3] == arr[3:6], [False, False, False])
-        arr3 = CharSpanArray(arr.target_text, arr.begin, arr.end)
+        arr3 = SpanArray(arr.target_text, arr.begin, arr.end)
         self._assertArrayEquals(arr == arr3, [True] * 7)
         self._assertArrayEquals(arr3 == arr, [True] * 7)
 
@@ -275,11 +276,11 @@ class TokenSpanArrayTest(ArrayTestBase):
         s3 = TokenSpan(toks, 3, 4)
         s4 = TokenSpan(toks, 2, 4)
         s5 = TokenSpan(toks, 0, 3)
-        char_s1 = CharSpan(s1.target_text, s1.begin, s1.end)
-        char_s2 = CharSpan(s2.target_text, s2.begin, s2.end)
-        char_s3 = CharSpan(s3.target_text, s3.begin, s3.end)
-        char_s4 = CharSpan(s4.target_text, s4.begin, s4.end)
-        char_s5 = CharSpan(s5.target_text, s5.begin, s5.end)
+        char_s1 = Span(s1.target_text, s1.begin, s1.end)
+        char_s2 = Span(s2.target_text, s2.begin, s2.end)
+        char_s3 = Span(s3.target_text, s3.begin, s3.end)
+        char_s4 = Span(s4.target_text, s4.begin, s4.end)
+        char_s5 = Span(s5.target_text, s5.begin, s5.end)
 
         # TokenSpanArray + TokenSpanArray
         self._assertArrayEquals(
@@ -287,17 +288,17 @@ class TokenSpanArrayTest(ArrayTestBase):
             + TokenSpanArray._from_sequence([s2, s3, s3]),
             TokenSpanArray._from_sequence([s1, s4, s3]),
         )
-        # CharSpanArray + TokenSpanArray
+        # SpanArray + TokenSpanArray
         self._assertArrayEquals(
-            CharSpanArray._from_sequence([char_s1, char_s2, char_s3])
+            SpanArray._from_sequence([char_s1, char_s2, char_s3])
             + TokenSpanArray._from_sequence([s2, s3, s3]),
-            CharSpanArray._from_sequence([char_s1, char_s4, char_s3]),
+            SpanArray._from_sequence([char_s1, char_s4, char_s3]),
         )
-        # TokenSpanArray + CharSpanArray
+        # TokenSpanArray + SpanArray
         self._assertArrayEquals(
             TokenSpanArray._from_sequence([s1, s2, s3])
-            + CharSpanArray._from_sequence([char_s2, char_s3, char_s3]),
-            CharSpanArray._from_sequence([char_s1, char_s4, char_s3]),
+            + SpanArray._from_sequence([char_s2, char_s3, char_s3]),
+            SpanArray._from_sequence([char_s1, char_s4, char_s3]),
         )
         # TokenSpanArray + TokenSpan
         self._assertArrayEquals(
@@ -309,15 +310,15 @@ class TokenSpanArrayTest(ArrayTestBase):
             s2 + TokenSpanArray._from_sequence([s1, s2, s3]),
             TokenSpanArray._from_sequence([s5, s2, s4]),
         )
-        # TokenSpanArray + CharSpan
+        # TokenSpanArray + Span
         self._assertArrayEquals(
             TokenSpanArray._from_sequence([s1, s2, s3]) + char_s2,
-            CharSpanArray._from_sequence([char_s5, char_s2, char_s4]),
+            SpanArray._from_sequence([char_s5, char_s2, char_s4]),
         )
-        # CharSpan + CharSpanArray
+        # Span + SpanArray
         self._assertArrayEquals(
-            char_s2 + CharSpanArray._from_sequence([char_s1, char_s2, char_s3]),
-            CharSpanArray._from_sequence([char_s5, char_s2, char_s4]),
+            char_s2 + SpanArray._from_sequence([char_s1, char_s2, char_s3]),
+            SpanArray._from_sequence([char_s5, char_s2, char_s4]),
         )
 
     def test_reduce(self):
@@ -397,7 +398,7 @@ class TokenSpanArrayIOTests(ArrayTestBase):
         df4 = pd.DataFrame({"ts4": ts4})
         self.do_roundtrip(df4)
 
-        # With a CharSpan column, TokenSpan padded to same length
+        # With a Span column, TokenSpan padded to same length
         df5 = pd.DataFrame({"cs": toks})
         df5 = pd.concat([df3, df5], axis=1)
         self.do_roundtrip(df5)
@@ -409,7 +410,7 @@ class TokenSpanArrayIOTests(ArrayTestBase):
 
 @pytest.fixture
 def dtype():
-    return TokenSpanType()
+    return TokenSpanDtype()
 
 
 def _gen_spans():
@@ -421,8 +422,8 @@ def _gen_spans():
         text += f" {s}"
         begins.append(ends[i - 1] + 1)
         ends.append(begins[i] + len(s))
-    char_spans = [CharSpan(text, b, e) for b, e in zip(begins, ends)]
-    char_span_arr = pd.array(char_spans, dtype=CharSpanType())
+    char_spans = [Span(text, b, e) for b, e in zip(begins, ends)]
+    char_span_arr = pd.array(char_spans, dtype=SpanDtype())
     return (TokenSpan(char_span_arr, i, i + 1) for i in range(len(char_spans)))
 
 
@@ -522,7 +523,7 @@ class TestPandasConstructors(base.BaseConstructorsTests):
 
     def test_construct_empty_dataframe(self, dtype):
         try:
-            with pytest.raises(TypeError, match="Expected CharSpanArray as tokens"):
+            with pytest.raises(TypeError, match="Expected SpanArray as tokens"):
                 super().test_construct_empty_dataframe(dtype)
         except AttributeError:
             # Test added in Pandas 1.1.0, ignore for earlier versions
@@ -572,7 +573,7 @@ class TestPandasReshaping(base.BaseReshapingTests):
     def test_unstack(self, data, index, obj):
         pass
 
-    @pytest.mark.skip(reason="ValueError: CharSpans must all be over the same target text")
+    @pytest.mark.skip(reason="ValueError: Spans must all be over the same target text")
     def test_concat_with_reindex(self, data):
         pass
 
@@ -602,12 +603,12 @@ class TestPandasMethods(base.BaseMethodsTests):
         pass
 
     def test_searchsorted(self, data_for_sorting, as_series):
-        # TODO fails for series with TypeError: 'CharSpan' object is not iterable
+        # TODO fails for series with TypeError: 'Span' object is not iterable
         if as_series is True:
             pytest.skip("errors with Series")
         super().test_searchsorted(data_for_sorting, as_series)
 
-    @pytest.mark.skip("AttributeError: 'CharSpanArray' object has no attribute 'value_counts'")
+    @pytest.mark.skip("AttributeError: 'SpanArray' object has no attribute 'value_counts'")
     def test_value_counts_with_normalize(self, data):
         pass
 
@@ -622,14 +623,14 @@ class TestPandasMethods(base.BaseMethodsTests):
             pytest.skip("TypeError: equals() not defined for arguments of type <class 'NoneType'>")
 
     def test_factorize_empty(self, data):
-        with pytest.raises(TypeError, match="Expected CharSpanArray"):
+        with pytest.raises(TypeError, match="Expected SpanArray"):
             super().test_factorize_empty(data)
 
     @pytest.mark.parametrize("repeats", [0, 1, 2, [1, 2, 3]])
     def test_repeat(self, data, repeats, as_series, use_numpy):
         if repeats == 0:
             # Leads to empty array, unsupported???
-            with pytest.raises(TypeError, match="Expected CharSpanArray"):
+            with pytest.raises(TypeError, match="Expected SpanArray"):
                 super().test_repeat(data, repeats, as_series, use_numpy)
         else:
             super().test_repeat(data, repeats, as_series, use_numpy)

@@ -22,9 +22,6 @@
 import numpy as np
 import pandas as pd
 
-from text_extensions_for_pandas.array.char_span import CharSpanType, CharSpanArray
-from text_extensions_for_pandas.array.token_span import TokenSpanType, TokenSpanArray
-
 
 def adjacent_join(
     first_series: pd.Series,
@@ -38,9 +35,9 @@ def adjacent_join(
     Compute the join of two series of spans, where a pair of spans is
     considered to match if they are adjacent to each other in the text.
 
-    :param first_series: Spans that appear earlier. dtype must be TokenSpan.
+    :param first_series: Spans that appear earlier. dtype must be TokenSpanDtype.
 
-    :param second_series: Spans that come after. dtype must be TokenSpan.
+    :param second_series: Spans that come after. dtype must be TokenSpanDtype.
 
     :param first_name: Name to give the column in the returned dataframe that
     is derived from `first_series`.

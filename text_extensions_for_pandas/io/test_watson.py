@@ -60,48 +60,50 @@ class TestWatson(unittest.TestCase):
         self.assertSequenceEqual(sorted(result.keys()),
                                  ["entities", "keywords", "relations", "semantic_roles", "syntax"])
 
+        # Uncomment to regenerate expected output below.
+        # print(f"****{repr(result['syntax'])}****")
         self.assertEqual(
             repr(result["syntax"]),
             # NOTE the escaped backslash in the string below. Be sure to put it back
             # in when regenerating this string!
             textwrap.dedent(
                 """\
-                                char_span             token_span part_of_speech     lemma  \\
-                0            [0, 2): 'If'           [0, 2): 'If'          SCONJ        if   
-                1        [3, 9): 'Barbie'       [3, 9): 'Barbie'          PROPN    barbie   
-                2          [10, 12): 'is'         [10, 12): 'is'            AUX        be   
-                3          [13, 15): 'so'         [13, 15): 'so'            ADV        so   
-                4     [16, 23): 'popular'    [16, 23): 'popular'            ADJ   popular   
-                5           [23, 24): ','          [23, 24): ','          PUNCT      None   
-                6         [25, 28): 'why'        [25, 28): 'why'            ADV       why   
-                7          [29, 31): 'do'         [29, 31): 'do'            AUX        do   
-                8         [32, 35): 'you'        [32, 35): 'you'           PRON       you   
-                9        [36, 40): 'have'       [36, 40): 'have'           VERB      have   
-                10         [41, 43): 'to'         [41, 43): 'to'           PART        to   
-                11        [44, 47): 'buy'        [44, 47): 'buy'           VERB       buy   
-                12        [48, 51): 'her'        [48, 51): 'her'           PRON       her   
-                13    [52, 59): 'friends'    [52, 59): 'friends'           NOUN    friend   
-                14          [59, 60): '?'          [59, 60): '?'          PUNCT      None   
-                15        [61, 64): 'The'        [61, 64): 'The'            DET       the   
-                16    [65, 72): 'Bermuda'    [65, 72): 'Bermuda'          PROPN      None   
-                17   [73, 81): 'Triangle'   [73, 81): 'Triangle'          PROPN  triangle   
-                18        [82, 85): 'got'        [82, 85): 'got'           VERB       get   
-                19      [86, 91): 'tired'      [86, 91): 'tired'            ADJ     tired   
-                20         [92, 94): 'of'         [92, 94): 'of'            ADP        of   
-                21       [95, 99): 'warm'       [95, 99): 'warm'            ADJ      warm   
-                22  [100, 107): 'weather'  [100, 107): 'weather'           NOUN   weather   
-                23        [107, 108): '.'        [107, 108): '.'          PUNCT      None   
-                24       [109, 111): 'It'       [109, 111): 'It'           PRON        it   
-                25    [112, 117): 'moved'    [112, 117): 'moved'           VERB      move   
-                26       [118, 120): 'to'       [118, 120): 'to'            ADP        to   
-                27   [121, 127): 'Alaska'   [121, 127): 'Alaska'          PROPN      None   
-                28        [127, 128): '.'        [127, 128): '.'          PUNCT      None   
-                29      [129, 132): 'Now'      [129, 132): 'Now'            ADV       now   
-                30    [133, 138): 'Santa'    [133, 138): 'Santa'          PROPN      None   
-                31    [139, 144): 'Claus'    [139, 144): 'Claus'          PROPN      None   
-                32       [145, 147): 'is'       [145, 147): 'is'            AUX        be   
-                33  [148, 155): 'missing'  [148, 155): 'missing'            ADJ      None   
-                34        [155, 156): '.'        [155, 156): '.'          PUNCT      None   
+                                     span part_of_speech     lemma  \\
+                0            [0, 2): 'If'          SCONJ        if   
+                1        [3, 9): 'Barbie'          PROPN    barbie   
+                2          [10, 12): 'is'            AUX        be   
+                3          [13, 15): 'so'            ADV        so   
+                4     [16, 23): 'popular'            ADJ   popular   
+                5           [23, 24): ','          PUNCT      None   
+                6         [25, 28): 'why'            ADV       why   
+                7          [29, 31): 'do'            AUX        do   
+                8         [32, 35): 'you'           PRON       you   
+                9        [36, 40): 'have'           VERB      have   
+                10         [41, 43): 'to'           PART        to   
+                11        [44, 47): 'buy'           VERB       buy   
+                12        [48, 51): 'her'           PRON       her   
+                13    [52, 59): 'friends'           NOUN    friend   
+                14          [59, 60): '?'          PUNCT      None   
+                15        [61, 64): 'The'            DET       the   
+                16    [65, 72): 'Bermuda'          PROPN      None   
+                17   [73, 81): 'Triangle'          PROPN  triangle   
+                18        [82, 85): 'got'           VERB       get   
+                19      [86, 91): 'tired'            ADJ     tired   
+                20         [92, 94): 'of'            ADP        of   
+                21       [95, 99): 'warm'            ADJ      warm   
+                22  [100, 107): 'weather'           NOUN   weather   
+                23        [107, 108): '.'          PUNCT      None   
+                24       [109, 111): 'It'           PRON        it   
+                25    [112, 117): 'moved'           VERB      move   
+                26       [118, 120): 'to'            ADP        to   
+                27   [121, 127): 'Alaska'          PROPN      None   
+                28        [127, 128): '.'          PUNCT      None   
+                29      [129, 132): 'Now'            ADV       now   
+                30    [133, 138): 'Santa'          PROPN      None   
+                31    [139, 144): 'Claus'          PROPN      None   
+                32       [145, 147): 'is'            AUX        be   
+                33  [148, 155): 'missing'            ADJ      None   
+                34        [155, 156): '.'          PUNCT      None   
                 
                                                              sentence  
                 0   [0, 60): 'If Barbie is so popular, why do you ...  
@@ -242,7 +244,7 @@ class TestWatson(unittest.TestCase):
 
         self.assertIn("entities", dfs)
         self.assertIn("text", dfs["entities"].columns)
-        char_span = dfs["syntax"]["char_span"].values
+        char_span = dfs["syntax"]["span"].values
 
         token_span = make_span_from_entities(char_span, dfs["entities"])
         self.assertEqual(len(token_span), 24)
@@ -284,8 +286,7 @@ class TestWatson(unittest.TestCase):
         self.assertIn("syntax", result)
         df = result["syntax"]
 
-        self.assertIn("char_span", df.columns)
-        self.assertIn("token_span", df.columns)
+        self.assertIn("span", df.columns)
         self.assertIn("sentence", df.columns)
 
     def test_empty_frames(self):

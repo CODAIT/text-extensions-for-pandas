@@ -54,7 +54,7 @@ class TestTokenize(unittest.TestCase):
         bert_toks = make_bert_tokens(text, self._tokenizer)
 
         self.assertIsInstance(bert_toks, pd.DataFrame)
-        self.assertEqual(len(bert_toks.columns), 7)
+        self.assertEqual(len(bert_toks.columns), 6)
 
         # verify input id is correct
         self.assertTrue('input_id' in bert_toks.columns)
@@ -71,8 +71,8 @@ class TestTokenize(unittest.TestCase):
         self.assertEqual(special_tokens_mask.iloc[len(special_tokens_mask) - 1], True)
 
         # verify char span array
-        self.assertTrue('char_span' in bert_toks.columns)
-        char_span = bert_toks['char_span']
+        self.assertTrue('span' in bert_toks.columns)
+        char_span = bert_toks['span']
         span = char_span.iloc[0]
         self.assertEqual(span.begin, span.end)  # docstart special token
         span = char_span.iloc[len(char_span) - 1]
@@ -82,18 +82,6 @@ class TestTokenize(unittest.TestCase):
         for e in expected:
             self.assertTrue(e in tokens)
 
-        # verify token span array
-        self.assertTrue('token_span' in bert_toks.columns)
-        token_span = bert_toks['token_span']
-        span = token_span.iloc[0]
-        self.assertEqual(span.begin, span.end)  # docstart special token
-        span = token_span.iloc[len(token_span) - 1]
-        self.assertEqual(span.begin, span.end)  # docend special token
-
-        # verify token spans match char spans
-        char_span_text = [s.covered_text for s in char_span]
-        token_span_text = [s.covered_text for s in token_span]
-        self.assertListEqual(char_span_text, token_span_text)
 
     @staticmethod
     def _embedding_to_int(df: pd.DataFrame, colname: str):
@@ -120,26 +108,20 @@ class TestTokenize(unittest.TestCase):
             # copy-and-paste an updated version of the output below!
             textwrap.dedent(
                 """\
-           token_id           char_span          token_span  input_id  token_type_id  \\
-        0         0          [0, 0): ''          [0, 0): ''       101              0   
-        1         1      [0, 4): 'What'      [0, 4): 'What'      2054              0   
-        2         2         [4, 5): '''         [4, 5): '''      1005              0   
-        3         3         [5, 6): 's'         [5, 6): 's'      1055              0   
-        4         4  [7, 14): 'another'  [7, 14): 'another'      2178              0   
-        
-           attention_mask  special_tokens_mask  \\
-        0               1                 True   
-        1               1                False   
-        2               1                False   
-        3               1                False   
-        4               1                False   
-        
-                                                   embedding  
-        0 [ -1   1   0   2  -5   0   3   3  -1   2   3  -...  
-        1 [  1   0   0  -1   0   0  -6   4  -7   4  -2  -...  
-        2 [  4   1   6  -3  -2  -2   6   4   1   8   0  -...  
-        3 [  8   1   4   0  -4   1   0   9  -7   5  -3  -...  
-        4 [  6  -5   2   3   1  -1   8   6  -1  -4   4  -...  """))
+               token_id                span  input_id  token_type_id  attention_mask  \\
+            0         0          [0, 0): ''       101              0               1   
+            1         1      [0, 4): 'What'      2054              0               1   
+            2         2         [4, 5): '''      1005              0               1   
+            3         3         [5, 6): 's'      1055              0               1   
+            4         4  [7, 14): 'another'      2178              0               1   
+            
+               special_tokens_mask                                          embedding  
+            0                 True [ -1   1   0   2  -5   0   3   3  -1   2   3  -...  
+            1                False [  1   0   0  -1   0   0  -6   4  -7   4  -2  -...  
+            2                False [  4   1   6  -3  -2  -2   6   4   1   8   0  -...  
+            3                False [  8   1   4   0  -4   1   0   9  -7   5  -3  -...  
+            4                False [  6  -5   2   3   1  -1   8   6  -1  -4   4  -...  """
+            ))
 
     def test_conll_to_bert(self):
         dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt",
@@ -158,26 +140,19 @@ class TestTokenize(unittest.TestCase):
             # NOTE: Don't forget to add both sets of double-backslashes back in if you
             # copy-and-paste an updated version of the output below!
             textwrap.dedent("""\
-               token_id            char_span           token_span  input_id  \\
-            0         0           [0, 0): ''           [0, 0): ''       101   
-            1         1        [0, 3): 'Who'        [0, 3): 'Who'      2040   
-            2         2         [4, 6): 'is'         [4, 6): 'is'      2003   
-            3         3   [7, 14): 'General'   [7, 14): 'General'      2236   
-            4         4  [15, 22): 'Failure'  [15, 22): 'Failure'      4945   
+               token_id                 span  input_id  token_type_id  attention_mask  \\
+            0         0           [0, 0): ''       101              0               1   
+            1         1        [0, 3): 'Who'      2040              0               1   
+            2         2         [4, 6): 'is'      2003              0               1   
+            3         3   [7, 14): 'General'      2236              0               1   
+            4         4  [15, 22): 'Failure'      4945              0               1   
             
-               token_type_id  attention_mask  special_tokens_mask ent_iob ent_type  \\
-            0              0               1                 True       O     <NA>   
-            1              0               1                False       O     <NA>   
-            2              0               1                False       O     <NA>   
-            3              0               1                False       B      PER   
-            4              0               1                False       I      PER   
-            
-              token_class  token_class_id  \\
-            0           O               0   
-            1           O               0   
-            2           O               0   
-            3       B-PER               2   
-            4       I-PER               7   
+               special_tokens_mask ent_iob ent_type token_class  token_class_id  \\
+            0                 True       O     <NA>           O               0   
+            1                False       O     <NA>           O               0   
+            2                False       O     <NA>           O               0   
+            3                False       B      PER       B-PER               2   
+            4                False       I      PER       I-PER               7   
             
                                                        embedding  
             0 [  0   1   0   0  -4   0   5   3  -1   1   2  -...  
@@ -195,26 +170,19 @@ class TestTokenize(unittest.TestCase):
             # NOTE: Don't forget to add both sets of double-backslashes back in if you
             # copy-and-paste an updated version of the output below!
             textwrap.dedent("""\
-               token_id            char_span           token_span  input_id  \\
-            0         0           [0, 0): ''           [0, 0): ''       101   
-            1         1        [0, 3): 'Who'        [0, 3): 'Who'      2040   
-            2         2         [4, 6): 'is'         [4, 6): 'is'      2003   
-            3         3   [7, 14): 'General'   [7, 14): 'General'      2236   
-            4         4  [15, 22): 'Failure'  [15, 22): 'Failure'      4945   
+               token_id                 span  input_id  token_type_id  attention_mask  \\
+            0         0           [0, 0): ''       101              0               1   
+            1         1        [0, 3): 'Who'      2040              0               1   
+            2         2         [4, 6): 'is'      2003              0               1   
+            3         3   [7, 14): 'General'      2236              0               1   
+            4         4  [15, 22): 'Failure'      4945              0               1   
             
-               token_type_id  attention_mask  special_tokens_mask ent_iob ent_type  \\
-            0              0               1                 True       O     <NA>   
-            1              0               1                False       O     <NA>   
-            2              0               1                False       O     <NA>   
-            3              0               1                False       B      PER   
-            4              0               1                False       I      PER   
-            
-              token_class  token_class_id  
-            0           O               0  
-            1           O               0  
-            2           O               0  
-            3       B-PER               2  
-            4       I-PER               7  """))
+               special_tokens_mask ent_iob ent_type token_class  token_class_id  
+            0                 True       O     <NA>           O               0  
+            1                False       O     <NA>           O               0  
+            2                False       O     <NA>           O               0  
+            3                False       B      PER       B-PER               2  
+            4                False       I      PER       I-PER               7  """))
 
         # Connect the BERT tokens back to the original tokens
         aligned_toks = align_bert_tokens_to_corpus_tokens(without_embeddings, first_df)
@@ -224,7 +192,7 @@ class TestTokenize(unittest.TestCase):
             # NOTE: Don't forget to add both sets of double-backslashes back in if you
             # copy-and-paste an updated version of the output below!
             textwrap.dedent("""\
-                            token_span ent_type
+                                  span ent_type
                 0        [0, 3): 'Who'     <NA>
                 1         [4, 6): 'is'     <NA>
                 2   [7, 14): 'General'      PER

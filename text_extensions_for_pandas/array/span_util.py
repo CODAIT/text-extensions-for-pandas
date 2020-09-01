@@ -24,17 +24,17 @@
 import numpy as np
 from typing import *
 
-from text_extensions_for_pandas.array.char_span import (
-    CharSpanType, CharSpan, CharSpanArray
+from text_extensions_for_pandas.array.span import (
+    SpanDtype, Span, SpanArray
 )
 from text_extensions_for_pandas.array.token_span import (
-    TokenSpanType, TokenSpan, TokenSpanArray
+    TokenSpanDtype, TokenSpan, TokenSpanArray
 )
 
-_ARRAY_CLASSES = (CharSpanArray, TokenSpanArray)
-_SCALAR_CLASSES = (CharSpan, TokenSpan)
+_ARRAY_CLASSES = (SpanArray, TokenSpanArray)
+_SCALAR_CLASSES = (Span, TokenSpan)
 _TOKEN_SPAN_TYPES = (TokenSpan, TokenSpanArray)
-_ALL_SPAN_TYPES = (TokenSpan, TokenSpanArray, CharSpan, CharSpanArray)
+_ALL_SPAN_TYPES = (TokenSpan, TokenSpanArray, Span, SpanArray)
 
 
 def _check_same_tokens(array1, array2):
@@ -53,15 +53,15 @@ def _check_same_text(o1, o2):
         )
 
 
-def add_spans(span1: Union[TokenSpan, TokenSpanArray, CharSpan, CharSpanArray],
-              span2: Union[TokenSpan, TokenSpanArray, CharSpan, CharSpanArray])\
-        -> Union[TokenSpan, TokenSpanArray, CharSpan, CharSpanArray]:
+def add_spans(span1: Union[TokenSpan, TokenSpanArray, Span, SpanArray],
+              span2: Union[TokenSpan, TokenSpanArray, Span, SpanArray])\
+        -> Union[TokenSpan, TokenSpanArray, Span, SpanArray]:
     """
     Add a pair of spans and/or span arrays.
 
     span1 + span2 == minimal span that covers both spans
-    :param span1: TokenSpan, CharSpan, TokenSpanArray, or CharSpanArray
-    :param span2: TokenSpan, CharSpan, TokenSpanArray, or CharSpanArray
+    :param span1: TokenSpan, Span, TokenSpanArray, or SpanArray
+    :param span2: TokenSpan, Span, TokenSpanArray, or SpanArray
     :return: minimal span (or array of spans) that covers both inputs.
     """
 
@@ -72,11 +72,11 @@ def add_spans(span1: Union[TokenSpan, TokenSpanArray, CharSpan, CharSpanArray],
         _check_same_tokens(span1, span2)
         return TokenSpan(span1.tokens, min(span1.begin_token, span2.begin_token),
                          max(span1.end_token, span2.end_token))
-    elif isinstance(span1, CharSpan) and isinstance(span2, CharSpan):
-        # CharSpan + *Span = CharSpan
+    elif isinstance(span1, Span) and isinstance(span2, Span):
+        # Span + *Span = Span
         _check_same_text(span1, span2)
-        return CharSpan(span1.target_text, min(span1.begin, span2.begin),
-                        max(span1.end, span2.end))
+        return Span(span1.target_text, min(span1.begin, span2.begin),
+                    max(span1.end, span2.end))
     elif isinstance(span1, _TOKEN_SPAN_TYPES) and isinstance(span2, _TOKEN_SPAN_TYPES):
         # TokenSpanArray + TokenSpan* = TokenSpanArray
         _check_same_tokens(span1, span2)
@@ -84,14 +84,14 @@ def add_spans(span1: Union[TokenSpan, TokenSpanArray, CharSpan, CharSpanArray],
                               np.minimum(span1.begin_token, span2.begin_token),
                               np.maximum(span1.end_token, span2.end_token))
     elif (
-        (isinstance(span1, CharSpanArray) and isinstance(span2, _ALL_SPAN_TYPES))
-        or (isinstance(span1, _ALL_SPAN_TYPES) and isinstance(span2, CharSpanArray))
+        (isinstance(span1, SpanArray) and isinstance(span2, _ALL_SPAN_TYPES))
+        or (isinstance(span1, _ALL_SPAN_TYPES) and isinstance(span2, SpanArray))
     ):
-        # CharSpanArray + *Span* = CharSpanArray
+        # SpanArray + *Span* = SpanArray
         _check_same_text(span1, span2)
-        return CharSpanArray(span1.target_text,
-                             np.minimum(span1.begin, span2.begin),
-                             np.maximum(span1.end, span2.end))
+        return SpanArray(span1.target_text,
+                         np.minimum(span1.begin, span2.begin),
+                         np.maximum(span1.end, span2.end))
     else:
         raise TypeError(f"Unexpected combination of span types for add operation: "
                         f"{type(span1)} and {type(span2)}")

@@ -35,16 +35,17 @@ _TEST_TOKS = make_tokens_and_features(_TEST_TEXT, _SPACY_LANGUAGE_MODEL)
 class UtilTest(TestBase):
     def test_pretty_print_html(self):
         self.maxDiff = None
-        html = pretty_print_html(_TEST_TOKS["token_span"].values, True)
+        html = pretty_print_html(_TEST_TOKS["span"].values, True)
         suffix = html[-809:]
         # print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
             """\
-    <td>20</td>
+</tr>
+    <tr>
+      <th>7</th>
+      <td>20</td>
       <td>26</td>
-      <td>7</td>
-      <td>8</td>
       <td>change</td>
     </tr>
   </tbody>
@@ -61,7 +62,7 @@ class UtilTest(TestBase):
         </div>
         """)
 
-        html = pretty_print_html(_TEST_TOKS["token_span"].values, False)
+        html = pretty_print_html(_TEST_TOKS["span"].values, False)
         suffix = html[-809:]
         # print(f"[[[{suffix}]]]")
         self.assertEqual(

@@ -28,9 +28,10 @@ from typing import *
 from text_extensions_for_pandas.array import *
 
 
-def lemmatize(spans: Union[pd.Series, TokenSpanArray, Iterable[TokenSpan]],
+def lemmatize(spans: Union[pd.Series, SpanArray, Iterable[Span]],
               token_features: pd.DataFrame,
-              lemma_col_name: str = "lemma") -> List[str]:
+              lemma_col_name: str = "lemma",
+              token_span_col_name: str = "span") -> List[str]:
     """
     Convert spans to their normal form using lemma information in a token
     features table.
@@ -44,15 +45,20 @@ def lemmatize(spans: Union[pd.Series, TokenSpanArray, Iterable[TokenSpan]],
     :param lemma_col_name: Optional custom name for the DataFrame column
     containing the lemmatized form of each token.
 
+    :param token_span_col_name: Optional custom name for the DataFrame column
+    containing the span of each token.
+
     :return: A list containing normalized versions of the tokens
     in `spans`, with each token separated by single space character.
     """
-    spans = TokenSpanArray.make_array(spans)
+    char_spans = SpanArray.make_array(spans)
+    token_spans = TokenSpanArray.align_to_tokens(token_features[token_span_col_name],
+                                                 char_spans)
     ret = []  # Type: List[str]
     # TODO: Vectorize this loop
-    for i in range(len(spans)):
+    for i in range(len(token_spans)):
         lemmas = token_features[lemma_col_name][
-                 spans.begin_token[i]:spans.end_token[i]
+                 token_spans.begin_token[i]:token_spans.end_token[i]
                  ]
         ret.append(" ".join(lemmas))
     return ret
