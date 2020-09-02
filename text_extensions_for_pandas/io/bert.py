@@ -120,9 +120,9 @@ def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
 
 def add_embeddings(df: pd.DataFrame, bert: Any) -> pd.DataFrame:
     """
-    Add BERT embeddings to a dataframe of BERT tokens.
+    Add BERT embeddings to a DataFrame of BERT tokens.
 
-    :param df: Dataframe containing BERT tokens, as returned by
+    :param df: DataFrame containing BERT tokens, as returned by
       :func:`make_bert_tokens` Must contain a column
       `input_id` containing token IDs.
     :param bert: PyTorch-based BERT model from the `transformers` library
@@ -153,17 +153,17 @@ def conll_to_bert(df: pd.DataFrame, tokenizer: Any, bert: Any,
                   token_class_dtype: pd.CategoricalDtype,
                   compute_embeddings: bool = True) -> pd.DataFrame:
     """
-    :param df: One dataframe from the conll_2003_to_dataframes() function,
+    :param df: One DataFrame from the conll_2003_to_dataframes() function,
      representing the tokens of a single document in the original tokenization.
     :param tokenizer: BERT tokenizer instance from the `transformers` library
     :param bert: PyTorch-based BERT model from the `transformers` library
     :param token_class_dtype: Pandas categorical type for representing
      token class labels, as returned by :func:`make_iob_tag_categories`
     :param compute_embeddings: True to generate BERT embeddings at each token
-     position and add a column "embedding" to the returned dataframe with
+     position and add a column "embedding" to the returned DataFrame with
      the embeddings
 
-    :returns: A version of the same dataframe, but with BERT tokens, BERT
+    :returns: A version of the same DataFrame, but with BERT tokens, BERT
      embeddings for each token (if `compute_embeddings` is `True`),
      and token class labels.
     """
