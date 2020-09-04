@@ -40,7 +40,7 @@ class TensorType(pd.api.extensions.ExtensionDtype):
     @property
     def type(self):
         """The type for a single row of a TensorArray column."""
-        return np.ndarray
+        return TensorElement
 
     @property
     def name(self) -> str:
@@ -90,12 +90,41 @@ class TensorOpsMixin(pd.api.extensions.ExtensionScalarOpsMixin):
 
         def _binop(self, other):
             lvalues = self._tensor
-            rvalues = other._tensor if isinstance(other, TensorArray) else other
+            rvalues = other._tensor if isinstance(other, (TensorArray, TensorElement)) else other
             res = op(lvalues, rvalues)
-            return TensorArray(res)
+            return cls(res)
 
         op_name = ops._get_op_name(op, True)
         return set_function_name(_binop, op_name, cls)
+
+
+class TensorElement(TensorOpsMixin):
+    """
+    Class representing a single element in a TensorArray, or row in a Pandas column of dtype
+    TensorType. This is a light wrapper over a numpy.ndarray
+    """
+    def __init__(self, values: np.ndarray):
+        """
+        Construct a TensorElement from an numpy.ndarray.
+        :param values: tensor values for this instance.
+        """
+        self._tensor = values
+
+    def __repr__(self):
+        return self._tensor.__repr__()
+
+    def __str__(self):
+        return self._tensor.__str__()
+
+    def to_numpy(self):
+        """
+        Return the values of this element as a numpy.ndarray
+        :return: numpy.ndarray
+        """
+        return np.asarray(self._tensor)
+
+    def __array__(self):
+        return np.asarray(self._tensor)
 
 
 class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
@@ -105,7 +134,8 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     Each tensor must have the same shape.
     """
 
-    def __init__(self, values: Union[np.ndarray, Sequence[np.ndarray], Any],
+    def __init__(self, values: Union[np.ndarray, Sequence[Union[np.ndarray, TensorElement]],
+                                     TensorElement, Any],
                  make_contiguous: bool = True):
         """
         :param values: A `numpy.ndarray` or sequence of `numpy.ndarray`s of equal shape.
@@ -117,7 +147,9 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             if len(values) == 0:
                 self._tensor = np.array([])
             else:
-                self._tensor = np.stack(values, axis=0)
+                self._tensor = np.stack([np.asarray(v) for v in values], axis=0)
+        elif isinstance(values, TensorElement):
+            self._tensor = np.array([np.asarray(values)])
         elif np.isscalar(values):
             # `values` is a single element: pd.Series(np.nan, index=[1, 2, 3], dtype=TensorType())
             self._tensor = np.array([values])
@@ -258,15 +290,19 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     def __len__(self) -> int:
         return len(self._tensor)
 
-    def __getitem__(self, item) -> "TensorArray":
+    def __getitem__(self, item) -> Union["TensorArray", "TensorElement"]:
         """
         See docstring in `Extension   Array` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        # TODO pandas converts series with np.asarray, then applied a function e.g. map_infer(array, is_float) to format strings etc.
-        # Return an ndarray for scalar item, or TensorArray for slice
+        # Return scalar if single value is selected, a TensorElement for single array element,
+        # or TensorArray for slice
         if isinstance(item, int):
-            return self._tensor[item]
+            value = self._tensor[item]
+            if np.isscalar(value):
+                return value
+            else:
+                return TensorElement(value)
         else:
             item = check_array_indexer(self, item)
             return TensorArray(self._tensor[item])
@@ -277,6 +313,10 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         for information about this method.
         """
         key = check_array_indexer(self, key)
+        if isinstance(value, TensorElement) or np.isscalar(value):
+            value = np.asarray(value)
+        if isinstance(value, list):
+            value = [np.asarray(v) if isinstance(v, TensorElement) else v for v in value]
         if isinstance(value, ABCSeries) and isinstance(value.dtype, TensorType):
             value = value.values
         if value is None or isinstance(value, Sequence) and len(value) == 0:
@@ -316,11 +356,16 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         else:
             raise NotImplementedError(f"'{name}' aggregate not implemented.")
 
+    def __array__(self, dtype=None):
+        return np.asarray(self._tensor, dtype=dtype)
+
     def __arrow_array__(self, type=None):
         from text_extensions_for_pandas.array.arrow_conversion import ArrowTensorArray
         return ArrowTensorArray.from_numpy(self._tensor)
 
 
 # Add operators from the mixin to the class
+TensorElement._add_arithmetic_ops()
+TensorElement._add_comparison_ops()
 TensorArray._add_arithmetic_ops()
 TensorArray._add_comparison_ops()
