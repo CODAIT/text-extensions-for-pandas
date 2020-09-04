@@ -138,13 +138,15 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             if len(values) == 0:
                 self._tensor = np.array([])
             else:
-                values = [v.to_numpy() if isinstance(v, TensorElement) else v for v in values]
+                values = [np.asarray(v) if isinstance(v, TensorElement) else
+                          np.array([v]) if np.isscalar(v) else
+                          v for v in values]
                 self._tensor = np.stack(values, axis=0)
         elif isinstance(values, TensorElement):
-            self._tensor = values.to_numpy().reshape(1, 1)
+            self._tensor = np.array([np.asarray(values)])
         elif np.isscalar(values):
             # `values` is a single element: pd.Series(np.nan, index=[1, 2, 3], dtype=TensorType())
-            self._tensor = np.array([values])
+            self._tensor = np.array([[values]])
         elif isinstance(values, TensorArray):
             raise TypeError("Use the copy() method to create a copy of a TensorArray")
         else:
@@ -282,7 +284,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     def __len__(self) -> int:
         return len(self._tensor)
 
-    def __getitem__(self, item) -> "TensorArray":
+    def __getitem__(self, item) -> Union["TensorArray", "TensorElement"]:
         """
         See docstring in `Extension   Array` class in `pandas/core/arrays/base.py`
         for information about this method.
@@ -290,7 +292,8 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         # TODO pandas converts series with np.asarray, then applied a function e.g. map_infer(array, is_float) to format strings etc.
         # Return an ndarray for scalar item, or TensorArray for slice
         if isinstance(item, int):
-            return TensorElement(self._tensor[item])
+            value = self._tensor[item]
+            return TensorElement(value)
         else:
             item = check_array_indexer(self, item)
             return TensorArray(self._tensor[item])
@@ -302,9 +305,9 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         """
         key = check_array_indexer(self, key)
         if isinstance(value, TensorElement):
-            value = value.to_numpy()
+            value = np.asarray(value)
         if isinstance(value, list):
-            value = [v.to_numpy() if isinstance(v, TensorElement) else v for v in value]
+            value = [np.asarray(v) if isinstance(v, TensorElement) else v for v in value]
         if isinstance(value, ABCSeries) and isinstance(value.dtype, TensorType):
             value = value.values
         if value is None or isinstance(value, Sequence) and len(value) == 0:

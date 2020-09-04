@@ -85,11 +85,11 @@ class TestTensor(unittest.TestCase):
 
     def test_array_interface(self):
 
-        # Test scalar array
+        # Test scalar value
         s = TensorArray([1, 2, 3])
         result = np.array(s)
-        self.assertTupleEqual(result.shape, (3,))
-        expected = np.array([np.asarray(i) for i in s])
+        self.assertTupleEqual(result.shape, (3, 1))
+        expected = np.stack([np.asarray(i) for i in s])
         npt.assert_array_equal(result, expected)
 
         # Test 2d array
@@ -97,6 +97,15 @@ class TestTensor(unittest.TestCase):
         result = np.array(s)
         self.assertTupleEqual(result.shape, (3, 1))
         expected = np.array([np.asarray(i) for i in s])
+        npt.assert_array_equal(result, expected)
+
+        # Test TensorElement
+        x = [1, 2, 3]
+        temp = np.asarray(TensorElement(9))
+        elements = [TensorElement(np.array(i)) for i in x]
+        result = np.array([np.asarray(e) for e in elements])
+        self.assertTupleEqual(result.shape, (3,))
+        expected = np.array(x)
         npt.assert_array_equal(result, expected)
 
     def test_create_series(self):
