@@ -104,6 +104,10 @@ class TensorElement(TensorOpsMixin):
     TensorType. This is a light wrapper over a numpy.ndarray
     """
     def __init__(self, values: np.ndarray):
+        """
+        Construct a TensorElement from an numpy.ndarray.
+        :param values: tensor values for this instance.
+        """
         self._tensor = values
 
     def __repr__(self):
@@ -113,6 +117,10 @@ class TensorElement(TensorOpsMixin):
         return self._tensor.__str__()
 
     def to_numpy(self):
+        """
+        Return the values of this element as a numpy.ndarray
+        :return: numpy.ndarray
+        """
         return np.asarray(self._tensor)
 
     def __array__(self):
@@ -126,7 +134,8 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     Each tensor must have the same shape.
     """
 
-    def __init__(self, values: Union[np.ndarray, Sequence[np.ndarray], Any],
+    def __init__(self, values: Union[np.ndarray, Sequence[Union[np.ndarray, TensorElement]],
+                                     TensorElement, Any],
                  make_contiguous: bool = True):
         """
         :param values: A `numpy.ndarray` or sequence of `numpy.ndarray`s of equal shape.
@@ -138,15 +147,12 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             if len(values) == 0:
                 self._tensor = np.array([])
             else:
-                values = [np.asarray(v) if isinstance(v, TensorElement) else
-                          np.array([v]) if np.isscalar(v) else
-                          v for v in values]
-                self._tensor = np.stack(values, axis=0)
+                self._tensor = np.stack([np.asarray(v) for v in values], axis=0)
         elif isinstance(values, TensorElement):
             self._tensor = np.array([np.asarray(values)])
         elif np.isscalar(values):
             # `values` is a single element: pd.Series(np.nan, index=[1, 2, 3], dtype=TensorType())
-            self._tensor = np.array([[values]])
+            self._tensor = np.array([values])
         elif isinstance(values, TensorArray):
             raise TypeError("Use the copy() method to create a copy of a TensorArray")
         else:
@@ -289,11 +295,14 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `Extension   Array` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        # TODO pandas converts series with np.asarray, then applied a function e.g. map_infer(array, is_float) to format strings etc.
-        # Return an ndarray for scalar item, or TensorArray for slice
+        # Return scalar if single value is selected, a TensorElement for single array element,
+        # or TensorArray for slice
         if isinstance(item, int):
             value = self._tensor[item]
-            return TensorElement(value)
+            if np.isscalar(value):
+                return value
+            else:
+                return TensorElement(value)
         else:
             item = check_array_indexer(self, item)
             return TensorArray(self._tensor[item])
@@ -304,7 +313,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         for information about this method.
         """
         key = check_array_indexer(self, key)
-        if isinstance(value, TensorElement):
+        if isinstance(value, TensorElement) or np.isscalar(value):
             value = np.asarray(value)
         if isinstance(value, list):
             value = [np.asarray(v) if isinstance(v, TensorElement) else v for v in value]

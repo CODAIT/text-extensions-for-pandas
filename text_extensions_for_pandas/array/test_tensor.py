@@ -65,13 +65,18 @@ class TestTensor(unittest.TestCase):
         self.assertTupleEqual(s.to_numpy().shape, (1,))
         self.assertEqual(s[0], 2112)
 
-        s = pd.Series(np.nan, index=[0, 1, 2], dtype=TensorType())
-        self.assertEqual(len(s), 3)
-        self.assertTupleEqual(s.to_numpy().shape, (3,))
-        result = s.isna()
-        self.assertTrue(np.all(result.to_numpy()))
+        s = TensorArray(np.int64(2112))
+        self.assertEqual(len(s), 1)
+        self.assertTupleEqual(s.to_numpy().shape, (1,))
+        self.assertEqual(s[0], 2112)
 
-    def test_create_from_scalars(self):
+        x = np.array([1, 2112, 3])
+        e = TensorElement(x[1])
+        s = TensorArray(e)
+        self.assertTupleEqual(s.to_numpy().shape, (1,))
+        self.assertEqual(s[0], 2112)
+
+    def test_create_from_scalar_list(self):
         x = [1, 2, 3, 4, 5]
         s = TensorArray(x)
         self.assertTupleEqual(s.to_numpy().shape, (len(x),))
@@ -79,16 +84,37 @@ class TestTensor(unittest.TestCase):
         npt.assert_array_equal(s.to_numpy(), expected)
 
         # Now with TensorElement values
-        x = [TensorElement(np.array(i)) for i in range(1, 6)]
-        s = pd.array(x, dtype=TensorType())
+        e = [TensorElement(np.array(i)) for i in x]
+        s = pd.array(e, dtype=TensorType())
         npt.assert_array_equal(s.to_numpy(), expected)
 
+        # Now with list of 1d tensors
+        x = [np.array([i]) for i in x]
+        s = pd.array(x, dtype=TensorType())
+        self.assertTupleEqual(s.to_numpy().shape, (len(x), 1))
+        npt.assert_array_equal(s.to_numpy(), np.array([[e] for e in expected]))
+
+        # Pandas will create list of copies of the tensor element for the given indices
+        s = pd.Series(np.nan, index=[0, 1, 2], dtype=TensorType())
+        self.assertEqual(len(s), 3)
+        self.assertTupleEqual(s.to_numpy().shape, (3,))
+        result = s.isna()
+        self.assertTrue(np.all(result.to_numpy()))
+
     def test_array_interface(self):
+        # Extended version of Pandas TestPandasInterface.test_array_interface
 
         # Test scalar value
+        s = TensorArray(3)
+        result = np.array(s)
+        self.assertTupleEqual(result.shape, (1,))
+        expected = np.stack([np.asarray(i) for i in s])
+        npt.assert_array_equal(result, expected)
+
+        # Test scalar list
         s = TensorArray([1, 2, 3])
         result = np.array(s)
-        self.assertTupleEqual(result.shape, (3, 1))
+        self.assertTupleEqual(result.shape, (3,))
         expected = np.stack([np.asarray(i) for i in s])
         npt.assert_array_equal(result, expected)
 
@@ -101,7 +127,6 @@ class TestTensor(unittest.TestCase):
 
         # Test TensorElement
         x = [1, 2, 3]
-        temp = np.asarray(TensorElement(9))
         elements = [TensorElement(np.array(i)) for i in x]
         result = np.array([np.asarray(e) for e in elements])
         self.assertTupleEqual(result.shape, (3,))
@@ -343,11 +368,11 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             repr(result_df),
             textwrap.dedent(
                 """\
-                    value
-                key      
-                a   [2 2]
-                b   [1 1]
-                c   [3 3]"""
+                     value
+                key       
+                a    [2 2]
+                b    [1 1]
+                c    [3 3]"""
             ),
         )
 
@@ -359,13 +384,13 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             repr(result2_df),
             textwrap.dedent(
                 """\
-                             value
-                key               
-                a   [[2 2]
+                              value
+                key                
+                a    [[2 2]
                  [2 2]]
-                b   [[1 1]
+                b    [[1 1]
                  [1 1]]
-                c   [[3 3]
+                c    [[3 3]
                  [3 3]]"""
             ),
         )
