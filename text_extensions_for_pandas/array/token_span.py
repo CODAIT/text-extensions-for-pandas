@@ -330,14 +330,6 @@ class TokenSpanArray(SpanArray):
         if isinstance(value, ABCSeries) and isinstance(value.dtype, SpanDtype):
             value = value.values
 
-        """expected_key_types = (int, np.ndarray, list, slice)
-        if not isinstance(key, expected_key_types):
-            raise NotImplementedError(
-                f"Don't understand key type "
-                f"'{type(key)}'; should be one of "
-                f"{expected_key_types}"
-            )
-        """
         if value is None or isinstance(value, Sequence) and len(value) == 0:
             self._begin_tokens[key] = TokenSpan.NULL_OFFSET_VALUE
             self._end_tokens[key] = TokenSpan.NULL_OFFSET_VALUE
