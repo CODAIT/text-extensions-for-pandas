@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.abspath('..'))
 project = 'Text Extensions for Pandas'
 copyright = '2020, IBM'
 author = 'IBM'
+master_doc = 'index'
 
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'
