@@ -555,7 +555,7 @@ class TestPandasReshaping(base.BaseReshapingTests):
     def test_unstack(self, data, index, obj):
         pass
 
-    @pytest.mark.skip(reason="ValueError: CharSpans must all be over the same target text")
+    @pytest.mark.skip(reason="ValueError: Spans must all be over the same target text")
     def test_concat_with_reindex(self, data):
         pass
 

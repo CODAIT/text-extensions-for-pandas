@@ -277,7 +277,7 @@ class SpanArray(pd.api.extensions.ExtensionArray):
         # invalidating caches
         self._version = 0  # Type: int
 
-        # Cached list of other CharSpanArrays that are exactly the same as this
+        # Cached list of other SpanArrays that are exactly the same as this
         # one. Each element is the result of calling id()
         self._equivalent_arrays = []  # Type: List[int]
 
@@ -285,22 +285,11 @@ class SpanArray(pd.api.extensions.ExtensionArray):
         # a change hasn't made the arrays no longer equal
         self._equiv_array_versions = []  # Type: List[int]
 
-        # Declare this here to make the pep8 linter happy. Actual initialization
-        # occurs in _shared_init()
-        self._repr_html_show_offsets = None  # Type: bool
+        # Cached hash value of this array
         self._hash = None  # Type: int
 
-        self._shared_init()
-
-    def _shared_init(self):
-        """
-        Initialization steps shared between SpanArray and TokenSpanArray
-        """
-        # Cached hash value of this array
-        self._hash = None
-
         # Flag that tells whether to display details of offsets in Jupyter notebooks
-        self._repr_html_show_offsets = True
+        self._repr_html_show_offsets = True  # Type: bool
 
     ##########################################
     # Overrides of superclass methods go here.
@@ -485,7 +474,7 @@ class SpanArray(pd.api.extensions.ExtensionArray):
         """
         text = {a.target_text for a in to_concat}
         if len(text) != 1:
-            raise ValueError("CharSpans must all be over the same target text")
+            raise ValueError("Spans must all be over the same target text")
         text = text.pop()
 
         begins = np.concatenate([a.begin for a in to_concat])
