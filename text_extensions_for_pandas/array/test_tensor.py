@@ -331,8 +331,8 @@ class TestTensor(unittest.TestCase):
         x = np.array([[1, 2], [3, 4], [5, 6]])
         s = TensorArray(x)
         a = np.asarray(s)
-        #npt.assert_array_equal(x, a)
-        #npt.assert_array_equal(x, s.to_numpy())
+        npt.assert_array_equal(x, a)
+        npt.assert_array_equal(x, s.to_numpy())
 
     def test_sum(self):
         x = np.array([[1, 2], [3, 4], [5, 6]])
@@ -345,11 +345,34 @@ class TestTensor(unittest.TestCase):
         sum_some = df["s"][[True, False, True]].sum()
         npt.assert_array_equal(sum_some.to_numpy(), [6, 8])
 
+    def test_all(self):
+        arr = TensorArray(np.arange(6).reshape(3, 2))
+        s = pd.Series(arr)
+
+        # Test as agg to TensorElement, defaults to axis=0
+        result = s % 2 == 0
+        npt.assert_array_equal(result.all(), np.array([True, False]))
+
+    def test_any(self):
+        arr = TensorArray(np.arange(6).reshape(3, 2))
+        s = pd.Series(arr)
+
+        # Test as agg to TensorElement, defaults to axis=0
+        result = s % 3 == 0
+        npt.assert_array_equal(result[2], np.array([False, False]))
+        npt.assert_array_equal(result.any(), np.array([True, True]))
+
     def test_factorize(self):
         x = np.array([[1, 2], [3, 4], [5, 6], [3, 4]])
         s = TensorArray(x)
         with self.assertRaises(NotImplementedError):
             indices, values = s.factorize()
+
+    def test_take(self):
+        # Test no missing gets same dtype
+
+        # Test missing with nan fill gets promoted to float
+        pass
 
 
 class TensorArrayDataFrameTests(unittest.TestCase):
@@ -441,6 +464,15 @@ class TensorArrayDataFrameTests(unittest.TestCase):
         self.assertEqual(len(result), 1)
         expected = s.iloc[[1]]
         pd.testing.assert_series_equal(result, expected)
+
+    def test_sort(self):
+        arr = TensorArray(np.arange(6).reshape(3, 2))
+        date_range = pd.date_range('2018-01-01', periods=3, freq='H')
+        df = pd.DataFrame({"time": date_range, "tensor": arr})
+        df = df.sort_values(by="time", ascending=False)
+        self.assertEqual(df["tensor"].array.to_numpy().dtype, arr.to_numpy().dtype)
+        expected = np.array([[4, 5], [2, 3], [0, 1]])
+        npt.assert_array_equal(df["tensor"].array, expected)
 
 
 class TensorArrayIOTests(unittest.TestCase):
