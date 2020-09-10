@@ -10,6 +10,7 @@ transformers>=3.0.0
 spacy==2.3.2
 fastparquet
 sphinx
+sphinxcontrib-apidoc
 ipywidgets
 ibm-watson
 

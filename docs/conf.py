@@ -18,23 +18,45 @@
 
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..'))
+
+# This file is located one level above the root of the project. Add .. to the
+# path so we can find the Python code to be documented.
+sys.path.insert(0, os.path.abspath(".."))
+
+print(f"sys.path is {sys.path}")
 
 # -- Project information -----------------------------------------------------
 
-project = 'Text Extensions for Pandas'
-copyright = '2020, IBM'
-author = 'IBM'
+project = "Text Extensions for Pandas"
+copyright = "2020, IBM"
+author = "IBM"
+
+# Front page of API docs is located at index.rst
+master_doc = "index"
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.1'
+release = "0.0.1"
 
 
 # -- General configuration ---------------------------------------------------
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.coverage', 'sphinx.ext.napoleon', 
-                'sphinx.ext.autosummary', 'sphinx.ext.intersphinx',
-                ]
+# What Sphinx extensions to activate. If something is not on this list, it
+# won't run.
+extensions = [
+    "sphinxcontrib.apidoc",
+    "sphinx.ext.autodoc",  # Needed for the sphinxcontrib.apidoc extension 
+#    "sphinx.ext.coverage", 
+#    "sphinx.ext.napoleon",
+#    "sphinx.ext.autosummary", 
+#    "sphinx.ext.intersphinx",
+]
+
+# Configure the sphinxcontrib.apidoc extension
+apidoc_module_dir = "../text_extensions_for_pandas"
+apidoc_output_dir = "."
+apidoc_excluded_paths = ["*test_*"]
+apidoc_separate_modules = False
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
