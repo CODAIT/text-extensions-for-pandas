@@ -34,7 +34,44 @@ from memoized_property import memoized_property
 import text_extensions_for_pandas.jupyter as jupyter
 
 
-class Span:
+def _check_same_text(o1, o2):
+    if not ((o1.target_text is o2.target_text) or (o1.target_text == o2.target_text)):
+        raise ValueError(
+            f"Spans are over different target text "
+            f"(got {o1.target_text} and {o2.target_text})"
+        )
+
+
+class SpanOpMixin:
+    """
+    Mixin class to define common operations between Span and SpanArray.
+    """
+
+    def __add__(self, other) -> Union["Span", "SpanArray"]:
+        """
+        Add a pair of spans and/or span arrays.
+
+        span1 + span2 == minimal span that covers both spans
+        :param other: Span or SpanArray
+        :return: minimal span (or array of spans) that covers both inputs.
+        """
+        if isinstance(self, Span) and isinstance(other, Span):
+            # Span + *Span = Span
+            _check_same_text(self, other)
+            return Span(self.target_text, min(self.begin, other.begin),
+                        max(self.end, other.end))
+        elif isinstance(self, (Span, SpanArray)) and isinstance(other, (Span, SpanArray)):
+            # SpanArray + *Span* = SpanArray
+            _check_same_text(self, other)
+            return SpanArray(self.target_text,
+                             np.minimum(self.begin, other.begin),
+                             np.maximum(self.end, other.end))
+        else:
+            raise TypeError(f"Unexpected combination of span types for add operation: "
+                            f"{type(self)} and {type(other)}")
+
+
+class Span(SpanOpMixin):
     """
     Python object representation of a single span with character offsets; that
     is, a single row of a `SpanArray`.
@@ -113,11 +150,6 @@ class Span:
 
     def __ge__(self, other):
         return other <= self
-
-    def __add__(self, other):
-        # Inline import to prevent circular dependencies
-        import text_extensions_for_pandas.array.span_util
-        return text_extensions_for_pandas.array.span_util.add_spans(self, other)
 
     @property
     def begin(self):
@@ -236,7 +268,7 @@ class SpanDtype(pd.api.extensions.ExtensionDtype):
         return arrow_to_span(extension_array)
 
 
-class SpanArray(pd.api.extensions.ExtensionArray):
+class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
     """
     A Pandas `ExtensionArray` that represents a column of character-based spans
     over a single target text.
@@ -626,11 +658,6 @@ class SpanArray(pd.api.extensions.ExtensionArray):
     def __ge__(self, other):
         # TODO: Figure out what the semantics of this operation should be.
         raise NotImplementedError()
-
-    def __add__(self, other):
-        # Inline import to prevent circular dependencies
-        import text_extensions_for_pandas.array.span_util
-        return text_extensions_for_pandas.array.span_util.add_spans(self, other)
 
     def _reduce(self, name, skipna=True, **kwargs):
         """

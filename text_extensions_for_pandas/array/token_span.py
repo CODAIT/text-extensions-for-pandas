@@ -35,10 +35,48 @@ from text_extensions_for_pandas.array.span import (
     Span,
     SpanArray,
     SpanDtype,
+    SpanOpMixin
 )
 
 
-class TokenSpan(Span):
+def _check_same_tokens(array1, array2):
+    if not array1.tokens.equals(array2.tokens):
+        raise ValueError(
+            f"TokenSpanArrays are over different sets of tokens "
+            f"(got {array1.tokens} and {array2.tokens})"
+        )
+
+
+class TokenSpanOpMixin(SpanOpMixin):
+    """
+    Mixin class to define common operations between TokenSpan and TokenSpanArray.
+    """
+
+    def __add__(self, other) -> Union[Span, "TokenSpan", SpanArray, "TokenSpanArray"]:
+        """
+        Add a pair of spans and/or span arrays.
+
+        span1 + span2 == minimal span that covers both spans
+        :param other: TokenSpan, Span, TokenSpanArray, or SpanArray
+        :return: minimal span (or array of spans) that covers both inputs.
+        """
+        if isinstance(self, TokenSpan) and isinstance(other, TokenSpan):
+            # TokenSpan + TokenSpan = TokenSpan
+            _check_same_tokens(self, other)
+            return TokenSpan(self.tokens, min(self.begin_token, other.begin_token),
+                             max(self.end_token, other.end_token))
+        elif isinstance(self, (TokenSpan, TokenSpanArray)) and \
+                isinstance(other, (TokenSpan, TokenSpanArray)):
+            # TokenSpanArray + TokenSpan* = TokenSpanArray
+            _check_same_tokens(self, other)
+            return TokenSpanArray(self.tokens,
+                                  np.minimum(self.begin_token, other.begin_token),
+                                  np.maximum(self.end_token, other.end_token))
+        else:
+            return super().__add__(other)
+
+
+class TokenSpan(Span, TokenSpanOpMixin):
     """
     Python object representation of a single span with token offsets; that
     is, a single row of a `TokenSpanArray`.
@@ -196,7 +234,7 @@ class TokenSpanDtype(SpanDtype):
         return arrow_to_token_span(extension_array)
 
 
-class TokenSpanArray(SpanArray):
+class TokenSpanArray(SpanArray, TokenSpanOpMixin):
     """
     A Pandas `ExtensionArray` that represents a column of token-based spans
     over a single target text.
