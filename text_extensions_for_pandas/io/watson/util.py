@@ -14,11 +14,10 @@
 #
 
 ################################################################################
-# watson_util.py
+# util.py
 #
 # Internal utility functions for reading ibm_cloud outputs
 # not exposed in the public API.
-
 
 
 import warnings

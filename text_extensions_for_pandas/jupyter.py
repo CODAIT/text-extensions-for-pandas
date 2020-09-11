@@ -13,12 +13,16 @@
 #  limitations under the License.
 #
 
+"""
+The ``jupyter`` module contains functions to support the use of Text Extensions for Pandas
+ in Jupyter notebooks.
+"""
 #
 # jupyter.py
 #
 # Part of text_extensions_for_pandas
 #
-# Library functionality related to Jupyter notebooks.
+#
 #
 
 import pandas as pd

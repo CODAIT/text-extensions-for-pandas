@@ -13,8 +13,20 @@
 #  limitations under the License.
 #
 
+"""
+This module contains functions for working with transformer-based embeddings
+such as BERT, including managing the special tokenization and windowing that these
+embeddings require.
+
+This module uses the ``transformers``_ library to implement tokenization and
+embeddings. You will need that library in your Python path to use the
+functions in this module.
+
+.. _``transformers``: https://github.com/huggingface/transformers
+"""
+
 ################################################################################
-# tokenize.py
+# tokenization.py
 #
 # Functions for tokenization of text
 
@@ -22,9 +34,13 @@ import numpy as np
 import pandas as pd
 from typing import *
 
-from text_extensions_for_pandas.array import (
+from text_extensions_for_pandas.array.span import (
     SpanArray,
+)
+from text_extensions_for_pandas.array.token_span import (
     TokenSpanArray,
+)
+from text_extensions_for_pandas.array.tensor import (
     TensorArray,
 )
 

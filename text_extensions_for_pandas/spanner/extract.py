@@ -27,8 +27,60 @@ import regex
 from typing import *
 
 # Internal imports
-from text_extensions_for_pandas.array import *
+from text_extensions_for_pandas.array.span import (
+    SpanArray
+)
+from text_extensions_for_pandas.array.token_span import (
+    TokenSpanArray
+)
 
+# Set to True to use sparse storage for tokens 2-n of n-token dictionary
+# entries. First token is always stored dense, of course.
+# Currently set to False to avoid spurious Pandas API warnings about conversion
+# from sparse to dense.
+# TODO: Turn this back on when Pandas fixes the issue with the warning.
+_SPARSE_DICT_ENTRIES = False
+
+
+def load_dict(file_name: str, tokenizer: "spacy.tokenizer.Tokenizer"):
+    """
+    Load a SystemT-format dictionary file. File format is one entry per line.
+
+    Tokenizes and normalizes the dictionary entries.
+
+    :param file_name: Path to dictionary file
+
+    :param tokenizer: Preconfigured tokenizer object for tokenizing
+    dictionary entries.  **Must be the same configuration as the tokenizer
+    used on the target text!**
+
+    :return: a `pd.DataFrame` with the normalized entries.
+    """
+    with open(file_name, "r") as f:
+        lines = [
+            line.strip() for line in f.readlines() if len(line) > 0 and line[0] != "#"
+        ]
+
+    # Tokenize with SpaCy. Produces a SpaCy document object per line.
+    tokenized_entries = [tokenizer(line.lower()) for line in lines]
+
+    # Determine the number of tokens in the longest dictionary entry.
+    max_num_toks = max([len(e) for e in tokenized_entries])
+
+    # Generate a column for each token. Go one past the max number of tokens so
+    # that every dictionary entry ends up None-terminated.
+    cols_dict = {}
+    for i in range(max_num_toks + 1):
+        # Extract token i from every entry that has a token i
+        toks_list = [e[i].text if len(e) > i else None for e in tokenized_entries]
+        cols_dict["toks_{}".format(i)] = (
+            # Sparse storage for tokens 2 and onward
+            toks_list
+            if i == 0 or not _SPARSE_DICT_ENTRIES
+            else pd.SparseArray(toks_list)
+        )
+
+    return pd.DataFrame(cols_dict)
 
 def extract_dict(tokens: Union[SpanArray, pd.Series],
                  dictionary: pd.DataFrame,

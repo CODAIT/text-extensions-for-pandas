@@ -142,7 +142,7 @@ class Span:
         else:
             return self.target_text[self.begin:self.end]
 
-    def overlaps(self, other: "Span"):
+    def overlaps(self, other: "text_extensions_for_pandas.Span"):
         """
         :param other: Another Span or TokenSpan
         :return: True if the two spans overlap. Also True if a zero-length
@@ -158,7 +158,7 @@ class Span:
         else:  # other.begin < self.end and other.end >= self.begin
             return True
 
-    def contains(self, other: "Span"):
+    def contains(self, other: "text_extensions_for_pandas.Span"):
         """
         :param other: Another Span or TokenSpan
         :return: True if `other` is entirely within the bounds of this span. Also

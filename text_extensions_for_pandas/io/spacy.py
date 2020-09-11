@@ -16,7 +16,9 @@
 ################################################################################
 # spacy.py
 #
-# I/O functions related to the SpaCy NLP library
+"""
+This module contains I/O functions related to the SpaCy NLP library.
+"""
 
 import numpy as np
 import pandas as pd
@@ -25,14 +27,13 @@ import pandas as pd
 # applications, we do NOT `import spacy` at the top level of this file,
 # and we do NOT include type hints for SpaCy types in the function
 # signatures below.
-# import spacy
-# import spacy.tokenizer
-# import spacy.tokens
 
-from text_extensions_for_pandas.array import (
+from text_extensions_for_pandas.array.span import (
     SpanArray,
-    TokenSpanArray,
     SpanDtype,
+)
+from text_extensions_for_pandas.array.token_span import (
+    TokenSpanArray,
     TokenSpanDtype,
 )
 

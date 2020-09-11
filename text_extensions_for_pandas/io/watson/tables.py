@@ -13,25 +13,28 @@
 #  limitations under the License.
 #
 
-################################################################################
-# watson_tables.py
-#
-# I/O functions related to Watson Compare and Comply table processsing on the ibm cloud.
-# This service provides analysis of text feature through a request/response API, see
-# https://cloud.ibm.com/docs/compare-comply?topic=compare-comply-understanding_tables
-# for information on getting started with the service. Details of the provide API and
-# available features can be found at https://cloud.ibm.com/apidocs/compare-comply?code=python#extract-a-document-s-tables
-# For convience, a Python SDK is available at https://github.com/watson-developer-cloud/python-sdk that
-# can be used to authenticate and make requests to the service.
+"""
+This module of Text Extensions for Pandas inclues I/O functions related to the
+Table Understanding capabilities of Watson Discovery.
 
-from text_extensions_for_pandas.array import SpanArray
+Table Understanding is available as part of the `Watson Discovery component`_ for
+`IBM Cloud Pak for Data`_,
+
+Table Understanding is also available in `Watson Compare and Comply table extraction`_
+on the IBM Cloud. Details of the Compare and Comply API and available features can be found at https://cloud.ibm.com/apidocs/compare-comply?code=python#extract-a-document-s-tables
+For convenience, a Python SDK is available at https://github.com/watson-developer-cloud/python-sdk that
+can be used to authenticate and make requests to the service.
+
+.. _`Watson Discovery component`: https://cloud.ibm.com/docs/discovery-data?topic=discovery-data-install
+.. _`IBM Cloud Pak for Data`: https://www.ibm.com/products/cloud-pak-for-data
+.. _`Watson Compare and Comply table extraction`: https://cloud.ibm.com/apidocs/compare-comply?code=python#extract-a-document-s-tables
+"""
+
 import pandas as pd
 from typing import *
 import regex
-import text_extensions_for_pandas.io.watson_util as util
+import text_extensions_for_pandas.io.watson.util as util
 
-
-#
 
 
 def _make_headers_df(headers_response):

@@ -20,11 +20,13 @@
 #
 # Implementions of extension types for Pandas dataframes.
 #
+# Currently the contents of this submodule are exposed at the top level of our namespace.
+#
 
 # For now we expose every symbol of the subpackages
-from text_extensions_for_pandas.array.span import *
-from text_extensions_for_pandas.array.token_span import *
-from text_extensions_for_pandas.array.tensor import *
-from text_extensions_for_pandas.array.accessor import *
+# from text_extensions_for_pandas.array.span import *
+# from text_extensions_for_pandas.array.token_span import *
+# from text_extensions_for_pandas.array.tensor import *
+# from text_extensions_for_pandas.array.accessor import *
 
 

@@ -18,7 +18,7 @@ import os
 import textwrap
 import unittest
 
-from text_extensions_for_pandas.io.watson_tables import *
+from text_extensions_for_pandas.io.watson.tables import *
 
 
 class TestTables(unittest.TestCase):

@@ -18,8 +18,9 @@ import os
 import textwrap
 import unittest
 import warnings
+import pandas as pd
 
-from text_extensions_for_pandas.io.watson import *
+from text_extensions_for_pandas.io.watson.nlu import *
 
 
 class TestWatson(unittest.TestCase):

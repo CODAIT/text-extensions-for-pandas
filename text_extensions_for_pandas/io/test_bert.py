@@ -23,11 +23,11 @@ from typing import *
 # noinspection PyPackageRequirements
 from transformers import BertTokenizerFast, BertModel
 
-from text_extensions_for_pandas.io.tokenization import *
+from text_extensions_for_pandas.io.bert import *
 from text_extensions_for_pandas.io.conll import (
     conll_2003_to_dataframes, make_iob_tag_categories
 )
-from text_extensions_for_pandas.array import (
+from text_extensions_for_pandas.array.tensor import (
     TensorArray
 )
 

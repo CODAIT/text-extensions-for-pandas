@@ -23,7 +23,7 @@
 
 import pandas as pd
 
-from text_extensions_for_pandas.array import SpanArray
+from text_extensions_for_pandas.array.span import SpanArray
 
 
 def consolidate(df: pd.DataFrame, on: str, how: str = "left_to_right") -> pd.DataFrame:
