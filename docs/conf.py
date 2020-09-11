@@ -43,20 +43,18 @@ release = "0.0.1"
 # What Sphinx extensions to activate. If something is not on this list, it
 # won't run.
 extensions = [
-    "sphinxcontrib.apidoc",
-    "sphinx.ext.autodoc",  # Needed for the sphinxcontrib.apidoc extension 
-#    "sphinx.ext.coverage", 
-#    "sphinx.ext.napoleon",
-#    "sphinx.ext.autosummary", 
-#    "sphinx.ext.intersphinx",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.coverage",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
 ]
 
-# Configure the sphinxcontrib.apidoc extension
-apidoc_module_dir = "../text_extensions_for_pandas"
-apidoc_output_dir = "."
-apidoc_excluded_paths = ["*test_*"]
-apidoc_separate_modules = False
-
+# Configure the sphinx.ext.autodoc extension
+autodoc_default_options = {
+    "members": True,
+    "undoc-members": True,
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
