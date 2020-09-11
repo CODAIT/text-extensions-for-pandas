@@ -337,7 +337,7 @@ def substitute_text_names(table_in, dfs_dict, sub_rows: bool = True, sub_cols: b
     return table
 
 
-def watson_tables_parse_response(response: Dict[str, Any], select_table=None) -> Dict[str, pd.DataFrame]:
+def parse_response(response: Dict[str, Any], select_table=None) -> Dict[str, pd.DataFrame]:
     """
     Parse a response from Watson Tables Understanding as a decoded JSON string. e.g.
      dictionary containing requested features and convert into a dict of Pandas DataFrames.

@@ -37,10 +37,14 @@ from text_extensions_for_pandas.array.tensor import (
 # Import this file to activate our Pandas series accessor callbacks
 import text_extensions_for_pandas.array.accessor
 
+# Sub-modules
+import text_extensions_for_pandas.io as io
+
 # Sphinx autodoc needs this redundant listing of public symbols to list the contents
 # of this subpackage.
 __all__ = [
     "Span", "SpanDtype", "SpanArray",
     "TokenSpan", "TokenSpanDtype", "TokenSpanArray",
-    "TensorElement", "TensorType", "TensorArray"
+    "TensorElement", "TensorType", "TensorArray",
+    "io"
 ]

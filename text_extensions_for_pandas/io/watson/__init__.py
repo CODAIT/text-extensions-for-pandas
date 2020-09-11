@@ -13,18 +13,9 @@
 #  limitations under the License.
 #
 
-################################################################################
-# io module
-#
-# Functions in text_extensions_for_pandas that create DataFrames and convert
-# them to other formats.
-
 # Expose the public APIs that users should get from importing the top-level
 # library.
-import text_extensions_for_pandas.io.watson as watson
-import text_extensions_for_pandas.io.bert as bert
-import text_extensions_for_pandas.io.conll as conll
-import text_extensions_for_pandas.io.spacy as spacy
+import text_extensions_for_pandas.io.watson.nlu as nlu
+import text_extensions_for_pandas.io.watson.tables as tables
 
-__all__ = ["watson", "bert", "conll", "spacy"]
-
+__all__ = ["nlu", "tables"]

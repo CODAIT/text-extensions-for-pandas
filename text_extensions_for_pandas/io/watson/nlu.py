@@ -337,7 +337,7 @@ def _make_relations_dataframe_zero_copy(relations):
     return table.to_pandas()
 
 
-def watson_nlu_parse_response(response: Dict[str, Any],
+def parse_response(response: Dict[str, Any],
                               original_text: str = None,
                               apply_standard_schema: bool = False) -> Dict[str, pd.DataFrame]:
     """
@@ -369,7 +369,7 @@ def watson_nlu_parse_response(response: Dict[str, Any],
     ...         semantic_roles=SemanticRolesOptions(),
     ...         syntax=SyntaxOptions(sentences=True, tokens=SyntaxOptionsTokens(lemma=True, part_of_speech=True))
     ...     )).get_result()
-    >>> dfs = watson_nlu_parse_response(response)
+    >>> dfs = parse_response(response)
     >>> dfs.keys()
     dict_keys(['syntax', 'entities', 'keywords', 'relations', 'semantic_roles'])
     >>> dfs["syntax"].head()
@@ -445,7 +445,7 @@ def make_span_from_entities(char_span: SpanArray,
     char span array with tokens from the entire analyzed text.
 
     :param char_span: Parsed tokens
-    :param entities_frame: Entities DataFrame from `watson_nlu_parse_response`
+    :param entities_frame: Entities DataFrame from `parse_response`
     :param entity_col: Column name for the entity text
     :return: TokenSpanArray for matching entities
     """
