@@ -57,18 +57,19 @@ extensions = [
 
 # Configure the sphinx.ext.autodoc extension
 autodoc_default_options = {
-    "members": True,
-    "undoc-members": True,
+    # TODO: Re-enable this once readthedocs.org upgrades to a version of
+    #  Sphinx where True is an acceptable value for the "members" option.
+    #  Then remove the redundant :members: and :undoc-members: annotations
+    #  from index.rst.
+    #"members": True,
+    #"undoc-members": True,
 }
 
 # Configure the sphinxcontrib.apidoc extension (currently not used)
 apidoc_module_dir = "../text_extensions_for_pandas"
 apidoc_output_dir = "."
 apidoc_excluded_paths = ["test_*.py"]
-
-# The version of Sphinx on readthedocs.org doesn't support passing True to 
-# apidoc_separate_modules
-#apidoc_separate_modules = True
+apidoc_separate_modules = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

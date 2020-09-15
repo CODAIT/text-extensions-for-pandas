@@ -20,6 +20,8 @@ This section describes the Python classes that implement
 these types.
 
 .. automodule::   text_extensions_for_pandas
+   :members:
+   :undoc-members:
 
 Input and Output
 =================
@@ -41,38 +43,52 @@ also support Pandas' native serialization via `Apache Arrow`_, including the
 -------------------------------------------------------------------
 
 .. automodule:: text_extensions_for_pandas.io.watson.nlu
+   :members:
+   :undoc-members:
 
 ``io.watson.tables`` Module: IBM Watson Discovery Table Understanding
 ---------------------------------------------------------------------
 
 .. automodule:: text_extensions_for_pandas.io.watson.tables
+   :members:
+   :undoc-members:
 
 ``io.conll`` Module: CoNLL-2003 File Format
 --------------------------------------------
 
 .. automodule:: text_extensions_for_pandas.io.conll
+   :members:
+   :undoc-members:
 
 ``io.spacy`` Module: Pandas APIs for SpaCy Data Structures
 -----------------------------------------------------------
 
 .. automodule:: text_extensions_for_pandas.io.spacy
+   :members:
+   :undoc-members:
 
 ``io.bert`` Module: Support for BERT (and similar) embeddings
 ---------------------------------------------------------------------
 
 .. automodule:: text_extensions_for_pandas.io.bert
+   :members:
+   :undoc-members:
 
 
 ``spanner`` Module: Spanner Algebra
 =====================================
 
 .. automodule::   text_extensions_for_pandas.spanner
+   :members:
+   :undoc-members:
 
 
 ``jupyter`` Module: Support for Jupyter Notebooks
 =================================================================
 
 .. automodule:: text_extensions_for_pandas.jupyter
+   :members:
+   :undoc-members:
 
 
 
