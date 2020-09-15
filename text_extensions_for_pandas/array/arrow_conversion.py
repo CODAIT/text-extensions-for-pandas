@@ -24,7 +24,9 @@
 import numpy as np
 import pyarrow as pa
 
-from text_extensions_for_pandas.array import SpanArray, TensorArray, TokenSpanArray
+from text_extensions_for_pandas.array.span import SpanArray
+from text_extensions_for_pandas.array.token_span import TokenSpanArray
+from text_extensions_for_pandas.array.tensor import TensorArray
 
 
 class ArrowSpanType(pa.PyExtensionType):

@@ -22,8 +22,29 @@
 #   import text_extensions_for_pandas as pt
 #
 
-# For now just expose everything at the top level of the namespace
-from text_extensions_for_pandas.spanner import *
-from text_extensions_for_pandas.array import *
-from text_extensions_for_pandas.io import *
-from text_extensions_for_pandas.jupyter import *
+
+# We expose the extension array classes at the top level of our namespace.
+from text_extensions_for_pandas.array.span import (
+    Span, SpanDtype, SpanArray
+)
+from text_extensions_for_pandas.array.token_span import (
+    TokenSpan, TokenSpanDtype, TokenSpanArray
+)
+from text_extensions_for_pandas.array.tensor import (
+    TensorElement, TensorType, TensorArray
+)
+
+# Import this file to activate our Pandas series accessor callbacks
+import text_extensions_for_pandas.array.accessor
+
+# Sub-modules
+import text_extensions_for_pandas.io as io
+
+# Sphinx autodoc needs this redundant listing of public symbols to list the contents
+# of this subpackage.
+__all__ = [
+    "Span", "SpanDtype", "SpanArray",
+    "TokenSpan", "TokenSpanDtype", "TokenSpanArray",
+    "TensorElement", "TensorType", "TensorArray",
+    "io"
+]

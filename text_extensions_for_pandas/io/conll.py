@@ -15,8 +15,10 @@
 
 ################################################################################
 # conll.py
-#
-# I/O functions related to CONLL entity format and its many derivatives.
+
+"""
+This module contains I/O functions related to CoNLL-2003 file format and its derivatives.
+"""
 
 from typing import *
 
@@ -26,11 +28,13 @@ import regex
 import requests
 import os
 
-from text_extensions_for_pandas.array import (
-    TokenSpan,
+from text_extensions_for_pandas.array.span import (
     SpanArray,
-    TokenSpanArray,
     SpanDtype
+)
+from text_extensions_for_pandas.array.token_span import (
+    TokenSpan,
+    TokenSpanArray,
 )
 
 # Special token that CoNLL-2003 format uses to delineate the documents in

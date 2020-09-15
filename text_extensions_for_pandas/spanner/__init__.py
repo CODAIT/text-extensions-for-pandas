@@ -13,20 +13,54 @@
 #  limitations under the License.
 #
 
-#
-# spanner module
-#
-# Part of text_extensions_for_pandas
-#
-# Code for spanner algebra over Pandas DataFrames.
-#
-# This module is broken down according to the basic operators that make up
-# the relational algebra augmented with spanner algebra.
-#
+"""
+The ``spanner`` module of Text Extensions for Pandas provides span-specific operations
+for Pandas DataFrames, based on the Document Spanners formalism, also known as
+spanner algebra.
 
-from text_extensions_for_pandas.spanner.consolidate import *
-from text_extensions_for_pandas.spanner.extract import *
-from text_extensions_for_pandas.spanner.join import *
-from text_extensions_for_pandas.spanner.project import *
+Spanner algebra is an extension of relational algebra with additional operations
+to cover NLP applications. See the paper ["Document Spanners: A Formal Approach to
+Information Extraction"](
+https://researcher.watson.ibm.com/researcher/files/us-fagin/jacm15.pdf) by Fagin et al.
+for more information.
+"""
+
+# The contents of this package are divided into multiple Python source files, but we
+# export the symbols at the root of the package namespace.
+from text_extensions_for_pandas.spanner.consolidate import (
+    consolidate
+)
+from text_extensions_for_pandas.spanner.extract import (
+    extract_dict,
+    extract_regex_tok
+)
+from text_extensions_for_pandas.spanner.join import (
+    adjacent_join,
+    contain_join,
+    overlap_join
+)
+from text_extensions_for_pandas.spanner.project import (
+    lemmatize
+)
+
+# Sphinx autodoc needs this redundant listing of public functions to list the contents
+# of this subpackage.
+__all__ = [
+    # consolidate.py
+    "consolidate",
+
+    # extract.py
+    "extract_dict",
+    "extract_regex_tok",
+
+    # join.py
+    "adjacent_join",
+    "contain_join",
+    "overlap_join",
+    
+    # project.py
+    "lemmatize"
+]
+
 
 

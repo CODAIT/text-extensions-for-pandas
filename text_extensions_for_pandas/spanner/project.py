@@ -25,7 +25,12 @@ import pandas as pd
 from typing import *
 
 # Internal imports
-from text_extensions_for_pandas.array import *
+from text_extensions_for_pandas.array.span import (
+    SpanArray, Span
+)
+from text_extensions_for_pandas.array.token_span import (
+    TokenSpanArray
+)
 
 
 def lemmatize(spans: Union[pd.Series, SpanArray, Iterable[Span]],

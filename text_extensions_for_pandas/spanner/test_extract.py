@@ -18,7 +18,6 @@ import textwrap
 
 from text_extensions_for_pandas.spanner.extract import *
 from text_extensions_for_pandas.io.spacy import make_tokens
-from text_extensions_for_pandas.io.systemt import load_dict
 from text_extensions_for_pandas.util import TestBase
 
 import spacy
@@ -39,6 +38,27 @@ class ExtractTest(TestBase):
                 line.strip() for line in f.readlines() if len(line) > 0 and line[0] != "#"
             ]
         return " ".join(lines)
+
+    def test_load_dict(self):
+        # noinspection PyPackageRequirements
+        from spacy.lang.en import English
+        nlp = English()
+        tokenizer = nlp.Defaults.create_tokenizer(nlp)
+        df = load_dict("test_data/io/test_systemt/test.dict", tokenizer)
+        # print(f"***{df}***")
+        self.assertEqual(
+            str(df),
+            textwrap.dedent(
+                """\
+                       toks_0 toks_1  toks_2   toks_3 toks_4   toks_5 toks_6
+                0  dictionary  entry    None     None   None     None   None
+                1       entry   None    None     None   None     None   None
+                2        help     me       !        i     am  trapped   None
+                3          in      a   haiku  factory      !     None   None
+                4        save     me  before     they   None     None   None
+                5        None   None    None     None   None     None   None"""
+            )
+        )
 
     def test_extract_dict(self):
         file_name = "test_data/io/test_systemt/test.dict"
