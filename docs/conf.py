@@ -65,7 +65,10 @@ autodoc_default_options = {
 apidoc_module_dir = "../text_extensions_for_pandas"
 apidoc_output_dir = "."
 apidoc_excluded_paths = ["test_*.py"]
-apidoc_separate_modules = True
+
+# The version of Sphinx on readthedocs.org doesn't support passing True to 
+# apidoc_separate_modules
+#apidoc_separate_modules = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
