@@ -25,7 +25,7 @@ import pandas.testing as pdt
 from pandas.tests.extension import base
 import pytest
 
-from text_extensions_for_pandas.array.tensor import TensorArray, TensorElement, TensorType
+from text_extensions_for_pandas.array.tensor import TensorArray, TensorElement, TensorDtype
 
 
 class TestTensor(unittest.TestCase):
@@ -85,17 +85,17 @@ class TestTensor(unittest.TestCase):
 
         # Now with TensorElement values
         e = [TensorElement(np.array(i)) for i in x]
-        s = pd.array(e, dtype=TensorType())
+        s = pd.array(e, dtype=TensorDtype())
         npt.assert_array_equal(s.to_numpy(), expected)
 
         # Now with list of 1d tensors
         x = [np.array([i]) for i in x]
-        s = pd.array(x, dtype=TensorType())
+        s = pd.array(x, dtype=TensorDtype())
         self.assertTupleEqual(s.to_numpy().shape, (len(x), 1))
         npt.assert_array_equal(s.to_numpy(), np.array([[e] for e in expected]))
 
         # Pandas will create list of copies of the tensor element for the given indices
-        s = pd.Series(np.nan, index=[0, 1, 2], dtype=TensorType())
+        s = pd.Series(np.nan, index=[0, 1, 2], dtype=TensorDtype())
         self.assertEqual(len(s), 3)
         self.assertTupleEqual(s.to_numpy().shape, (3,))
         result = s.isna()
@@ -137,8 +137,8 @@ class TestTensor(unittest.TestCase):
         x = np.array([[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]] * 100)
         a = TensorArray(x)
         s1 = pd.Series(a)
-        s2 = pd.Series(a, dtype=TensorType())
-        s3 = pd.Series(a, dtype=TensorType(), copy=True)
+        s2 = pd.Series(a, dtype=TensorDtype())
+        s3 = pd.Series(a, dtype=TensorDtype(), copy=True)
         self.assertEqual(len(x), len(s1))
         npt.assert_array_equal(x, s1.to_numpy())
         pdt.assert_series_equal(s1, s2)
@@ -202,7 +202,7 @@ class TestTensor(unittest.TestCase):
             0   [1 2]
             1   [3 4]
             2   [5 6]
-            dtype: TensorType"""
+            dtype: TensorDtype"""
         )
         self.assertEqual(expected, result)
 
@@ -227,7 +227,7 @@ class TestTensor(unittest.TestCase):
         #     0   [ True False]
         #     1   [False  True]
         #     2   [False False]
-        #     dtype: TensorType"""
+        #     dtype: TensorDtype"""
         # )
         # # self.assertEqual(expected, result)
         # print(f"***{result}***")
@@ -513,7 +513,7 @@ class TensorArrayIOTests(unittest.TestCase):
 
 @pytest.fixture
 def dtype():
-    return TensorType()
+    return TensorDtype()
 
 
 @pytest.fixture

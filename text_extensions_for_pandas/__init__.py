@@ -31,7 +31,7 @@ from text_extensions_for_pandas.array.token_span import (
     TokenSpan, TokenSpanDtype, TokenSpanArray
 )
 from text_extensions_for_pandas.array.tensor import (
-    TensorElement, TensorType, TensorArray
+    TensorElement, TensorDtype, TensorArray
 )
 
 # Import this file to activate our Pandas series accessor callbacks
@@ -45,6 +45,6 @@ import text_extensions_for_pandas.io as io
 __all__ = [
     "Span", "SpanDtype", "SpanArray",
     "TokenSpan", "TokenSpanDtype", "TokenSpanArray",
-    "TensorElement", "TensorType", "TensorArray",
+    "TensorElement", "TensorDtype", "TensorArray",
     "io"
 ]

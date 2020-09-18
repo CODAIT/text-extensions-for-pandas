@@ -305,7 +305,7 @@ def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
 
 class ArrowTensorType(pa.PyExtensionType):
     """
-    pyarrow ExtensionType definition for TensorType
+    pyarrow ExtensionType definition for TensorDtype
 
     :param element_shape: Fixed shape for each tensor element of the array, the
                           outer dimension is the number of elements, or length,
