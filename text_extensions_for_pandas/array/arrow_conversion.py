@@ -119,7 +119,7 @@ class ArrowTokenSpanType(pa.PyExtensionType):
         return ArrowTokenSpanType, (index_dtype, target_text, num_char_span_splits)
 
 
-def char_span_to_arrow(char_span: SpanArray) -> pa.ExtensionArray:
+def span_to_arrow(char_span: SpanArray) -> pa.ExtensionArray:
     """
     Convert a SpanArray to a pyarrow.ExtensionArray with a type
     of ArrowSpanType and struct as the storage type. The resulting
@@ -305,7 +305,7 @@ def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
 
 class ArrowTensorType(pa.PyExtensionType):
     """
-    pyarrow ExtensionType definition for TensorType
+    pyarrow ExtensionType definition for TensorDtype
 
     :param element_shape: Fixed shape for each tensor element of the array, the
                           outer dimension is the number of elements, or length,
