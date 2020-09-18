@@ -847,5 +847,5 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         :param type: Optional type passed to arrow for conversion, not used
         :return: pyarrow.ExtensionArray of type ArrowSpanType
         """
-        from text_extensions_for_pandas.array.arrow_conversion import char_span_to_arrow
-        return char_span_to_arrow(self)
+        from text_extensions_for_pandas.array.arrow_conversion import span_to_arrow
+        return span_to_arrow(self)
