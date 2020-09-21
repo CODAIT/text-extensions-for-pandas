@@ -369,10 +369,23 @@ class TestTensor(unittest.TestCase):
             indices, values = s.factorize()
 
     def test_take(self):
-        # Test no missing gets same dtype
+        x = np.array([[1, 2], [3, 4], [5, 6]])
+        s = TensorArray(x)
 
-        # Test missing with nan fill gets promoted to float
-        pass
+        # Test no missing gets same dtype
+        result = s.take([0, 2], allow_fill=True)
+        expected = np.array([[1, 2], [5, 6]])
+        self.assertEqual(result.to_numpy().dtype, expected.dtype)
+        npt.assert_array_equal(result, expected)
+        result = s.take([0, 2], allow_fill=False)
+        npt.assert_array_equal(result, expected)
+
+        # Test missing with nan fill gets promoted to float and filled
+        result = s.take([1, -1], allow_fill=True)
+        expected = np.array([[3, 4], [np.nan, np.nan]])
+        self.assertEqual(result.to_numpy().dtype, expected.dtype)
+        npt.assert_array_equal(result, expected)
+        npt.assert_array_equal(result.isna(), [False, True])
 
 
 class TensorArrayDataFrameTests(unittest.TestCase):
