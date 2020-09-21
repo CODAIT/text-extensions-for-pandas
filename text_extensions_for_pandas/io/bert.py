@@ -128,6 +128,8 @@ def add_embeddings(df: pd.DataFrame, bert: Any) -> pd.DataFrame:
     :param bert: PyTorch-based BERT model from the `transformers` library
     :returns: A copy of `df` with a new column, "embedding" containing
      BERT embeddings as a `TensorArray`.
+
+    .. note:: PyTorch must be installed to run this function.
     """
     # Import torch inline so that the rest of this library will function without it.
     # noinspection PyPackageRequirements
@@ -141,8 +143,8 @@ def add_embeddings(df: pd.DataFrame, bert: Any) -> pd.DataFrame:
         input_ids=torch.tensor(windows["input_ids"]),
         attention_mask=torch.tensor(windows["attention_masks"]))
     hidden_states = windows_to_seq(flat_input_ids,
-                                      bert_result[0].detach().numpy(),
-                                      _OVERLAP, _NON_OVERLAP)
+                                   bert_result[0].detach().numpy(),
+                                   _OVERLAP, _NON_OVERLAP)
     embeddings = TensorArray(hidden_states)
     ret = df.copy()
     ret["embedding"] = embeddings
@@ -193,7 +195,7 @@ def align_bert_tokens_to_corpus_tokens(
      Must contain a column "span" with character-based spans of
      the tokens.
 
-    :returns: A new DataFrame with the schema ["token_span", "ent_type"],
+    :returns: A new DataFrame with schema ["span", "token_span", "ent_type"],
      where the "token_span" column contains token-based spans based off
      the *corpus* tokenization in `corpus_toks_df["span"]`.
     """
@@ -218,7 +220,7 @@ def align_bert_tokens_to_corpus_tokens(
     )
     cons_df["token_span"] = TokenSpanArray.align_to_tokens(
         corpus_toks_df["span"], cons_df["span"])
-    return cons_df
+    return cons_df.reindex(columns=["span", "token_span", "ent_type"])
 
 
 def seq_to_windows(
@@ -269,7 +271,7 @@ def seq_to_windows(
 
 def windows_to_seq(
     seq: np.ndarray, windows: np.ndarray, overlap: int, non_overlap: int
-) -> Dict[str, np.ndarray]:
+) -> np.ndarray:
     """
     Inverse of `seq_to_windows()`.
     Convert fixed length windows with padding to a variable-length sequence
@@ -358,4 +360,4 @@ def _compute_padding(
         # Chop off empty last window
         post_padding -= overlap + non_overlap
 
-    return (window_length, pre_padding, post_padding)
+    return window_length, pre_padding, post_padding
