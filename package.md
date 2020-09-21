@@ -33,13 +33,13 @@ types.
 
 ## Installation
 
+This library requires Python 3.7+, Pandas, and Numpy. 
+
 To install Text Extensions for Pandas, just run
 
 ```
 pip install text_extensions_for_pandas
 ```
-
-from your Python 3.7 or later environment.
 
 Depending on your use case, you may also need the following additional
 packages:

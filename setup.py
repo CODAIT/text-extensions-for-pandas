@@ -24,7 +24,7 @@ with open('requirements.txt') as fh:
 
 setuptools.setup(
     name="text_extensions_for_pandas",
-    version="0.1a3",
+    version="0.1a4",
     author="IBM",
     author_email="frreiss@example.com",
     description="Adds extension types for NLP data to Pandas dataframes.",

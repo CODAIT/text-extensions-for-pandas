@@ -9,12 +9,27 @@ Text Extensions for Pandas turns Pandas DataFrames into a universal data
 structure for representing intermediate data in all phases of your NLP
 application development workflow.
 
-## Features:
+## Features
 
-* `SpanArray`: A Pandas extension type for representing *spans* of text 
-* `TensorAray`: A Pandas extension type for n-dimensional array values   
-* Integrations with popular NLP toolkits
-* Functions for common NLP tasks over Pandas DataFrames
+### SpanArray: A Pandas extension type for *spans* of text
+
+* Connect features with regions of a document
+* Visualize the internal data of your NLP application
+* Analyze the accuracy of your models
+* Combine the results of multiple models
+
+### TensorArray: A Pandas extension type for tensors
+
+* Represent BERT embeddings in a Pandas series
+* Store logits and other feature vectors in a Pandas series
+* Store an entire time series in each cell of a Pandas series
+
+### Pandas front-ends for popular NLP toolkits
+
+* [SpaCy](https://spacy.io/)
+* [Transformers](https://github.com/huggingface/transformers)
+* [IBM Watson Natural Language Understanding](https://www.ibm.com/cloud/watson-natural-language-understanding)
+* [IBM Watson Discovry Table Understanding](https://cloud.ibm.com/docs/discovery-data?topic=discovery-data-understanding_tables)
 
 
 ## Installation
@@ -25,6 +40,14 @@ To install the latest release, just run:
 ```
 pip install text-extensions-for-pandas
 ```
+
+Depending on your use case, you may also need the following additional
+packages:
+* `spacy` (for SpaCy support)
+* `transformers` (for 
+* `ibm_watson` (for IBM Watson support)
+
+## Installation from Source
 
 If you'd like to try out the very latest version of our code, 
 you can install directly from the head of the master branch:
