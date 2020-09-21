@@ -195,8 +195,8 @@ def align_bert_tokens_to_corpus_tokens(
      Must contain a column "span" with character-based spans of
      the tokens.
 
-    :returns: A new DataFrame with schema ["span", "token_span", "ent_type"],
-     where the "token_span" column contains token-based spans based off
+    :returns: A new DataFrame with schema ["span", "ent_type"],
+     where the "span" column contains token-based spans based off
      the *corpus* tokenization in `corpus_toks_df["span"]`.
     """
     if len(spans_df.index) == 0:
@@ -218,9 +218,9 @@ def align_bert_tokens_to_corpus_tokens(
         [["corpus_token", "ent_type"]]
             .rename(columns={"corpus_token": "span"})
     )
-    cons_df["token_span"] = TokenSpanArray.align_to_tokens(
+    cons_df["span"] = TokenSpanArray.align_to_tokens(
         corpus_toks_df["span"], cons_df["span"])
-    return cons_df.reindex(columns=["span", "token_span", "ent_type"])
+    return cons_df
 
 
 def seq_to_windows(

@@ -191,12 +191,12 @@ class TestTokenize(unittest.TestCase):
             # NOTE: Don't forget to add both sets of double-backslashes back in if you
             # copy-and-paste an updated version of the output below!
             textwrap.dedent("""\
-                              span           token_span ent_type
-            0        [0, 3): 'Who'        [0, 3): 'Who'     <NA>
-            1         [4, 6): 'is'         [4, 6): 'is'     <NA>
-            2   [7, 14): 'General'   [7, 14): 'General'      PER
-            3  [15, 22): 'Failure'  [15, 22): 'Failure'      PER
-            4        [23, 24): '('        [23, 24): '('     <NA>"""))
+                              span ent_type
+            0        [0, 3): 'Who'     <NA>
+            1         [4, 6): 'is'     <NA>
+            2   [7, 14): 'General'      PER
+            3  [15, 22): 'Failure'      PER
+            4        [23, 24): '('     <NA>"""))
 
     def test_seq_to_windows(self):
         for seqlen in range(1, 20):
