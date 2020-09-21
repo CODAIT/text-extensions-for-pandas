@@ -15,7 +15,7 @@
 
 import setuptools
 
-with open("README.md", "r") as fh:
+with open("package.md", "r") as fh:
     long_description = fh.read()
 
 # read requirements from file
@@ -24,7 +24,7 @@ with open('requirements.txt') as fh:
 
 setuptools.setup(
     name="text_extensions_for_pandas",
-    version="0.0.1_prealpha",
+    version="0.1a3",
     author="IBM",
     author_email="frreiss@example.com",
     description="Adds extension types for NLP data to Pandas dataframes.",
@@ -36,7 +36,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: Apache License, Version 2.0",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.7',
