@@ -224,14 +224,24 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             # `indices` indicate missing values and are set to `fill_value`
             indices = np.asarray(indices, dtype=np.intp)
             validate_indices(indices, len(self._tensor))
-            if fill_value is None:
-                fill_value = np.nan
-            values = np.full((len(indices),) + self._tensor.shape[1:], fill_value)
-            for i, idx in enumerate(indices):
-                if idx >= 0:
-                    values[i] = self._tensor[idx]
-        else:
-            values = self._tensor.take(indices, axis=0)
+
+            # Check if there are missing indices to fill, if not can use numpy take below
+            has_missing = np.any(indices < 0)
+            if has_missing:
+                if fill_value is None:
+                    fill_value = np.nan
+                # Create an array populated with fill value
+                values = np.full((len(indices),) + self._tensor.shape[1:], fill_value)
+
+                # Iterate over each index and set non-missing elements
+                for i, idx in enumerate(indices):
+                    if idx >= 0:
+                        values[i] = self._tensor[idx]
+                return TensorArray(values)
+
+        # Delegate take to numpy array
+        values = self._tensor.take(indices, axis=0)
+
         return TensorArray(values)
 
     @property
@@ -353,6 +363,10 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         """
         if name == "sum":
             return TensorArray(np.sum(self._tensor, axis=0))
+        elif name == "all":
+            return TensorArray(np.all(self._tensor, axis=0))
+        elif name == "any":
+            return TensorArray(np.any(self._tensor, axis=0))
         else:
             raise NotImplementedError(f"'{name}' aggregate not implemented.")
 
