@@ -64,7 +64,7 @@ of this repository to the front of `sys.path`.
 For examples of how to use the library, take a look at the notebooks in 
 [this directory](https://github.com/CODAIT/text-extensions-for-pandas/tree/master/notebooks).
 
-API documentation can be found at [https://readthedocs.org/projects/text-extensions-for-pandas/](https://readthedocs.org/projects/text-extensions-for-pandas/).
+API documentation can be found at [https://text-extensions-for-pandas.readthedocs.io/en/latest/](https://text-extensions-for-pandas.readthedocs.io/en/latest/)
 
 
 ## Contents of this repository
