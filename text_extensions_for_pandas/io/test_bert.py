@@ -39,7 +39,7 @@ class TestTokenize(unittest.TestCase):
         # Instantiate expensive-to-load models once
         model_name = "bert-base-uncased"
         cls._tokenizer = BertTokenizerFast.from_pretrained(model_name,
-                                                            add_special_tokens=True)
+                                                           add_special_tokens=True)
         cls._bert = BertModel.from_pretrained(model_name)
 
     def setUp(self):
@@ -82,14 +82,13 @@ class TestTokenize(unittest.TestCase):
         for e in expected:
             self.assertTrue(e in tokens)
 
-
     @staticmethod
     def _embedding_to_int(df: pd.DataFrame, colname: str):
         """
         Turn embeddings into ints so that test results will be more stable.
 
-        :param df: Dataframe containing embeddings. MODIFIED IN PLACE.
-        :param colname: Name of column where embedddings reside
+        :param df: DataFrame containing embeddings. MODIFIED IN PLACE.
+        :param colname: Name of column where embeddings reside
         """
         before = df[colname].values.to_numpy()
         after = (before * 10.).astype(int)
@@ -192,12 +191,12 @@ class TestTokenize(unittest.TestCase):
             # NOTE: Don't forget to add both sets of double-backslashes back in if you
             # copy-and-paste an updated version of the output below!
             textwrap.dedent("""\
-                                  span ent_type
-                0        [0, 3): 'Who'     <NA>
-                1         [4, 6): 'is'     <NA>
-                2   [7, 14): 'General'      PER
-                3  [15, 22): 'Failure'      PER
-                4        [23, 24): '('     <NA>"""))
+                              span ent_type
+            0        [0, 3): 'Who'     <NA>
+            1         [4, 6): 'is'     <NA>
+            2   [7, 14): 'General'      PER
+            3  [15, 22): 'Failure'      PER
+            4        [23, 24): '('     <NA>"""))
 
     def test_seq_to_windows(self):
         for seqlen in range(1, 20):
@@ -219,4 +218,3 @@ class TestTokenize(unittest.TestCase):
             seq_after = windows_to_seq(seq, windows["input_ids"], 32, 64)
             if np.any(seq != seq_after):
                 raise ValueError("Before: {seq}; After: {seq_after}")
-
