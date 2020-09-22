@@ -70,7 +70,7 @@ API documentation can be found at [https://readthedocs.org/projects/text-extensi
 ## Contents of this repository
 
 * **`text_extensions_for_pandas`**: Source code for the `text_extensions_for_pandas` module.
-* **env.sh**: Script to create an conda environment `pd` capable of running the notebooks and test cases in this project
+* **env.sh**: Script to create a conda environment `pd` capable of running the notebooks and test cases in this project
 * **generate_docs.sh**: Script to build the [API documentation]((https://readthedocs.org/projects/text-extensions-for-pandas/)
 * **api_docs**: Configuration files for `generate_docs.sh`
 * **config**: Configuration files for `env.sh`.

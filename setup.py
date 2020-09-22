@@ -27,7 +27,7 @@ setuptools.setup(
     version="0.1a4",
     author="IBM",
     author_email="frreiss@example.com",
-    description="Adds extension types for NLP data to Pandas dataframes.",
+    description="Natural language processing support for Pandas dataframes.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     # Note that this URL is where the project *will* be, not where it currently is.
