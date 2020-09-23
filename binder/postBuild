@@ -1,5 +1,8 @@
 # Post-build script for binder/repo2docker environment setup.
 
+# Log commands
+set -ex
+
 # Install additional packages beyond those in requirements.txt so that the
 # JupyterLab instance will be able to run all of the NLP library integrations.
 pip install -r config/dev_reqs.txt
