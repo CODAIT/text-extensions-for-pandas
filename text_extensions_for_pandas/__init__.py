@@ -16,10 +16,10 @@
 ################################################################################
 # text_extensions_for_pandas
 #
-# NLP addons for Pandas dataframes.
+# NLP addons for Pandas DataFrames.
 #
 # To use:
-#   import text_extensions_for_pandas as pt
+#   import text_extensions_for_pandas as tp
 #
 
 
@@ -38,7 +38,8 @@ from text_extensions_for_pandas.array.tensor import (
 import text_extensions_for_pandas.array.accessor
 
 # Sub-modules
-import text_extensions_for_pandas.io as io
+from text_extensions_for_pandas import io
+from text_extensions_for_pandas import spanner
 
 # Sphinx autodoc needs this redundant listing of public symbols to list the contents
 # of this subpackage.

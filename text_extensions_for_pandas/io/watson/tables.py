@@ -33,8 +33,7 @@ can be used to authenticate and make requests to the service.
 import pandas as pd
 from typing import *
 import regex
-import text_extensions_for_pandas.io.watson.util as util
-
+from text_extensions_for_pandas.io.watson import util
 
 
 def _make_headers_df(headers_response):
@@ -474,6 +473,7 @@ def make_table(dfs_dict: Dict[str, pd.DataFrame], value_col="text", row_explode_
                                        sort_headers=sort_headers)
     table = substitute_text_names(table,dfs_dict,row_headers_by_id,col_headers_by_id)
     return table
+
 
 def make_exploded_df(dfs_dict: Dict[str, pd.DataFrame], drop_original: bool = True,
                      row_explode_by: str = None,
