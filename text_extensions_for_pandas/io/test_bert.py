@@ -13,14 +13,12 @@
 #  limitations under the License.
 #
 
-import sys
 import unittest
 
 import pandas as pd
 import numpy as np
 import textwrap
 from typing import *
-import pytest
 
 # noinspection PyPackageRequirements
 from transformers import BertTokenizerFast, BertModel
@@ -34,7 +32,6 @@ from text_extensions_for_pandas.array.tensor import (
 )
 
 
-#@pytest.mark.skipif(sys.version_info[:2] <= (3, 6), reason="BertModel segfault")
 class TestTokenize(unittest.TestCase):
 
     @classmethod
