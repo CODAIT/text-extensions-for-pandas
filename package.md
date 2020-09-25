@@ -1,8 +1,9 @@
 <!-- Package description for PyPI -->
 
-# Text Extensions for Pandas
-
 Natural language processing support for Pandas DataFrames.
+
+[![Documentation Status](https://readthedocs.org/projects/text-extensions-for-pandas/badge/?version=latest)](https://text-extensions-for-pandas.readthedocs.io/en/latest/?badge=latest)
+
 
 Text Extensions for Pandas adds [extension types](https://pandas.pydata.org/docs/development/extending.html) to Pandas DataFrames for representing natural
 language data, plus a library of functions for working with these extension
@@ -30,30 +31,12 @@ types.
 * [IBM Watson Natural Language Understanding](https://www.ibm.com/cloud/watson-natural-language-understanding)
 * [IBM Watson Discovry Table Understanding](https://cloud.ibm.com/docs/discovery-data?topic=discovery-data-understanding_tables)
 
-
-## Installation
-
-This library requires Python 3.7+, Pandas, and Numpy. 
-
-To install Text Extensions for Pandas, just run
-
-```
-pip install text_extensions_for_pandas
-```
-
-Depending on your use case, you may also need the following additional
-packages:
-* `spacy` (for SpaCy support)
-* `transformers` (for 
-* `ibm_watson` (for IBM Watson support)
-
-
 ## Documentation
 
 For examples of how to use the library, take a look at the notebooks in 
 [this directory](https://github.com/CODAIT/text-extensions-for-pandas/tree/master/notebooks).
 
-API documentation can be found at [https://readthedocs.org/projects/text-extensions-for-pandas/](https://readthedocs.org/projects/text-extensions-for-pandas/).
+API documentation can be found at [https://text-extensions-for-pandas.readthedocs.io/en/latest/](https://text-extensions-for-pandas.readthedocs.io/en/latest/)
 
 ## Source Code
 
