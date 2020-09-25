@@ -14,7 +14,7 @@
 #
 
 """
-This module of Text Extensions for Pandas inclues I/O functions related to the
+This module of Text Extensions for Pandas includes I/O functions related to the
 Watson Natural Language Understanding service on the IBM Cloud.
 This service provides analysis of text feature through a request/response API.
 See
