@@ -18,7 +18,7 @@ import os
 import textwrap
 import unittest
 
-from text_extensions_for_pandas.io.watson_tables import *
+from text_extensions_for_pandas.io.watson.tables import *
 
 
 class TestTables(unittest.TestCase):
@@ -35,7 +35,7 @@ class TestTables(unittest.TestCase):
 
     def test_parse_response(self):
         response = self.responses_dict["double_header_table"]
-        parsed = watson_tables_parse_response(response)
+        parsed = parse_response(response)
         self.assertEqual(len(parsed), 4)
         self.assertSequenceEqual(sorted(parsed.keys()), sorted(["body_cells", "col_headers", "row_headers", "given_loc"]))
         self.assertEqual(repr(parsed),
@@ -168,7 +168,7 @@ class TestTables(unittest.TestCase):
 14        [Total tax rate]         [38.8%]    [Percentage]  
 15        [Total tax rate]         [15.1%]    [Percentage]  , 'given_loc': {'begin': 786, 'end': 7589}}"""
                          )
-        parsed_2 = watson_tables_parse_response(self.responses_dict["20-populous-countries"])
+        parsed_2 = parse_response(self.responses_dict["20-populous-countries"])
         self.assertEqual(len(parsed_2), 4)
         self.assertSequenceEqual(sorted(parsed_2.keys()), sorted(['body_cells', 'col_headers', 'row_headers',"given_loc"]))
         self.assertEqual(repr(parsed_2),
@@ -251,8 +251,8 @@ class TestTables(unittest.TestCase):
 """)
 
     def test_make_exploded_df(self):
-        double_header = watson_tables_parse_response(self.responses_dict["double_header_table"])
-        countries = watson_tables_parse_response(self.responses_dict["20-populous-countries"])
+        double_header = parse_response(self.responses_dict["double_header_table"])
+        countries = parse_response(self.responses_dict["20-populous-countries"])
 
         countries_exp = make_exploded_df(countries, keep_all_cols=True)
         self.assertSequenceEqual(countries_exp[1], ['row_index'])
@@ -446,7 +446,7 @@ class TestTables(unittest.TestCase):
 """)
 
     def test_make_table(self):
-        double_header_table = make_table(watson_tables_parse_response(self.responses_dict["double_header_table"]))
+        double_header_table = make_table(parse_response(self.responses_dict["double_header_table"]))
         self.assertEqual(repr(double_header_table), """\
                      Three months ended setptember 30        \\
                                                  2005  2004   
@@ -463,7 +463,7 @@ Dividends received                              15.4   4.7
 Total tax rate                                  38.8  15.1  \
 """)
 
-        countries_table = make_table(watson_tables_parse_response(self.responses_dict["20-populous-countries"]))
+        countries_table = make_table(parse_response(self.responses_dict["20-populous-countries"]))
         self.assertEqual(repr(countries_table), """\
     Rank Country (or\\ndependent\\nterritory)    Population  \\
 1      1                          China [b]  1.403627e+09   

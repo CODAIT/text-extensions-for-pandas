@@ -63,7 +63,8 @@ def predict_on_df(df: pd.DataFrame, id_to_class: Dict[int, str], predictor):
     :param predictor: Python object with a `predict` method that accepts a
      numpy array of embeddings.
     :returns: A copy of `df`, with the following additional columns:
-     `predicted_id`, `predicted_class`, `predicted_iob`, and `predicted_type`.
+     `predicted_id`, `predicted_class`, `predicted_iob`, and `predicted_type`
+     and `predicted_class_pr`.
     """
     x_values = df["embedding"].values
     result_df = df.copy()
@@ -73,6 +74,8 @@ def predict_on_df(df: pd.DataFrame, id_to_class: Dict[int, str], predictor):
     iobs, types = tp.decode_class_labels(result_df["predicted_class"].values)
     result_df["predicted_iob"] = iobs
     result_df["predicted_type"] = types
+    prob_values = predictor.predict_proba(x_values)
+    result_df["predicted_class_pr"] = tp.TensorArray(prob_values)
     return result_df
 
 

@@ -13,16 +13,19 @@
 #  limitations under the License.
 #
 
-################################################################################
-# watson.py
-#
-# I/O functions related to Watson Natural Language Understanding on the IBM Cloud.
-# This service provides analysis of text feature through a request/response API, see
-# https://cloud.ibm.com/docs/natural-language-understanding?topic=natural-language-understanding-getting-started
-# for information on getting started with the service. Details of the provide API and
-# available features can be found at https://cloud.ibm.com/apidocs/natural-language-understanding?code=python#introduction.
-# For convience, a Python SDK is available at https://github.com/watson-developer-cloud/python-sdk that
-# can be used to authenticate and make requests to the service.
+"""
+This module of Text Extensions for Pandas inclues I/O functions related to the
+Watson Natural Language Understanding service on the IBM Cloud.
+This service provides analysis of text feature through a request/response API.
+See
+https://cloud.ibm.com/docs/natural-language-understanding?topic=natural-language-understanding-getting-started
+for information on getting started with the service. Details of the API and
+available features can be found at
+https://cloud.ibm.com/apidocs/natural-language-understanding?code=python#introduction.
+For convenience, a Python SDK is available at
+https://github.com/watson-developer-cloud/python-sdk
+that can be used to authenticate and make requests to the service.
+"""
 
 from typing import *
 import warnings
@@ -31,8 +34,9 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 
-from text_extensions_for_pandas.array import SpanArray, TokenSpanArray
-from text_extensions_for_pandas.io import watson_util
+from text_extensions_for_pandas.array.span import SpanArray
+from text_extensions_for_pandas.array.token_span import TokenSpanArray
+from text_extensions_for_pandas.io.watson import util
 from text_extensions_for_pandas.spanner import contain_join
 
 
@@ -104,10 +108,10 @@ def _make_syntax_dataframes(syntax_response, original_text):
     sentence = syntax_response.get("sentences", [])
 
     if len(tokens) > 0:
-        token_table = watson_util.make_table(tokens)
-        location_col, location_name = watson_util.find_column(token_table, "location")
-        text_col, text_name = watson_util.find_column(token_table, "text")
-        char_span = watson_util.make_char_span(location_col, text_col, original_text)
+        token_table = util.make_table(tokens)
+        location_col, location_name = util.find_column(token_table, "location")
+        text_col, text_name = util.find_column(token_table, "text")
+        char_span = util.make_char_span(location_col, text_col, original_text)
 
         # Drop location, text columns that is duplicated in char_span
         token_table = token_table.drop([location_name, text_name])
@@ -120,12 +124,12 @@ def _make_syntax_dataframes(syntax_response, original_text):
         token_df = pd.DataFrame()
 
     if len(sentence) > 0:
-        sentence_table = watson_util.make_table(sentence)
+        sentence_table = util.make_table(sentence)
         sentence_df = sentence_table.to_pandas()
         if char_span is not None:
-            location_col, _ = watson_util.find_column(sentence_table, "location")
-            text_col, _ = watson_util.find_column(sentence_table, "text")
-            sentence_char_span = watson_util.make_char_span(location_col, text_col, original_text)
+            location_col, _ = util.find_column(sentence_table, "location")
+            text_col, _ = util.find_column(sentence_table, "text")
+            sentence_char_span = util.make_char_span(location_col, text_col, original_text)
             sentence_span = TokenSpanArray.align_to_tokens(char_span, sentence_char_span)
             sentence_df['span'] = sentence_char_span
             sentence_df['sentence_span'] = sentence_span
@@ -153,7 +157,7 @@ def _make_relations_dataframe(relations, original_text, sentence_span_series):
     if len(relations) == 0:
         return pd.DataFrame()
 
-    table =watson_util.make_table(relations)
+    table = util.make_table(relations)
 
     location_cols = {}
 
@@ -198,14 +202,14 @@ def _make_relations_dataframe(relations, original_text, sentence_span_series):
     # Replace argument location and text columns with spans
     arg_span_cols = {}
     for arg_i, (location_col, arg_prefix) in location_cols.items():
-        text_col, text_name =watson_util.find_column(table, "{}.text".format(arg_prefix))
-        arg_span_cols["{}.span".format(arg_prefix)] =watson_util.make_char_span(location_col, text_col, original_text)
+        text_col, text_name = util.find_column(table, "{}.text".format(arg_prefix))
+        arg_span_cols["{}.span".format(arg_prefix)] =util.make_char_span(location_col, text_col, original_text)
         drop_cols.extend(["{}.location".format(arg_prefix), text_name])
 
     add_cols = arg_span_cols.copy()
 
     # Build the sentence span and drop plain text sentence col
-    sentence_col, sentence_name =watson_util.find_column(table, "sentence")
+    sentence_col, sentence_name = util.find_column(table, "sentence")
     arg_col_names = list(arg_span_cols.keys())
     if len(arg_col_names) > 0:
         first_arg_span_array = arg_span_cols[arg_col_names[0]]
@@ -258,7 +262,7 @@ def _make_relations_dataframe_zero_copy(relations):
     if len(relations) == 0:
         return pd.DataFrame()
 
-    table =watson_util.make_table(relations)
+    table =util.make_table(relations)
 
     # Separate each argument into a column
     flattened_arguments = []
@@ -333,7 +337,7 @@ def _make_relations_dataframe_zero_copy(relations):
     return table.to_pandas()
 
 
-def watson_nlu_parse_response(response: Dict[str, Any],
+def parse_response(response: Dict[str, Any],
                               original_text: str = None,
                               apply_standard_schema: bool = False) -> Dict[str, pd.DataFrame]:
     """
@@ -365,7 +369,7 @@ def watson_nlu_parse_response(response: Dict[str, Any],
     ...         semantic_roles=SemanticRolesOptions(),
     ...         syntax=SyntaxOptions(sentences=True, tokens=SyntaxOptionsTokens(lemma=True, part_of_speech=True))
     ...     )).get_result()
-    >>> dfs = watson_nlu_parse_response(response)
+    >>> dfs = parse_response(response)
     >>> dfs.keys()
     dict_keys(['syntax', 'entities', 'keywords', 'relations', 'semantic_roles'])
     >>> dfs["syntax"].head()
@@ -397,7 +401,7 @@ def watson_nlu_parse_response(response: Dict[str, Any],
         syntax_df = _merge_syntax_dataframes(token_df, sentence_series)
     else:
         syntax_df = pd.concat([token_df, sentence_df], axis=1)
-    dfs["syntax"] = watson_util.apply_schema(syntax_df, _syntax_schema, apply_standard_schema)
+    dfs["syntax"] = util.apply_schema(syntax_df, _syntax_schema, apply_standard_schema)
 
     if original_text is None and "span" in dfs["syntax"].columns:
         char_span = dfs["syntax"]["span"]
@@ -408,23 +412,23 @@ def watson_nlu_parse_response(response: Dict[str, Any],
 
     # Create the entities DataFrame
     entities = response.get("entities", [])
-    entities_df =watson_util.make_dataframe(entities)
-    dfs["entities"] =watson_util.apply_schema(entities_df, _entities_schema, apply_standard_schema)
+    entities_df = util.make_dataframe(entities)
+    dfs["entities"] = util.apply_schema(entities_df, _entities_schema, apply_standard_schema)
 
     # Create the keywords DataFrame
     keywords = response.get("keywords", [])
-    keywords_df =watson_util.make_dataframe(keywords)
-    dfs["keywords"] =watson_util.apply_schema(keywords_df, _keywords_schema, apply_standard_schema)
+    keywords_df = util.make_dataframe(keywords)
+    dfs["keywords"] = util.apply_schema(keywords_df, _keywords_schema, apply_standard_schema)
 
     # Create the relations DataFrame
     relations = response.get("relations", [])
     relations_df = _make_relations_dataframe(relations, original_text, sentence_series)
-    dfs["relations"] =watson_util.apply_schema(relations_df, _relations_schema, apply_standard_schema)
+    dfs["relations"] = util.apply_schema(relations_df, _relations_schema, apply_standard_schema)
 
     # Create the semantic roles DataFrame
     semantic_roles = response.get("semantic_roles", [])
-    semantic_roles_df =watson_util.make_dataframe(semantic_roles)
-    dfs["semantic_roles"] =watson_util.apply_schema(semantic_roles_df, _semantic_roles_schema, apply_standard_schema)
+    semantic_roles_df = util.make_dataframe(semantic_roles)
+    dfs["semantic_roles"] = util.apply_schema(semantic_roles_df, _semantic_roles_schema, apply_standard_schema)
 
     if "warnings" in response:
         # TODO: check structure of warnings and improve message
@@ -441,7 +445,7 @@ def make_span_from_entities(char_span: SpanArray,
     char span array with tokens from the entire analyzed text.
 
     :param char_span: Parsed tokens
-    :param entities_frame: Entities DataFrame from `watson_nlu_parse_response`
+    :param entities_frame: Entities DataFrame from `parse_response`
     :param entity_col: Column name for the entity text
     :return: TokenSpanArray for matching entities
     """

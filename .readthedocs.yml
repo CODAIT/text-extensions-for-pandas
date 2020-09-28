@@ -5,9 +5,9 @@
 # Required
 version: 2
 
-# Build documentation in the docs/ directory with Sphinx
+# Build documentation in the api_docs/ directory with Sphinx
 sphinx:
-  configuration: docs/conf.py
+  configuration: api_docs/conf.py
 
 # Build documentation with MkDocs
 #mkdocs:

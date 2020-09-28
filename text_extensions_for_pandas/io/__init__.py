@@ -19,10 +19,12 @@
 # Functions in text_extensions_for_pandas that create DataFrames and convert
 # them to other formats.
 
-from text_extensions_for_pandas.io.conll import *
-from text_extensions_for_pandas.io.spacy import *
-from text_extensions_for_pandas.io.systemt import *
-from text_extensions_for_pandas.io.tokenization import *
-from text_extensions_for_pandas.io.watson import *
-from text_extensions_for_pandas.io.watson_tables import *
+# Expose the public APIs that users should get from importing the top-level
+# library.
+from text_extensions_for_pandas.io import watson
+from text_extensions_for_pandas.io import bert
+from text_extensions_for_pandas.io import conll
+from text_extensions_for_pandas.io import spacy
+
+__all__ = ["watson", "bert", "conll", "spacy"]
 

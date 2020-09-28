@@ -20,9 +20,9 @@ import regex
 from spacy.lang.en import English
 
 from text_extensions_for_pandas.spanner.extract import extract_regex_tok
-from text_extensions_for_pandas.io import make_tokens
+from text_extensions_for_pandas.io.spacy import make_tokens
 from text_extensions_for_pandas.util import TestBase
-from text_extensions_for_pandas.array.token_span import TokenSpan, TokenSpanArray
+from text_extensions_for_pandas.array.token_span import (TokenSpan, TokenSpanArray)
 from text_extensions_for_pandas.spanner.join import (
     adjacent_join,
     contain_join,

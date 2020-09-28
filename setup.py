@@ -15,7 +15,7 @@
 
 import setuptools
 
-with open("README.md", "r") as fh:
+with open("package.md", "r") as fh:
     long_description = fh.read()
 
 # read requirements from file
@@ -24,19 +24,19 @@ with open('requirements.txt') as fh:
 
 setuptools.setup(
     name="text_extensions_for_pandas",
-    version="0.0.1_prealpha",
+    version="0.1a1",
     author="IBM",
     author_email="frreiss@example.com",
-    description="Adds extension types for NLP data to Pandas dataframes.",
+    description="Natural language processing support for Pandas dataframes.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     # Note that this URL is where the project *will* be, not where it currently is.
-    url="https://github.com/IBM/text-extensions-for-pandas",
+    url="https://github.com/CODAIT/text-extensions-for-pandas",
     install_requires=requirements,
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: Apache License, Version 2.0",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.7',

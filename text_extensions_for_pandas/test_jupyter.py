@@ -25,7 +25,7 @@ _SPACY_LANGUAGE_MODEL = spacy.load("en_core_web_sm")
 
 from text_extensions_for_pandas.jupyter import pretty_print_html
 from text_extensions_for_pandas.util import TestBase
-from text_extensions_for_pandas.io import make_tokens_and_features
+from text_extensions_for_pandas.io.spacy import make_tokens_and_features
 
 
 _TEST_TEXT = "Item's for < $100 & change"

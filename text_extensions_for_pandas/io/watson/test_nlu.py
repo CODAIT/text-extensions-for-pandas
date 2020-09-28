@@ -18,8 +18,9 @@ import os
 import textwrap
 import unittest
 import warnings
+import pandas as pd
 
-from text_extensions_for_pandas.io.watson import *
+from text_extensions_for_pandas.io.watson.nlu import *
 
 
 class TestWatson(unittest.TestCase):
@@ -51,7 +52,7 @@ class TestWatson(unittest.TestCase):
 
     def parse_response_file(self, filename):
         response = self.load_response_file(filename)
-        return watson_nlu_parse_response(response)
+        return parse_response(response)
 
     def test_check_basic_response(self):
         filename = "test_data/io/test_watson/basic_response.txt"
@@ -226,7 +227,7 @@ class TestWatson(unittest.TestCase):
     def test_response_entities(self):
         filename = "test_data/io/test_watson/basic_response.txt"
         response = self.load_response_file(filename)
-        result = watson_nlu_parse_response(response)
+        result = parse_response(response)
 
         self.assertIn("entities", result)
 
@@ -253,7 +254,7 @@ class TestWatson(unittest.TestCase):
     def test_response_keywords(self):
         filename = "test_data/io/test_watson/basic_response.txt"
         response = self.load_response_file(filename)
-        result = watson_nlu_parse_response(response)
+        result = parse_response(response)
 
         self.assertIn("keywords", result)
 
@@ -269,7 +270,7 @@ class TestWatson(unittest.TestCase):
     def test_response_relations(self):
         filename = "test_data/io/test_watson/basic_response.txt"
         response = self.load_response_file(filename)
-        result = watson_nlu_parse_response(response)
+        result = parse_response(response)
 
         self.assertIn("relations", result)
         df = result["relations"]
@@ -281,7 +282,7 @@ class TestWatson(unittest.TestCase):
     def test_response_syntax(self):
         filename = "test_data/io/test_watson/basic_response.txt"
         response = self.load_response_file(filename)
-        result = watson_nlu_parse_response(response)
+        result = parse_response(response)
 
         self.assertIn("syntax", result)
         df = result["syntax"]
@@ -300,7 +301,7 @@ class TestWatson(unittest.TestCase):
         }
 
         with self.assertWarns(UserWarning) as cm:
-            empty_result = watson_nlu_parse_response(empty_response, apply_standard_schema=True)
+            empty_result = parse_response(empty_response, apply_standard_schema=True)
 
             expected_warn = "Did not receive and could not build original text"
             warn = cm.warnings[0]
@@ -312,7 +313,7 @@ class TestWatson(unittest.TestCase):
 
         filename = "test_data/io/test_watson/basic_response.txt"
         response = self.load_response_file(filename)
-        result = watson_nlu_parse_response(response, apply_standard_schema=True)
+        result = parse_response(response, apply_standard_schema=True)
 
         for df in result.values():
             self.assertIsInstance(df, pd.DataFrame)

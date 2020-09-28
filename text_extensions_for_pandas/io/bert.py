@@ -13,8 +13,20 @@
 #  limitations under the License.
 #
 
+"""
+This module contains functions for working with transformer-based embeddings
+such as BERT, including managing the special tokenization and windowing that these
+embeddings require.
+
+This module uses the ``transformers``_ library to implement tokenization and
+embeddings. You will need that library in your Python path to use the
+functions in this module.
+
+.. _``transformers``: https://github.com/huggingface/transformers
+"""
+
 ################################################################################
-# tokenize.py
+# tokenization.py
 #
 # Functions for tokenization of text
 
@@ -22,9 +34,13 @@ import numpy as np
 import pandas as pd
 from typing import *
 
-from text_extensions_for_pandas.array import (
+from text_extensions_for_pandas.array.span import (
     SpanArray,
+)
+from text_extensions_for_pandas.array.token_span import (
     TokenSpanArray,
+)
+from text_extensions_for_pandas.array.tensor import (
     TensorArray,
 )
 
@@ -104,14 +120,16 @@ def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
 
 def add_embeddings(df: pd.DataFrame, bert: Any) -> pd.DataFrame:
     """
-    Add BERT embeddings to a dataframe of BERT tokens.
+    Add BERT embeddings to a DataFrame of BERT tokens.
 
-    :param df: Dataframe containing BERT tokens, as returned by
+    :param df: DataFrame containing BERT tokens, as returned by
       :func:`make_bert_tokens` Must contain a column
       `input_id` containing token IDs.
     :param bert: PyTorch-based BERT model from the `transformers` library
     :returns: A copy of `df` with a new column, "embedding" containing
      BERT embeddings as a `TensorArray`.
+
+    .. note:: PyTorch must be installed to run this function.
     """
     # Import torch inline so that the rest of this library will function without it.
     # noinspection PyPackageRequirements
@@ -125,8 +143,8 @@ def add_embeddings(df: pd.DataFrame, bert: Any) -> pd.DataFrame:
         input_ids=torch.tensor(windows["input_ids"]),
         attention_mask=torch.tensor(windows["attention_masks"]))
     hidden_states = windows_to_seq(flat_input_ids,
-                                      bert_result[0].detach().numpy(),
-                                      _OVERLAP, _NON_OVERLAP)
+                                   bert_result[0].detach().numpy(),
+                                   _OVERLAP, _NON_OVERLAP)
     embeddings = TensorArray(hidden_states)
     ret = df.copy()
     ret["embedding"] = embeddings
@@ -137,17 +155,17 @@ def conll_to_bert(df: pd.DataFrame, tokenizer: Any, bert: Any,
                   token_class_dtype: pd.CategoricalDtype,
                   compute_embeddings: bool = True) -> pd.DataFrame:
     """
-    :param df: One dataframe from the conll_2003_to_dataframes() function,
+    :param df: One DataFrame from the conll_2003_to_dataframes() function,
      representing the tokens of a single document in the original tokenization.
     :param tokenizer: BERT tokenizer instance from the `transformers` library
     :param bert: PyTorch-based BERT model from the `transformers` library
     :param token_class_dtype: Pandas categorical type for representing
      token class labels, as returned by :func:`make_iob_tag_categories`
     :param compute_embeddings: True to generate BERT embeddings at each token
-     position and add a column "embedding" to the returned dataframe with
+     position and add a column "embedding" to the returned DataFrame with
      the embeddings
 
-    :returns: A version of the same dataframe, but with BERT tokens, BERT
+    :returns: A version of the same DataFrame, but with BERT tokens, BERT
      embeddings for each token (if `compute_embeddings` is `True`),
      and token class labels.
     """
@@ -174,12 +192,12 @@ def align_bert_tokens_to_corpus_tokens(
      columns: "span" and "ent_type". Other columns ignored.
     :param corpus_toks_df: DataFrame of the corpus's original tokenization,
      one row per token.
-     Must contain a column "char_span" with character-based spans of
+     Must contain a column "span" with character-based spans of
      the tokens.
 
-    :returns: A new DataFrame with the schema ["token_span", "ent_type"],
-     where the "token_span" column contains token-based spans based off
-     the *corpus* tokenization in `corpus_toks_df["char_span"]`.
+    :returns: A new DataFrame with schema ["span", "ent_type"],
+     where the "span" column contains token-based spans based off
+     the *corpus* tokenization in `corpus_toks_df["span"]`.
     """
     if len(spans_df.index) == 0:
         return spans_df.copy()
@@ -253,7 +271,7 @@ def seq_to_windows(
 
 def windows_to_seq(
     seq: np.ndarray, windows: np.ndarray, overlap: int, non_overlap: int
-) -> Dict[str, np.ndarray]:
+) -> np.ndarray:
     """
     Inverse of `seq_to_windows()`.
     Convert fixed length windows with padding to a variable-length sequence
@@ -342,4 +360,4 @@ def _compute_padding(
         # Chop off empty last window
         post_padding -= overlap + non_overlap
 
-    return (window_length, pre_padding, post_padding)
+    return window_length, pre_padding, post_padding

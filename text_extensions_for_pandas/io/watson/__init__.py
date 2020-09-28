@@ -13,20 +13,9 @@
 #  limitations under the License.
 #
 
-#
-# array module
-#
-# Part of text_extensions_for_pandas
-#
-# Implementions of extension types for Pandas dataframes.
-#
-# Currently the contents of this submodule are exposed at the top level of our namespace.
-#
+# Expose the public APIs that users should get from importing the top-level
+# library.
+from text_extensions_for_pandas.io.watson import nlu
+from text_extensions_for_pandas.io.watson import tables
 
-# For now we expose every symbol of the subpackages
-# from text_extensions_for_pandas.array.span import *
-# from text_extensions_for_pandas.array.token_span import *
-# from text_extensions_for_pandas.array.tensor import *
-# from text_extensions_for_pandas.array.accessor import *
-
-
+__all__ = ["nlu", "tables"]
