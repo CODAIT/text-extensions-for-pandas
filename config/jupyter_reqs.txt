@@ -5,7 +5,5 @@ jupyterlab
 nodejs
 xeus-python
 ipywidgets
-scikit-learn
-torch
 matplotlib
 
