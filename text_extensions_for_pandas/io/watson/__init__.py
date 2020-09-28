@@ -15,7 +15,7 @@
 
 # Expose the public APIs that users should get from importing the top-level
 # library.
-import text_extensions_for_pandas.io.watson.nlu as nlu
-import text_extensions_for_pandas.io.watson.tables as tables
+from text_extensions_for_pandas.io.watson import nlu
+from text_extensions_for_pandas.io.watson import tables
 
 __all__ = ["nlu", "tables"]

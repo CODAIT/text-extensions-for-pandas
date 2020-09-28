@@ -75,7 +75,11 @@ To run the notebooks on your local machine, follow the following steps:
 1. Navigate to the `notebooks` directory and choose any of the notebooks there
 
 
+<<<<<<< HEAD
 **API documentation** can be found at [https://readthedocs.org/projects/text-extensions-for-pandas/](https://readthedocs.org/projects/text-extensions-for-pandas/).
+=======
+API documentation can be found at [https://text-extensions-for-pandas.readthedocs.io/en/latest/](https://text-extensions-for-pandas.readthedocs.io/en/latest/)
+>>>>>>> 73bedd82ff67d33c9858511e551902e8d6da8061
 
 
 ## Contents of this repository

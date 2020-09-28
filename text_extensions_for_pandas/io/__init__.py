@@ -21,10 +21,10 @@
 
 # Expose the public APIs that users should get from importing the top-level
 # library.
-import text_extensions_for_pandas.io.watson as watson
-import text_extensions_for_pandas.io.bert as bert
-import text_extensions_for_pandas.io.conll as conll
-import text_extensions_for_pandas.io.spacy as spacy
+from text_extensions_for_pandas.io import watson
+from text_extensions_for_pandas.io import bert
+from text_extensions_for_pandas.io import conll
+from text_extensions_for_pandas.io import spacy
 
 __all__ = ["watson", "bert", "conll", "spacy"]
 
