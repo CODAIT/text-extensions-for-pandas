@@ -74,12 +74,7 @@ To run the notebooks on your local machine, follow the following steps:
 1. Type `jupyter lab` from the root of your local source tree to start a [JupyterLab](https://jupyterlab.readthedocs.io/en/stable/) environment.
 1. Navigate to the `notebooks` directory and choose any of the notebooks there
 
-
-<<<<<<< HEAD
-**API documentation** can be found at [https://readthedocs.org/projects/text-extensions-for-pandas/](https://readthedocs.org/projects/text-extensions-for-pandas/).
-=======
 API documentation can be found at [https://text-extensions-for-pandas.readthedocs.io/en/latest/](https://text-extensions-for-pandas.readthedocs.io/en/latest/)
->>>>>>> 73bedd82ff67d33c9858511e551902e8d6da8061
 
 
 ## Contents of this repository
@@ -98,8 +93,6 @@ API documentation can be found at [https://text-extensions-for-pandas.readthedoc
 * **tutorials**: Detailed tutorials on using Text Extensions for Pandas to
   cover complex end-to-end NLP use cases (work in progress).
 
-
-## Instructions to run a demo notebook locally
 
 
 ## Contributing
