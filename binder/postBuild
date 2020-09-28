@@ -11,4 +11,16 @@ pip install -r requirements.txt
 pip install -r config/dev_reqs.txt
 pip install -r config/jupyter_reqs.txt
 
+# Install large packages during image build for now.
+# Later we may want to have the notebooks install these on demand if they
+# detect they are running in a Binder environment.
+# Note that transformers will start up in a bad state if it detects no PyTorch
+# and will stay in that state until Python is restarted.
+pip install -r config/big_reqs.txt
+
+# Download the language model needed by Integrate_NLP_Libraries.ipynb
+# We can't download this package from within the notebook unless the user
+# restarts the kernel after the download.
+python -m spacy download en_core_web_sm
+
 
