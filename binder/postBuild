@@ -23,4 +23,7 @@ pip install -r config/big_reqs.txt
 # restarts the kernel after the download.
 python -m spacy download en_core_web_sm
 
+# Also download the BERT model used by Model_Training_with_BERT.ipynb so that
+# the production environment won't run out of disk space.
+python ./binder/download_bert.py
 
