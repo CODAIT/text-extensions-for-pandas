@@ -82,6 +82,7 @@ def load_dict(file_name: str, tokenizer: "spacy.tokenizer.Tokenizer"):
 
     return pd.DataFrame(cols_dict)
 
+
 def extract_dict(tokens: Union[SpanArray, pd.Series],
                  dictionary: pd.DataFrame,
                  output_col_name: str = "match"):
