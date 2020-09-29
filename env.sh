@@ -80,6 +80,9 @@ pip install -r config/dev_reqs.txt
 # Additional layer of pip-installed stuff for running notebooks
 pip install -r config/jupyter_reqs.txt
 
+# Additional large packages needed by only some of the demos
+pip install -r config/big_reqs.txt
+
 ################################################################################
 # Least-preferred install method: Custom
 

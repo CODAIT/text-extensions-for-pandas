@@ -1,0 +1,6 @@
+# big_reqs.txt
+# Large packages that are required by a small fraction of our demo
+# material.
+scikit-learn
+torch
+
