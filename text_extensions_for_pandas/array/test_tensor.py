@@ -14,6 +14,7 @@
 #
 
 import os
+from distutils.version import LooseVersion
 import tempfile
 import textwrap
 import unittest
@@ -509,9 +510,9 @@ class TensorArrayDataFrameTests(unittest.TestCase):
         expected = np.array([[4, 5], [2, 3], [0, 1]])
         npt.assert_array_equal(df["tensor"].array, expected)
 
-    def test_large_display(self):
+    def test_large_display_numeric(self):
 
-        # Test numeric
+        # Test integer, uses IntArrayFormatter
         df = pd.DataFrame({"foo": TensorArray(np.array([[1, 2]] * 100))})
         self.assertEqual(
             repr(df),
@@ -534,7 +535,34 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             )
         )
 
-        # Test string
+        # Test float, uses IntArrayFormatter
+        df = pd.DataFrame({"foo": TensorArray(np.array([[1.1, 2.2]] * 100))})
+        self.assertEqual(
+            repr(df),
+            textwrap.dedent(
+                """\
+                         foo
+                0  [1.1 2.2]
+                1  [1.1 2.2]
+                2  [1.1 2.2]
+                3  [1.1 2.2]
+                4  [1.1 2.2]
+                ..       ...
+                95 [1.1 2.2]
+                96 [1.1 2.2]
+                97 [1.1 2.2]
+                98 [1.1 2.2]
+                99 [1.1 2.2]
+                
+                [100 rows x 1 columns]"""
+            )
+        )
+
+    @pytest.mark.skipif(LooseVersion(pd.__version__) < LooseVersion("1.1.0"),
+                        reason="Display of TensorArray with non-numeric dtype not supported")
+    def test_large_display_string(self):
+
+        # Uses the GenericArrayFormatter, doesn't work for Pandas 1.0.x but fixed in later versions
         df = pd.DataFrame({"foo": TensorArray(np.array([["Hello", "world"]] * 100))})
         self.assertEqual(
             repr(df),
