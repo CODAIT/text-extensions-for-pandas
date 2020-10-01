@@ -198,7 +198,12 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        return np.all(np.isnan(self._tensor), axis=-1)
+        if self._tensor.dtype.type is np.object_:
+            return self._tensor == None
+        elif self._tensor.dtype.type is np.str_:
+            return np.all(self._tensor == "", axis=-1)
+        else:
+            return np.all(np.isnan(self._tensor), axis=-1)
 
     def copy(self) -> "TensorArray":
         """

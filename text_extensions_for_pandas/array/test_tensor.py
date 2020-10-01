@@ -184,6 +184,28 @@ class TestTensor(unittest.TestCase):
         a[1] = np.array([42, 42])
         npt.assert_equal(a[1], [42, 42])
 
+    def test_isna(self):
+        expected = np.array([False, True, False, False])
+
+        # Test numeric
+        x = np.array([[1, 2], [np.nan, np.nan], [3, np.nan], [5, 6]])
+        s = TensorArray(x)
+        result = s.isna()
+        npt.assert_equal(result, expected)
+
+        # Test object
+        d = {"a": 1}
+        x = np.array([[d, d], None, [d, None], [d, d]])
+        s = TensorArray(x)
+        result = s.isna()
+        npt.assert_equal(result, expected)
+
+        # Test str
+        x = np.array([["foo", "foo"], ["", ""], ["bar", ""], ["baz", "baz"]])
+        s = TensorArray(x)
+        result = s.isna()
+        npt.assert_equal(result, expected)
+
     def test_repr(self):
         x = np.array([[1, 2], [3, 4], [5, 6]])
         expected = textwrap.dedent(
@@ -486,6 +508,54 @@ class TensorArrayDataFrameTests(unittest.TestCase):
         self.assertEqual(df["tensor"].array.to_numpy().dtype, arr.to_numpy().dtype)
         expected = np.array([[4, 5], [2, 3], [0, 1]])
         npt.assert_array_equal(df["tensor"].array, expected)
+
+    def test_large_display(self):
+
+        # Test numeric
+        df = pd.DataFrame({"foo": TensorArray(np.array([[1, 2]] * 100))})
+        self.assertEqual(
+            repr(df),
+            textwrap.dedent(
+                """\
+                     foo
+                0  [1 2]
+                1  [1 2]
+                2  [1 2]
+                3  [1 2]
+                4  [1 2]
+                ..   ...
+                95 [1 2]
+                96 [1 2]
+                97 [1 2]
+                98 [1 2]
+                99 [1 2]
+                
+                [100 rows x 1 columns]"""
+            )
+        )
+
+        # Test string
+        df = pd.DataFrame({"foo": TensorArray(np.array([["Hello", "world"]] * 100))})
+        self.assertEqual(
+            repr(df),
+            textwrap.dedent(
+                """\
+                                  foo
+                0   ['Hello' 'world']
+                1   ['Hello' 'world']
+                2   ['Hello' 'world']
+                3   ['Hello' 'world']
+                4   ['Hello' 'world']
+                ..                ...
+                95  ['Hello' 'world']
+                96  ['Hello' 'world']
+                97  ['Hello' 'world']
+                98  ['Hello' 'world']
+                99  ['Hello' 'world']
+                
+                [100 rows x 1 columns]"""
+            )
+        )
 
 
 class TensorArrayIOTests(unittest.TestCase):
