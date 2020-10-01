@@ -195,7 +195,7 @@ class TestTensor(unittest.TestCase):
 
         # Test object
         d = {"a": 1}
-        x = np.array([[d, d], None, [d, None], [d, d]])
+        x = np.array([[d, d], None, [d, None], [d, d]], dtype=object)
         s = TensorArray(x)
         result = s.isna()
         npt.assert_equal(result, expected)
