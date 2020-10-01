@@ -135,11 +135,9 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     """
 
     def __init__(self, values: Union[np.ndarray, Sequence[Union[np.ndarray, TensorElement]],
-                                     TensorElement, Any],
-                 make_contiguous: bool = True):
+                                     TensorElement, Any]):
         """
         :param values: A `numpy.ndarray` or sequence of `numpy.ndarray`s of equal shape.
-        :param make_contiguous: force values to be contiguous in memory (C order)
         """
         if isinstance(values, np.ndarray):
             self._tensor = values
@@ -159,9 +157,6 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             raise TypeError(f"Expected a numpy.ndarray or sequence of numpy.ndarray, "
                             f"but received {values} "
                             f"of type '{type(values)}' instead.")
-        
-        if not self._tensor.flags.c_contiguous and make_contiguous:
-            self._tensor = np.ascontiguousarray(self._tensor)
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
