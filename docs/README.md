@@ -9,9 +9,9 @@ Make NLP data easier to understand with Pandas DataFrames.
 Text Extensions for Pandas lets you use Pandas DataFrames for representing and manipulating the complex data structures that flow through
 modern natural language processing (NLP) applications.
 
-We provide **Pandas extension types** to cover common data structures for representing natural language data, plus **library integrations** that turn the  coutputs of popular NLP libraries into easy-to-understand DataFrames.
+We provide **Pandas extension types** to cover common data structures for representing natural language data, plus **library integrations** that turn the outputs of popular NLP libraries into easy-to-understand DataFrames.
 
-Want to try it out? Just type
+Want to try it out? Use the following command to install:
 
 ```
 pip install text-extensions-for-pandas
@@ -29,7 +29,7 @@ We use the Pandas [extensions API](https://pandas.pydata.org/pandas-docs/stable/
 
 ## Spans and SpanArrays
 
-A *span* is a range of charactors or tokens within a document. Our
+A *span* is a range of characters or tokens within a document. Our
 **SpanArray** extension for Pandas lets you store spans in a column
 of a Pandas DataFrame. So you can use SpanArrays to build a DataFrame of token features...
 
