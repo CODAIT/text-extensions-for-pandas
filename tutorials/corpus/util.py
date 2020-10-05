@@ -71,7 +71,8 @@ def predict_on_df(df: pd.DataFrame, id_to_class: Dict[int, str], predictor):
     result_df["predicted_id"] = predictor.predict(x_values)
     result_df["predicted_class"] = [id_to_class[i]
                                     for i in result_df["predicted_id"].values]
-    iobs, types = tp.decode_class_labels(result_df["predicted_class"].values)
+    iobs, types = tp.io.conll.decode_class_labels(
+        result_df["predicted_class"].values)
     result_df["predicted_iob"] = iobs
     result_df["predicted_type"] = types
     prob_values = predictor.predict_proba(x_values)
@@ -117,7 +118,7 @@ def align_model_outputs_to_tokens(model_results: pd.DataFrame,
     for collection, doc_num in all_pairs:
         doc_slice = indexed_df.loc[collection, doc_num].reset_index()
         doc_toks = tokens_by_doc[collection][doc_num][
-            ["token_id", "char_span", "token_span", "ent_iob", "ent_type"]
+            ["token_id", "span", "ent_iob", "ent_type"]
         ].rename(columns={"id": "token_id"})
         result_df = doc_toks.copy().merge(
             doc_slice[["token_id", "predicted_iob", "predicted_type"]])
@@ -165,11 +166,12 @@ def analyze_model(target_df: pd.DataFrame,
     # document, indexed by (fold, offset into fold)
     results_by_doc = align_model_outputs_to_tokens(results_df,
                                                       model_tokens_by_doc)
-    actual_spans_by_doc = {k: tp.iob_to_spans(v) 
+    actual_spans_by_doc = {k: tp.io.conll.iob_to_spans(v) 
                            for k, v in results_by_doc.items()}
     model_spans_by_doc = {k:
-        tp.iob_to_spans(v, iob_col_name = "predicted_iob",
-                        entity_type_col_name = "predicted_type")
+        tp.io.conll.iob_to_spans(
+            v, iob_col_name = "predicted_iob",
+            entity_type_col_name = "predicted_type")
           .rename(columns={"predicted_type": "ent_type"})
         for k, v in results_by_doc.items()}
     
@@ -181,17 +183,18 @@ def analyze_model(target_df: pd.DataFrame,
         for k, results_df in model_spans_by_doc.items():
             collection, doc_num = k
             tokens = corpus_tokens_by_doc[collection][doc_num]
-            new_model_spans_by_doc[k] = tp.align_bert_tokens_to_corpus_tokens(results_df, tokens)
+            new_model_spans_by_doc[k] = \
+                tp.io.bert.align_bert_tokens_to_corpus_tokens(results_df, tokens)
         model_spans_by_doc = new_model_spans_by_doc
     
-    stats_by_doc = tp.compute_accuracy_by_document(actual_spans_by_doc,
-                                                   model_spans_by_doc)
+    stats_by_doc = tp.io.conll.compute_accuracy_by_document(
+        actual_spans_by_doc, model_spans_by_doc)
     return {
         "results_by_doc": results_by_doc,
         "actual_spans_by_doc": actual_spans_by_doc,
         "model_spans_by_doc": model_spans_by_doc,
         "stats_by_doc": stats_by_doc,
-        "global_scores": tp.compute_global_accuracy(stats_by_doc)
+        "global_scores": tp.io.conll.compute_global_accuracy(stats_by_doc)
     }
 
 
@@ -224,10 +227,10 @@ def merge_model_results(results: Dict[str, Dict[Tuple[str, int], pd.DataFrame]])
                 df = joined_results
             else:
                 df = df.merge(joined_results, how="outer", 
-                              on=["token_span", "ent_type", "gold"])           
+                              on=["span", "ent_type", "gold"])           
         # TokenSpanArrays from different documents can't currently be stacked,
         # so convert to TokenSpan objects.
-        df["token_span"] = df["token_span"].astype(object)
+        df["span"] = df["span"].astype(object)
         df = df.fillna(False)
         vectors = df[df.columns[3:]].values
         counts = np.count_nonzero(vectors, axis=1)
@@ -236,7 +239,7 @@ def merge_model_results(results: Dict[str, Dict[Tuple[str, int], pd.DataFrame]])
         df.insert(0, "fold", doc_keys[i][0])
         df.insert(0, "doc_num", i)
         return df
-    to_stack = tp.run_with_progress_bar(num_docs, df_for_doc)
+    to_stack = tp.jupyter.run_with_progress_bar(num_docs, df_for_doc)
     all_results = pd.concat(to_stack)
     return all_results
 
@@ -265,7 +268,7 @@ def csv_prep(counts_df: pd.DataFrame,
         counts_col_name: in_gold_counts[counts_col_name],
         "fold": in_gold_counts["fold"],
         "doc_offset": in_gold_counts["doc_offset"],
-        "corpus_span": in_gold_counts["token_span"].astype(str),
+        "corpus_span": in_gold_counts["span"].astype(str),
         "corpus_ent_type": in_gold_counts["ent_type"],
         "error_type": "",
         "correct_span": "",
@@ -283,7 +286,7 @@ def csv_prep(counts_df: pd.DataFrame,
         counts_col_name: not_in_gold_counts[counts_col_name],
         "fold": not_in_gold_counts["fold"],
         "doc_offset": not_in_gold_counts["doc_offset"],
-        "model_span": not_in_gold_counts["token_span"].astype(str),
+        "model_span": not_in_gold_counts["span"].astype(str),
         "model_ent_type": not_in_gold_counts["ent_type"],
         "error_type": "",
         "corpus_span": "",  # Incorrect span to remove from corpus
