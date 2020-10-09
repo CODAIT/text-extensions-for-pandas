@@ -423,15 +423,22 @@ class TensorArrayDataFrameTests(unittest.TestCase):
         values = np.array([[1, 1]] * len(keys))
         df = pd.DataFrame({"key": keys, "value": TensorArray(values)})
         result_df = df.groupby("key").aggregate({"value": "sum"})
+
+        # Check array gets unwrapped from TensorElements
+        arr = result_df["value"].array
+        self.assertEqual(arr.to_numpy().dtype, values.dtype)
+        npt.assert_array_equal(arr.to_numpy(), [[2, 2], [1, 1], [3, 3]])
+
+        # Check the resulting DataFrame
         self.assertEqual(
             repr(result_df),
             textwrap.dedent(
                 """\
-                     value
-                key       
-                a    [2 2]
-                b    [1 1]
-                c    [3 3]"""
+                    value
+                key      
+                a   [2 2]
+                b   [1 1]
+                c   [3 3]"""
             ),
         )
 
@@ -439,17 +446,25 @@ class TensorArrayDataFrameTests(unittest.TestCase):
         values2 = np.array([[[1, 1], [1, 1]]] * len(keys))
         df2 = pd.DataFrame({"key": keys, "value": TensorArray(values2)})
         result2_df = df2.groupby("key").aggregate({"value": "sum"})
+
+        # Check array gets unwrapped from TensorElements
+        arr2 = result2_df["value"].array
+        self.assertEqual(arr2.to_numpy().dtype, values.dtype)
+        npt.assert_array_equal(arr2.to_numpy(),
+                               [[[2, 2], [2, 2]], [[1, 1], [1, 1]], [[3, 3], [3, 3]]])
+
+        # Check the resulting DataFrame
         self.assertEqual(
             repr(result2_df),
             textwrap.dedent(
                 """\
-                              value
-                key                
-                a    [[2 2]
+                             value
+                key               
+                a   [[2 2]
                  [2 2]]
-                b    [[1 1]
+                b   [[1 1]
                  [1 1]]
-                c    [[3 3]
+                c   [[3 3]
                  [3 3]]"""
             ),
         )

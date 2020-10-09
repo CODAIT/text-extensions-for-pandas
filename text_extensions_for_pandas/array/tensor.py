@@ -140,7 +140,11 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         :param values: A `numpy.ndarray` or sequence of `numpy.ndarray`s of equal shape.
         """
         if isinstance(values, np.ndarray):
-            self._tensor = values
+            if values.dtype.type is np.object_ and len(values) > 0 and \
+                    isinstance(values[0], TensorElement):
+                self._tensor = np.array([np.asarray(v) for v in values])
+            else:
+                self._tensor = values
         elif isinstance(values, Sequence):
             if len(values) == 0:
                 self._tensor = np.array([])
@@ -362,11 +366,11 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         for information about this method.
         """
         if name == "sum":
-            return TensorArray(np.sum(self._tensor, axis=0))
+            return TensorElement(np.sum(self._tensor, axis=0))
         elif name == "all":
-            return TensorArray(np.all(self._tensor, axis=0))
+            return TensorElement(np.all(self._tensor, axis=0))
         elif name == "any":
-            return TensorArray(np.any(self._tensor, axis=0))
+            return TensorElement(np.any(self._tensor, axis=0))
         else:
             raise NotImplementedError(f"'{name}' aggregate not implemented.")
 
