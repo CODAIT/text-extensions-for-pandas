@@ -68,7 +68,7 @@ done
 
 echo "Creating environment '${ENV_NAME}' with Python '${PYTHON_VERSION}'."
 if [ -n "${PANDAS_VERSION}" ]; then
-    echo "Will use non-default Pandas version ${PANDAS_VERSION}."
+    echo "Will use non-default Pandas version '${PANDAS_VERSION}'."
 fi
 
 
@@ -127,7 +127,7 @@ pip install -r config/jupyter_reqs.txt
 # Override that version if the user requested it.
 if [ -n "${PANDAS_VERSION}" ]; then
     echo "Ensuring Pandas ${PANDAS_VERSION} is installed"
-    conda install pandas=${PANDAS_VERSION}
+    pip install pandas==${PANDAS_VERSION}
 fi
 
 ################################################################################
