@@ -107,7 +107,7 @@ To contribute, just open a Github issue or submit a pull request. Be sure to inc
 Before building the code in this repository, we recommend that you use the 
 provided script `env.sh` to set up a consistent build environment:
 ```
-$ ./env.sh myenv
+$ ./env.sh --env_name myenv
 $ conda activate myenv
 ```
 (replace `myenv` with your choice of environment name).
