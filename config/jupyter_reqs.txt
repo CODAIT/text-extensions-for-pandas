@@ -2,6 +2,7 @@
 # Pip requirements file to create a Jupyterlab environment for development of
 # this project.
 jupyterlab
+jupyterlab-git
 nodejs
 xeus-python
 ipywidgets
