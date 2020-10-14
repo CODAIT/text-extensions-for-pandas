@@ -123,6 +123,9 @@ pip install -r config/dev_reqs.txt
 # Additional layer of pip-installed stuff for running notebooks
 pip install -r config/jupyter_reqs.txt
 
+# Additional layer of large packages
+pip install -r config/big_reqs.txt
+
 # The previous steps will have installed some version of Pandas.
 # Override that version if the user requested it.
 if [ -n "${PANDAS_VERSION}" ]; then
