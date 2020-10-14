@@ -92,7 +92,6 @@ class _SentenceData:
         # Line numbers for each token from the file
         self._line_nums = []  # Type: List[int]
 
-
     @property
     def num_tokens(self) -> int:
         return len(self._tokens)
@@ -515,7 +514,7 @@ def _output_doc_to_df(tokens: pd.DataFrame,
 def iob_to_spans(
     token_features: pd.DataFrame,
     iob_col_name: str = "ent_iob",
-    char_span_col_name: str = "span",
+    span_col_name: str = "span",
     entity_type_col_name: str = "ent_type",
 ):
     """
@@ -582,7 +581,7 @@ def iob_to_spans(
 
     # Convert [begin, end) pairs to spans
     entity_spans_array = TokenSpanArray(
-        token_features[char_span_col_name].values,
+        token_features[span_col_name].values,
         all_entities["begin"].values,
         all_entities["end"].values,
     )
@@ -851,7 +850,7 @@ def decode_class_labels(class_labels: Iterable[str]):
 
 def maybe_download_conll_data(target_dir: str) -> Dict[str, str]:
     """
-    Download and cache a copy of the CoNLL-2003 named entity recogniation
+    Download and cache a copy of the CoNLL-2003 named entity recognition
     data set.
 
     **NOTE: This data set is licensed for research use only.**
@@ -880,7 +879,9 @@ def maybe_download_conll_data(target_dir: str) -> Dict[str, str]:
 
     if not os.path.exists(_TRAIN_FILE):
         download_file(_CONLL_DOWNLOAD_BASE_URL + _TRAIN_FILE_NAME, _TRAIN_FILE)
+    if not os.path.exists(_DEV_FILE):
         download_file(_CONLL_DOWNLOAD_BASE_URL + _DEV_FILE_NAME, _DEV_FILE)
+    if not os.path.exists(_TEST_FILE):
         download_file(_CONLL_DOWNLOAD_BASE_URL + _TEST_FILE_NAME, _TEST_FILE)
     return {
         "train": _TRAIN_FILE,

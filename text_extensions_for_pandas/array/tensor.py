@@ -135,14 +135,16 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     """
 
     def __init__(self, values: Union[np.ndarray, Sequence[Union[np.ndarray, TensorElement]],
-                                     TensorElement, Any],
-                 make_contiguous: bool = True):
+                                     TensorElement, Any]):
         """
         :param values: A `numpy.ndarray` or sequence of `numpy.ndarray`s of equal shape.
-        :param make_contiguous: force values to be contiguous in memory (C order)
         """
         if isinstance(values, np.ndarray):
-            self._tensor = values
+            if values.dtype.type is np.object_ and len(values) > 0 and \
+                    isinstance(values[0], TensorElement):
+                self._tensor = np.array([np.asarray(v) for v in values])
+            else:
+                self._tensor = values
         elif isinstance(values, Sequence):
             if len(values) == 0:
                 self._tensor = np.array([])
@@ -159,9 +161,6 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             raise TypeError(f"Expected a numpy.ndarray or sequence of numpy.ndarray, "
                             f"but received {values} "
                             f"of type '{type(values)}' instead.")
-        
-        if not self._tensor.flags.c_contiguous and make_contiguous:
-            self._tensor = np.ascontiguousarray(self._tensor)
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
@@ -198,7 +197,12 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        return np.all(np.isnan(self._tensor), axis=-1)
+        if self._tensor.dtype.type is np.object_:
+            return self._tensor == None
+        elif self._tensor.dtype.type is np.str_:
+            return np.all(self._tensor == "", axis=-1)
+        else:
+            return np.all(np.isnan(self._tensor), axis=-1)
 
     def copy(self) -> "TensorArray":
         """
@@ -362,11 +366,11 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         for information about this method.
         """
         if name == "sum":
-            return TensorArray(np.sum(self._tensor, axis=0))
+            return TensorElement(np.sum(self._tensor, axis=0))
         elif name == "all":
-            return TensorArray(np.all(self._tensor, axis=0))
+            return TensorElement(np.all(self._tensor, axis=0))
         elif name == "any":
-            return TensorArray(np.any(self._tensor, axis=0))
+            return TensorElement(np.any(self._tensor, axis=0))
         else:
             raise NotImplementedError(f"'{name}' aggregate not implemented.")
 

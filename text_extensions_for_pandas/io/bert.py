@@ -118,7 +118,8 @@ def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
     return token_features
 
 
-def add_embeddings(df: pd.DataFrame, bert: Any) -> pd.DataFrame:
+def add_embeddings(df: pd.DataFrame, bert: Any,
+                   overlap: int = 32, non_overlap: int = 64) -> pd.DataFrame:
     """
     Add BERT embeddings to a DataFrame of BERT tokens.
 
@@ -126,6 +127,9 @@ def add_embeddings(df: pd.DataFrame, bert: Any) -> pd.DataFrame:
       :func:`make_bert_tokens` Must contain a column
       `input_id` containing token IDs.
     :param bert: PyTorch-based BERT model from the `transformers` library
+    :param overlap: (optional) how much overlap there should be between adjacent windows
+    :param non_overlap: (optional) how much non-overlapping content between the
+     overlapping regions there should be at the middle of each window?
     :returns: A copy of `df` with a new column, "embedding" containing
      BERT embeddings as a `TensorArray`.
 
@@ -134,17 +138,14 @@ def add_embeddings(df: pd.DataFrame, bert: Any) -> pd.DataFrame:
     # Import torch inline so that the rest of this library will function without it.
     # noinspection PyPackageRequirements
     import torch
-
-    _OVERLAP = 32
-    _NON_OVERLAP = 64
     flat_input_ids = df["input_id"].values
-    windows = seq_to_windows(flat_input_ids, _OVERLAP, _NON_OVERLAP)
+    windows = seq_to_windows(flat_input_ids, overlap, non_overlap)
     bert_result = bert(
         input_ids=torch.tensor(windows["input_ids"]),
         attention_mask=torch.tensor(windows["attention_masks"]))
     hidden_states = windows_to_seq(flat_input_ids,
                                    bert_result[0].detach().numpy(),
-                                   _OVERLAP, _NON_OVERLAP)
+                                   overlap, non_overlap)
     embeddings = TensorArray(hidden_states)
     ret = df.copy()
     ret["embedding"] = embeddings
@@ -153,7 +154,8 @@ def add_embeddings(df: pd.DataFrame, bert: Any) -> pd.DataFrame:
 
 def conll_to_bert(df: pd.DataFrame, tokenizer: Any, bert: Any,
                   token_class_dtype: pd.CategoricalDtype,
-                  compute_embeddings: bool = True) -> pd.DataFrame:
+                  compute_embeddings: bool = True,
+                  overlap: int = 32, non_overlap: int = 64) -> pd.DataFrame:
     """
     :param df: One DataFrame from the conll_2003_to_dataframes() function,
      representing the tokens of a single document in the original tokenization.
@@ -164,6 +166,10 @@ def conll_to_bert(df: pd.DataFrame, tokenizer: Any, bert: Any,
     :param compute_embeddings: True to generate BERT embeddings at each token
      position and add a column "embedding" to the returned DataFrame with
      the embeddings
+    :param overlap: (optional) how much overlap there should be between adjacent
+     windows for embeddings
+    :param non_overlap: (optional) how much non-overlapping content between the
+     overlapping regions there should be at the middle of each window?
 
     :returns: A version of the same DataFrame, but with BERT tokens, BERT
      embeddings for each token (if `compute_embeddings` is `True`),
@@ -178,7 +184,7 @@ def conll_to_bert(df: pd.DataFrame, tokenizer: Any, bert: Any,
                                                                spans_df["ent_type"])
     bert_toks_df = conll.add_token_classes(bert_toks_df, token_class_dtype)
     if compute_embeddings:
-        bert_toks_df = add_embeddings(bert_toks_df, bert)
+        bert_toks_df = add_embeddings(bert_toks_df, bert, overlap, non_overlap)
     return bert_toks_df
 
 

@@ -6,7 +6,5 @@ jupyterlab-git
 nodejs
 xeus-python
 ipywidgets
-scikit-learn
-torch
 matplotlib
 

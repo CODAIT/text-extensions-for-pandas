@@ -3,14 +3,5 @@
 channels:
   - defaults
 dependencies:
- - tensorflow
- - pandas
- - regex
- - matplotlib
- - cython 
- - grpcio-tools
- - pytorch
- - black
- - scikit-learn 
 
 

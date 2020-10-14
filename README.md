@@ -2,6 +2,8 @@
 # Text Extensions for Pandas
 
 [![Documentation Status](https://readthedocs.org/projects/text-extensions-for-pandas/badge/?version=latest)](https://text-extensions-for-pandas.readthedocs.io/en/latest/?badge=latest)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/frreiss/tep-fred/branch-binder?urlpath=lab/tree/notebooks)
+
 
 Natural language processing support for Pandas dataframes.
 
@@ -61,8 +63,16 @@ of this repository to the front of `sys.path`.
 
 ## Documentation
 
-For examples of how to use the library, take a look at the notebooks in 
-[this directory](https://github.com/CODAIT/text-extensions-for-pandas/tree/master/notebooks).
+For examples of how to use the library, take a look at the **example notebooks** in 
+[this directory](https://github.com/CODAIT/text-extensions-for-pandas/tree/master/notebooks). You can try out these notebooks on [Binder](https://mybinder.org/) by navigating to [https://mybinder.org/v2/gh/frreiss/tep-fred/branch-binder?urlpath=lab/tree/notebooks](https://mybinder.org/v2/gh/frreiss/tep-fred/branch-binder?urlpath=lab/tree/notebooks)
+
+To run the notebooks on your local machine, follow the following steps:
+
+1. Install [Anaconda](https://docs.anaconda.com/anaconda/install/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html).
+1. Check out a copy of this repository.
+1. Use the script `env.sh` to set up an Anaconda environment for running the code in this repository.
+1. Type `jupyter lab` from the root of your local source tree to start a [JupyterLab](https://jupyterlab.readthedocs.io/en/stable/) environment.
+1. Navigate to the `notebooks` directory and choose any of the notebooks there
 
 API documentation can be found at [https://text-extensions-for-pandas.readthedocs.io/en/latest/](https://text-extensions-for-pandas.readthedocs.io/en/latest/)
 
@@ -73,6 +83,7 @@ API documentation can be found at [https://text-extensions-for-pandas.readthedoc
 * **env.sh**: Script to create a conda environment `pd` capable of running the notebooks and test cases in this project
 * **generate_docs.sh**: Script to build the [API documentation]((https://readthedocs.org/projects/text-extensions-for-pandas/)
 * **api_docs**: Configuration files for `generate_docs.sh`
+* **binder**: Configuration files for [running notebooks on Binder](https://mybinder.org/v2/gh/frreiss/tep-fred/branch-binder?urlpath=lab/tree/notebooks)
 * **config**: Configuration files for `env.sh`.
 * **docs**: Project web site
 * **notebooks**: example notebooks
@@ -82,12 +93,6 @@ API documentation can be found at [https://text-extensions-for-pandas.readthedoc
 * **tutorials**: Detailed tutorials on using Text Extensions for Pandas to
   cover complex end-to-end NLP use cases (work in progress).
 
-
-## Instructions to run a demo notebook
-1. Check out a copy of this repository
-1. (optional) Use the script `env.sh` to set up an Anaconda environment for running the code in this repository.
-1. Type `jupyter lab` from the root of your local source tree to start a [JupyterLab](https://jupyterlab.readthedocs.io/en/stable/) environment.
-1. Navigate to the `notebooks` directory and choose any of the notebooks there
 
 
 ## Contributing

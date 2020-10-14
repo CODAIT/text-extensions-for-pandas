@@ -14,7 +14,7 @@
 #
 
 """
-This module of Text Extensions for Pandas inclues I/O functions related to the
+This module of Text Extensions for Pandas includes I/O functions related to the
 Table Understanding capabilities of Watson Discovery.
 
 Table Understanding is available as part of the `Watson Discovery component`_ for

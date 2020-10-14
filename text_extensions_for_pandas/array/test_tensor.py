@@ -14,6 +14,7 @@
 #
 
 import os
+from distutils.version import LooseVersion
 import tempfile
 import textwrap
 import unittest
@@ -183,6 +184,28 @@ class TestTensor(unittest.TestCase):
         a = TensorArray(x)
         a[1] = np.array([42, 42])
         npt.assert_equal(a[1], [42, 42])
+
+    def test_isna(self):
+        expected = np.array([False, True, False, False])
+
+        # Test numeric
+        x = np.array([[1, 2], [np.nan, np.nan], [3, np.nan], [5, 6]])
+        s = TensorArray(x)
+        result = s.isna()
+        npt.assert_equal(result, expected)
+
+        # Test object
+        d = {"a": 1}
+        x = np.array([[d, d], None, [d, None], [d, d]], dtype=object)
+        s = TensorArray(x)
+        result = s.isna()
+        npt.assert_equal(result, expected)
+
+        # Test str
+        x = np.array([["foo", "foo"], ["", ""], ["bar", ""], ["baz", "baz"]])
+        s = TensorArray(x)
+        result = s.isna()
+        npt.assert_equal(result, expected)
 
     def test_repr(self):
         x = np.array([[1, 2], [3, 4], [5, 6]])
@@ -400,15 +423,22 @@ class TensorArrayDataFrameTests(unittest.TestCase):
         values = np.array([[1, 1]] * len(keys))
         df = pd.DataFrame({"key": keys, "value": TensorArray(values)})
         result_df = df.groupby("key").aggregate({"value": "sum"})
+
+        # Check array gets unwrapped from TensorElements
+        arr = result_df["value"].array
+        self.assertEqual(arr.to_numpy().dtype, values.dtype)
+        npt.assert_array_equal(arr.to_numpy(), [[2, 2], [1, 1], [3, 3]])
+
+        # Check the resulting DataFrame
         self.assertEqual(
             repr(result_df),
             textwrap.dedent(
                 """\
-                     value
-                key       
-                a    [2 2]
-                b    [1 1]
-                c    [3 3]"""
+                    value
+                key      
+                a   [2 2]
+                b   [1 1]
+                c   [3 3]"""
             ),
         )
 
@@ -416,17 +446,25 @@ class TensorArrayDataFrameTests(unittest.TestCase):
         values2 = np.array([[[1, 1], [1, 1]]] * len(keys))
         df2 = pd.DataFrame({"key": keys, "value": TensorArray(values2)})
         result2_df = df2.groupby("key").aggregate({"value": "sum"})
+
+        # Check array gets unwrapped from TensorElements
+        arr2 = result2_df["value"].array
+        self.assertEqual(arr2.to_numpy().dtype, values.dtype)
+        npt.assert_array_equal(arr2.to_numpy(),
+                               [[[2, 2], [2, 2]], [[1, 1], [1, 1]], [[3, 3], [3, 3]]])
+
+        # Check the resulting DataFrame
         self.assertEqual(
             repr(result2_df),
             textwrap.dedent(
                 """\
-                              value
-                key                
-                a    [[2 2]
+                             value
+                key               
+                a   [[2 2]
                  [2 2]]
-                b    [[1 1]
+                b   [[1 1]
                  [1 1]]
-                c    [[3 3]
+                c   [[3 3]
                  [3 3]]"""
             ),
         )
@@ -486,6 +524,81 @@ class TensorArrayDataFrameTests(unittest.TestCase):
         self.assertEqual(df["tensor"].array.to_numpy().dtype, arr.to_numpy().dtype)
         expected = np.array([[4, 5], [2, 3], [0, 1]])
         npt.assert_array_equal(df["tensor"].array, expected)
+
+    def test_large_display_numeric(self):
+
+        # Test integer, uses IntArrayFormatter
+        df = pd.DataFrame({"foo": TensorArray(np.array([[1, 2]] * 100))})
+        self.assertEqual(
+            repr(df),
+            textwrap.dedent(
+                """\
+                     foo
+                0  [1 2]
+                1  [1 2]
+                2  [1 2]
+                3  [1 2]
+                4  [1 2]
+                ..   ...
+                95 [1 2]
+                96 [1 2]
+                97 [1 2]
+                98 [1 2]
+                99 [1 2]
+                
+                [100 rows x 1 columns]"""
+            )
+        )
+
+        # Test float, uses IntArrayFormatter
+        df = pd.DataFrame({"foo": TensorArray(np.array([[1.1, 2.2]] * 100))})
+        self.assertEqual(
+            repr(df),
+            textwrap.dedent(
+                """\
+                         foo
+                0  [1.1 2.2]
+                1  [1.1 2.2]
+                2  [1.1 2.2]
+                3  [1.1 2.2]
+                4  [1.1 2.2]
+                ..       ...
+                95 [1.1 2.2]
+                96 [1.1 2.2]
+                97 [1.1 2.2]
+                98 [1.1 2.2]
+                99 [1.1 2.2]
+                
+                [100 rows x 1 columns]"""
+            )
+        )
+
+    @pytest.mark.skipif(LooseVersion(pd.__version__) < LooseVersion("1.1.0"),
+                        reason="Display of TensorArray with non-numeric dtype not supported")
+    def test_large_display_string(self):
+
+        # Uses the GenericArrayFormatter, doesn't work for Pandas 1.0.x but fixed in later versions
+        df = pd.DataFrame({"foo": TensorArray(np.array([["Hello", "world"]] * 100))})
+        self.assertEqual(
+            repr(df),
+            textwrap.dedent(
+                """\
+                                  foo
+                0   ['Hello' 'world']
+                1   ['Hello' 'world']
+                2   ['Hello' 'world']
+                3   ['Hello' 'world']
+                4   ['Hello' 'world']
+                ..                ...
+                95  ['Hello' 'world']
+                96  ['Hello' 'world']
+                97  ['Hello' 'world']
+                98  ['Hello' 'world']
+                99  ['Hello' 'world']
+                
+                [100 rows x 1 columns]"""
+            )
+        )
 
 
 class TensorArrayIOTests(unittest.TestCase):
