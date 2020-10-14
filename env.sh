@@ -1,16 +1,76 @@
 #! /bin/bash
 
-
+################################################################################
 # Create conda environment to run the notebooks in this directory.
-# 
-# By default, the environment will be called "pd". To use a different name,
-# pass the name as the first argument to this script, i.e.
 #
-# $ ./env.sh my_environment_name
+# See usage() below for the current set of arguments this script accepts.
 
-# Use Python 3.7 for now because TensorFlow and JupyterLab don't support 3.8
-# yet.
-PYTHON_VERSION=3.7
+################################################################################
+# Argument processing
+
+# Default values for parameters passed on command line
+# Use environment variables if present.
+# (-z predicate means "unset or empty string")
+if [ -z "$PYTHON_VERSION" ]; then
+    PYTHON_VERSION="3.7"
+fi
+ENV_NAME="pd"
+
+
+usage() {
+    echo "Usage: ./env.sh [-h] [--env_name <name>] "
+    echo "                     [--python_version <version>]"
+    echo "                     [--pandas_version <version>]"
+    echo ""
+    echo "You can also use the following environment variables:"
+    echo "      PYTHON_VERSION: Version of Python to install"
+    echo "      PANDAS_VERSION: version of Pandas to install"
+    echo "(command-line arguments override environment variables values)"
+}
+
+die() {
+    echo $1
+    usage
+    exit 1
+}
+
+# Read command line arguments
+# See Bash docs at http://mywiki.wooledge.org/BashFAQ/035
+while :; do
+    case $1 in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        --env_name)
+            if [ "$2" ]; then ENV_NAME=$2; shift
+            else die "ERROR: --env_name requires an environment name"
+            fi
+            ;;
+        --python_version)
+            if [ "$2" ]; then PYTHON_VERSION=$2; shift
+            else die "ERROR: --python_version requires an environment name"
+            fi
+            ;;
+        --pandas_version)
+            if [ "$2" ]; then PANDAS_VERSION=$2; shift
+            else die "ERROR: --pandas_version requires an environment name"
+            fi
+            ;;
+        ?*)
+            die "Unknown option '$1'"
+            ;;
+        *) # No more options
+            break
+    esac
+    shift # Move on to next argument
+done
+
+echo "Creating environment '${ENV_NAME}' with Python '${PYTHON_VERSION}'."
+if [ -n "${PANDAS_VERSION}" ]; then
+    echo "Will use non-default Pandas version '${PANDAS_VERSION}'."
+fi
+
 
 ############################
 # HACK ALERT *** HACK ALERT 
@@ -34,14 +94,8 @@ fi
 # END HACK
 ############################
 
-# Check whether the user specified an environment name.
-if [ "$1" != "" ]; then
-    ENV_NAME=$1
-else
-    ENV_NAME="pd"
-fi
-echo "Creating an Anaconda environment called '${ENV_NAME}'"
-
+################################################################################
+# Create the environment
 
 # Remove the detrius of any previous runs of this script
 conda env remove -n ${ENV_NAME}
@@ -49,26 +103,15 @@ conda env remove -n ${ENV_NAME}
 conda create -y --name ${ENV_NAME} python=${PYTHON_VERSION}
 
 ################################################################################
-# Preferred way to install packages: Anaconda main
-#
-# We use YAML files to ensure that the CI environment will use the same
-# configuration.
-conda env update -n ${ENV_NAME} -f config/dev_env.yml
-
-################################################################################
-
 # All the installation steps that follow must be done from within the new
 # environment.
 conda activate ${ENV_NAME}
 
 # Ensure a specific version of Pandas is installed
-if [ -n "${PANDAS_VERSION}" ]; then
-    echo "Ensuring Pandas ${PANDAS_VERSION} is installed"
-    conda install pandas=${PANDAS_VERSION}
-fi
+
 
 ################################################################################
-# Second-best way to install packages: pip
+# Install packages with pip
 
 # pip install with the project's requirements.txt so that any hard constraints
 # on package versions are respected in the created environment.
@@ -80,11 +123,18 @@ pip install -r config/dev_reqs.txt
 # Additional layer of pip-installed stuff for running notebooks
 pip install -r config/jupyter_reqs.txt
 
-# Additional large packages needed by only some of the demos
+# Additional layer of large packages
 pip install -r config/big_reqs.txt
 
+# The previous steps will have installed some version of Pandas.
+# Override that version if the user requested it.
+if [ -n "${PANDAS_VERSION}" ]; then
+    echo "Ensuring Pandas ${PANDAS_VERSION} is installed"
+    pip install pandas==${PANDAS_VERSION}
+fi
+
 ################################################################################
-# Least-preferred install method: Custom
+# Non-pip package installation
 
 # spaCy language models for English
 python -m spacy download en_core_web_sm

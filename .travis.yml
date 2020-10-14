@@ -2,12 +2,19 @@ language: python
 
 jobs:
   include:
-    - python: "3.6"
+    - name: "Python 3.6"
+      python: "3.6"
+      env: PYTHON_VERSION=3.6
+    - name: "Python 3.8"
+      python: "3.8"
+      env: PYTHON_VERSION=3.8
     - name: "Pandas 1.0.x"
       python: "3.7"
+      env: PYTHON_VERSION=3.7
       env: PANDAS_VERSION=1.0.*
     - name: "Pandas 1.1.x"
       python: "3.7"
+      env: PYTHON_VERSION=3.7
       env: PANDAS_VERSION=1.1.*
 
 install:
