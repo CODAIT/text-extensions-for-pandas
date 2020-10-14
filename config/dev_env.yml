@@ -1,7 +1,0 @@
-# Anaconda YAML file specifying packages that this project's build/test
-# environment should install from Anaconda's main channel.
-channels:
-  - defaults
-dependencies:
-
-
