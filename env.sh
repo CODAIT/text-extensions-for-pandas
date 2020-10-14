@@ -57,7 +57,7 @@ while :; do
             else die "ERROR: --pandas_version requires an environment name"
             fi
             ;;
-        -?*)
+        ?*)
             die "Unknown option '$1'"
             ;;
         *) # No more options
@@ -71,7 +71,6 @@ if [ -n "${PANDAS_VERSION}" ]; then
     echo "Will use non-default Pandas version ${PANDAS_VERSION}."
 fi
 
-exit
 
 ############################
 # HACK ALERT *** HACK ALERT 
