@@ -281,6 +281,30 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             values = self._tensor
         return values
 
+    @property
+    def numpy_dtype(self):
+        """
+        Get the dtype of the tensor.
+        :return: The numpy dtype of the backing ndarray
+        """
+        return self._tensor.dtype
+
+    @property
+    def numpy_ndim(self):
+        """
+        Get the number of tensor dimensions.
+        :return: integer for the number of dimensions
+        """
+        return self._tensor.ndim
+
+    @property
+    def numpy_shape(self):
+        """
+        Get the shape of the tensor.
+        :return: A tuple of integers for the numpy shape of the backing ndarray
+        """
+        return self._tensor.shape
+
     def astype(self, dtype, copy=True):
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
