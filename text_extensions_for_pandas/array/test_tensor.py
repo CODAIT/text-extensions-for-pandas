@@ -861,9 +861,38 @@ class TestPandasArithmeticOps(base.BaseArithmeticOpsTests):
         pass
 
 
-@pytest.mark.skip("resolve errors")
+#@pytest.mark.skip("resolve errors")
 class TestPandasComparisonOps(base.BaseComparisonOpsTests):
-    pass
+
+    def _compare_other(self, s, data, op_name, other):
+        """
+        Override to eval result of `all()` as a `ndarray`.
+        NOTE: test_compare_scalar uses value `0` for other.
+        """
+        op = self.get_op_from_name(op_name)
+        if op_name == "__eq__":
+            assert not np.all(op(s, other).all())
+        elif op_name == "__ne__":
+            assert np.all(op(s, other).all())
+        elif op_name in ["__lt__", "__le__"]:
+            assert not np.all(op(s, other).all())
+        elif op_name in ["__gt__", "__ge__"]:
+            assert np.all(op(s, other).all())
+        else:
+            raise ValueError("Unexpected opname: {}".format(op_name))
+
+    def test_compare_scalar(self, data, all_compare_operators):
+        """ Override to change scalar value to something usable."""
+        op_name = all_compare_operators
+        s = pd.Series(data)
+        self._compare_other(s, data, op_name, -1)
+
+    def test_compare_array(self, data, all_compare_operators):
+        """ Override to change scalar value to something usable."""
+        op_name = all_compare_operators
+        s = pd.Series(data[1:])
+        other = pd.Series([data[0]] * len(s), dtype=TensorDtype())
+        self._compare_other(s, data, op_name, other)
 
 
 @pytest.mark.skip("resolve errors")

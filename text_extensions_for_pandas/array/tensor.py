@@ -103,7 +103,7 @@ class TensorOpsMixin(pd.api.extensions.ExtensionScalarOpsMixin):
 
             if isinstance(other, (TensorArray, TensorElement)):
                 rvalues = other._tensor
-            elif np.isscalar(other):
+            elif isinstance(other, np.ndarray) or np.isscalar(other):
                 rvalues = other
             else:
                 raise TypeError("Unexpected rvalue: {}".format(type(other)))
