@@ -681,6 +681,12 @@ def data(dtype):
 
 
 @pytest.fixture
+def data_for_twos(dtype):
+    values = np.ones(100) * 2
+    return pd.array(values, dtype=dtype)
+
+
+@pytest.fixture
 def data_missing(dtype):
     values = np.array([[np.nan], [9]])
     return pd.array(values, dtype=dtype)
@@ -720,6 +726,29 @@ def data_for_grouping(dtype):
 
 
 # Can't import due to dependencies, taken from pandas.conftest import all_compare_operators
+_all_arithmetic_operators = [
+    "__add__",
+    "__radd__",
+    "__sub__",
+    "__rsub__",
+    "__mul__",
+    "__rmul__",
+    "__floordiv__",
+    "__rfloordiv__",
+    "__truediv__",
+    "__rtruediv__",
+    "__pow__",
+    "__rpow__",
+    "__mod__",
+    "__rmod__",
+]
+
+
+@pytest.fixture(params=_all_arithmetic_operators)
+def all_arithmetic_operators(request):
+    return request.param
+
+
 @pytest.fixture(params=["__eq__", "__ne__", "__lt__", "__gt__", "__le__", "__ge__"])
 def all_compare_operators(request):
     return request.param
@@ -795,14 +824,41 @@ class TestPandasSetitem(base.BaseSetitemTests):
         assert np.all(result == data[0])
 
 
-@pytest.mark.skip("resolve errors")
 class TestPandasMissing(base.BaseMissingTests):
-    pass
+    @pytest.mark.skip(reason="TypeError: No matching signature found")
+    def test_fillna_limit_pad(self, data_missing):
+        super().test_fillna_limit_pad(data_missing)
+
+    @pytest.mark.skip(reason="TypeError: No matching signature found")
+    def test_fillna_limit_backfill(self, data_missing):
+        super().test_fillna_limit_backfill(data_missing)
+
+    @pytest.mark.skip(reason="TypeError: No matching signature found")
+    def test_fillna_series_method(self, data_missing, fillna_method):
+        super().test_fillna_series_method(data_missing, fillna_method)
 
 
-@pytest.mark.skip("resolve errors")
 class TestPandasArithmeticOps(base.BaseArithmeticOpsTests):
-    pass
+
+    # Expected errors for tests
+    base.BaseArithmeticOpsTests.series_scalar_exc = None
+    base.BaseArithmeticOpsTests.series_array_exc = None
+    base.BaseArithmeticOpsTests.frame_scalar_exc = None
+    base.BaseArithmeticOpsTests.divmod_exc = NotImplementedError
+
+    def test_arith_series_with_array(self, data, all_arithmetic_operators):
+        """ Override because creates Series from list of TensorElements as dtype=object."""
+        # ndarray & other series
+        op_name = all_arithmetic_operators
+        s = pd.Series(data)
+        self.check_opname(
+            s, op_name, pd.Series([s.iloc[0]] * len(s), dtype=TensorDtype()), exc=self.series_array_exc
+        )
+
+    @pytest.mark.skip(reason="TensorArray does not error on ops")
+    def test_error(self, data, all_arithmetic_operators):
+        # other specific errors tested in the TensorArray specific tests
+        pass
 
 
 @pytest.mark.skip("resolve errors")
