@@ -103,14 +103,14 @@ class TensorOpsMixin(pd.api.extensions.ExtensionScalarOpsMixin):
 
             if isinstance(other, (TensorArray, TensorElement)):
                 rvalues = other._tensor
-            elif isinstance(other, np.ndarray) or np.isscalar(other):
-                rvalues = other
             else:
-                raise TypeError("Unexpected rvalue: {}".format(type(other)))
+                rvalues = other
 
             result = op(lvalues, rvalues)
 
-            if isinstance(self, TensorArray) or isinstance(other, TensorArray):
+            # Force a TensorArray if rvalue is not a scalar
+            if isinstance(self, TensorElement) and \
+                    (not isinstance(other, TensorElement) or not np.isscalar(other)):
                 result_wrapped = TensorArray(result)
             else:
                 result_wrapped = cls(result)
