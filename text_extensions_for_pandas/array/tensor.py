@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 from pandas.compat import set_function_name
 from pandas.core import ops
-from pandas.core.dtypes.generic import ABCSeries
+from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
 from pandas.core.indexers import check_array_indexer, validate_indices
 
 
@@ -90,9 +90,32 @@ class TensorOpsMixin(pd.api.extensions.ExtensionScalarOpsMixin):
 
         def _binop(self, other):
             lvalues = self._tensor
-            rvalues = other._tensor if isinstance(other, (TensorArray, TensorElement)) else other
-            res = op(lvalues, rvalues)
-            return cls(res)
+
+            if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+                # Rely on pandas to unbox and dispatch to us.
+                return NotImplemented
+
+            # divmod returns a tuple
+            if op_name in ["__divmod__", "__rdivmod__"]:
+                # TODO: return tuple
+                # div, mod = result
+                raise NotImplementedError
+
+            if isinstance(other, (TensorArray, TensorElement)):
+                rvalues = other._tensor
+            else:
+                rvalues = other
+
+            result = op(lvalues, rvalues)
+
+            # Force a TensorArray if rvalue is not a scalar
+            if isinstance(self, TensorElement) and \
+                    (not isinstance(other, TensorElement) or not np.isscalar(other)):
+                result_wrapped = TensorArray(result)
+            else:
+                result_wrapped = cls(result)
+
+            return result_wrapped
 
         op_name = ops._get_op_name(op, True)
         return set_function_name(_binop, op_name, cls)
