@@ -63,24 +63,24 @@ class TestTensor(unittest.TestCase):
     def test_create_from_scalar(self):
         s = TensorArray(2112)
         self.assertEqual(len(s), 1)
-        self.assertTupleEqual(s.to_numpy().shape, (1,))
+        self.assertTupleEqual(s.numpy_shape, (1,))
         self.assertEqual(s[0], 2112)
 
         s = TensorArray(np.int64(2112))
         self.assertEqual(len(s), 1)
-        self.assertTupleEqual(s.to_numpy().shape, (1,))
+        self.assertTupleEqual(s.numpy_shape, (1,))
         self.assertEqual(s[0], 2112)
 
         x = np.array([1, 2112, 3])
         e = TensorElement(x[1])
         s = TensorArray(e)
-        self.assertTupleEqual(s.to_numpy().shape, (1,))
+        self.assertTupleEqual(s.numpy_shape, (1,))
         self.assertEqual(s[0], 2112)
 
     def test_create_from_scalar_list(self):
         x = [1, 2, 3, 4, 5]
         s = TensorArray(x)
-        self.assertTupleEqual(s.to_numpy().shape, (len(x),))
+        self.assertTupleEqual(s.numpy_shape, (len(x),))
         expected = np.array(x)
         npt.assert_array_equal(s.to_numpy(), expected)
 
@@ -163,20 +163,20 @@ class TestTensor(unittest.TestCase):
         s2 = TensorArray(x * 3)
         result = s1 + s2
         self.assertTrue(isinstance(result, TensorArray))
-        npt.assert_equal(result.to_numpy().shape, [5, 3])
+        npt.assert_equal(result.numpy_shape, [5, 3])
         self.assertTrue(np.all(result == 5))
 
         # multiply TensorArrays
         s1 = TensorArray(x * 2)
         s2 = TensorArray(x * 3)
         result = s1 * s2
-        npt.assert_equal(result.to_numpy().shape, [5, 3])
+        npt.assert_equal(result.numpy_shape, [5, 3])
         self.assertTrue(np.all(result == 6))
 
         # multiply scalar
         s1 = TensorArray(x * 2)
         result = s1 * 4
-        npt.assert_equal(result.to_numpy().shape, [5, 3])
+        npt.assert_equal(result.numpy_shape, [5, 3])
         self.assertTrue(np.all(result == 8))
 
     def test_setitem(self):
@@ -398,7 +398,7 @@ class TestTensor(unittest.TestCase):
         # Test no missing gets same dtype
         result = s.take([0, 2], allow_fill=True)
         expected = np.array([[1, 2], [5, 6]])
-        self.assertEqual(result.to_numpy().dtype, expected.dtype)
+        self.assertEqual(result.numpy_dtype, expected.dtype)
         npt.assert_array_equal(result, expected)
         result = s.take([0, 2], allow_fill=False)
         npt.assert_array_equal(result, expected)
@@ -406,9 +406,16 @@ class TestTensor(unittest.TestCase):
         # Test missing with nan fill gets promoted to float and filled
         result = s.take([1, -1], allow_fill=True)
         expected = np.array([[3, 4], [np.nan, np.nan]])
-        self.assertEqual(result.to_numpy().dtype, expected.dtype)
+        self.assertEqual(result.numpy_dtype, expected.dtype)
         npt.assert_array_equal(result, expected)
         npt.assert_array_equal(result.isna(), [False, True])
+
+    def test_numpy_properties(self):
+        data = np.arange(6).reshape(3, 2)
+        arr = TensorArray(data)
+        self.assertEqual(arr.numpy_ndim, data.ndim)
+        self.assertEqual(arr.numpy_shape, data.shape)
+        self.assertEqual(arr.numpy_dtype, data.dtype)
 
 
 class TensorArrayDataFrameTests(unittest.TestCase):
@@ -426,7 +433,7 @@ class TensorArrayDataFrameTests(unittest.TestCase):
 
         # Check array gets unwrapped from TensorElements
         arr = result_df["value"].array
-        self.assertEqual(arr.to_numpy().dtype, values.dtype)
+        self.assertEqual(arr.numpy_dtype, values.dtype)
         npt.assert_array_equal(arr.to_numpy(), [[2, 2], [1, 1], [3, 3]])
 
         # Check the resulting DataFrame
@@ -449,7 +456,7 @@ class TensorArrayDataFrameTests(unittest.TestCase):
 
         # Check array gets unwrapped from TensorElements
         arr2 = result2_df["value"].array
-        self.assertEqual(arr2.to_numpy().dtype, values.dtype)
+        self.assertEqual(arr2.numpy_dtype, values.dtype)
         npt.assert_array_equal(arr2.to_numpy(),
                                [[[2, 2], [2, 2]], [[1, 1], [1, 1]], [[3, 3], [3, 3]]])
 
@@ -521,7 +528,7 @@ class TensorArrayDataFrameTests(unittest.TestCase):
         date_range = pd.date_range('2018-01-01', periods=3, freq='H')
         df = pd.DataFrame({"time": date_range, "tensor": arr})
         df = df.sort_values(by="time", ascending=False)
-        self.assertEqual(df["tensor"].array.to_numpy().dtype, arr.to_numpy().dtype)
+        self.assertEqual(df["tensor"].array.numpy_dtype, arr.numpy_dtype)
         expected = np.array([[4, 5], [2, 3], [0, 1]])
         npt.assert_array_equal(df["tensor"].array, expected)
 
