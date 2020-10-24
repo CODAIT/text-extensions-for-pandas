@@ -24,6 +24,7 @@ import numpy.testing as npt
 import pandas as pd
 import pandas.testing as pdt
 from pandas.tests.extension import base
+import pyarrow as pa
 import pytest
 
 from text_extensions_for_pandas.array.tensor import TensorArray, TensorElement, TensorDtype
@@ -620,7 +621,8 @@ class TensorArrayIOTests(unittest.TestCase):
             df_read = pd.read_feather(filename)
             pd.testing.assert_frame_equal(df, df_read)
 
-    @unittest.skip("TODO: error when reading parquet back")
+    @pytest.mark.skipif(LooseVersion(pa.__version__) < LooseVersion("2.0.0"),
+                        reason="Nested Parquet data types only supported in Arrow >= 2.0.0")
     def test_parquet(self):
         x = np.arange(10).reshape(5, 2)
         s = TensorArray(x)
@@ -633,7 +635,6 @@ class TensorArrayIOTests(unittest.TestCase):
             pd.testing.assert_frame_equal(df, df_read)
 
     def test_feather_chunked(self):
-        import pyarrow as pa
         from pyarrow.feather import write_feather
 
         x = np.arange(10).reshape(5, 2)
@@ -657,7 +658,6 @@ class TensorArrayIOTests(unittest.TestCase):
             pd.testing.assert_frame_equal(df_expected, df_read)
 
     def test_feather_auto_chunked(self):
-        import pyarrow as pa
         from pyarrow.feather import read_table, write_feather
 
         x = np.arange(2048).reshape(1024, 2)
@@ -868,7 +868,6 @@ class TestPandasArithmeticOps(base.BaseArithmeticOpsTests):
         pass
 
 
-#@pytest.mark.skip("resolve errors")
 class TestPandasComparisonOps(base.BaseComparisonOpsTests):
 
     def _compare_other(self, s, data, op_name, other):
