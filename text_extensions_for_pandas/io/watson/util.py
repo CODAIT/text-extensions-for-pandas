@@ -33,6 +33,8 @@ def schema_to_names(schema):
 
 
 def apply_schema(df, schema, std_schema_on):
+    # TODO: Apply the dtype information in schema, not just the names
+    # TODO: Document what this mysterious "std_schema_on" argument does.
     columns = [n for n in schema_to_names(schema) if std_schema_on or n in df.columns]
     return df.reindex(columns=columns)
 
@@ -89,6 +91,15 @@ def build_original_text(text_col, begins):
 
 
 def make_char_span(location_col, text_col, original_text):
+    """
+    Convert a column of begin, end pairs to a SpanArray.
+
+    :param location_col: Arrow array containing (begin, end) tuples of character offset
+    :param text_col: Arrow array of strings that should match the target texts of the
+      spans in location_col. Used for reconstructing target text when it is not provided.
+    :param original_text: Target text for the spans. Optional. If not provided, this
+     function will reconstruct target text from the contents of `text_col`.
+    """
 
     # Replace location columns with char and token spans
     if not (pa.types.is_list(location_col.type) and pa.types.is_primitive(location_col.type.value_type)):

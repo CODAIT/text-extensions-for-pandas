@@ -34,7 +34,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 
-from text_extensions_for_pandas.array.span import SpanArray
+from text_extensions_for_pandas.array.span import SpanArray, Span
 from text_extensions_for_pandas.array.token_span import TokenSpanArray
 from text_extensions_for_pandas.io.watson import util
 from text_extensions_for_pandas.spanner import contain_join
@@ -53,6 +53,31 @@ _entities_schema = [
     ("disambiguation.name", "string"),
     ("disambiguation.dbpedia_resource", "string"),
 ]
+
+# Schema for a DataFrame that unrolls the nested field "mentions" containing
+# the locations of individual mentions of an entity.
+# Fields from parent "entities" relation:
+_entity_mentions_parent_elems = [
+    ("type", "string"),
+    ("text", "string"),
+    # Sentiment is not an attribute of the individual mentions
+    # ("sentiment.label", "string"),
+    # ("sentiment.score", "double"),
+    # ("relevance", "double"),
+    # ("count", "int64"),
+    # ("confidence", "double"),
+    # ("disambiguation.subtype", "string"),
+    # ("disambiguation.name", "string"),
+    # ("disambiguation.dbpedia_resource", "string"),
+]
+# Fields from nested "mentions" field that we unroll:
+_entity_mentions_child_elems = [
+    ("span", "ArrowSpanType"),  # NOTE: Renamed from "location"
+    ("confidence", "double")
+]
+_entity_mentions_schema = _entity_mentions_parent_elems + _entity_mentions_child_elems
+_entity_mentions_parent_names = util.schema_to_names(_entity_mentions_parent_elems)
+_entity_mentions_child_names = util.schema_to_names(_entity_mentions_child_elems)
 
 _keywords_schema = [
     ("text", "string"),
@@ -159,7 +184,7 @@ def _make_relations_dataframe(relations, original_text, sentence_span_series):
 
     table = util.make_table(relations)
 
-    location_cols = {}
+    location_cols = {}  # Type: Dict[int, Tuple[Union[Array, ChunkedArray], str]]
 
     # Separate each argument into a column
     flattened_arguments = []
@@ -203,7 +228,9 @@ def _make_relations_dataframe(relations, original_text, sentence_span_series):
     arg_span_cols = {}
     for arg_i, (location_col, arg_prefix) in location_cols.items():
         text_col, text_name = util.find_column(table, "{}.text".format(arg_prefix))
-        arg_span_cols["{}.span".format(arg_prefix)] =util.make_char_span(location_col, text_col, original_text)
+        arg_span_cols["{}.span".format(arg_prefix)] = util.make_char_span(location_col,
+                                                                          text_col,
+                                                                          original_text)
         drop_cols.extend(["{}.location".format(arg_prefix), text_name])
 
     add_cols = arg_span_cols.copy()
@@ -321,7 +348,8 @@ def _make_relations_dataframe_zero_copy(relations):
                         arg_offsets = np.insert(arg_offsets, 0, 0)
                         arg_array = pa.ListArray.from_arrays(arg_offsets, arg_values)
                 else:
-                    # TODO Argument properties with variable length arrays not currently supported
+                    # TODO Argument properties with variable length arrays not currently
+                    #  supported
                     continue
 
                 flattened_arguments.append((arg_array, arg_name))
@@ -337,14 +365,65 @@ def _make_relations_dataframe_zero_copy(relations):
     return table.to_pandas()
 
 
+def _make_entity_mentions_dataframe(entities: List,
+                                    original_text: str,
+                                    apply_standard_schema: bool) -> pd.DataFrame:
+    """
+    Unroll the records of the "mentions" element of NLU entities into a flat
+    DataFrame. Schema of this DataFrame is `_entity_mentions_schema`
+    above.
+    :param entities: The "entities" section of a parsed NLU response
+    :param original_text: Text of the document.  This argument must be provided if there
+     are entity mention spans.
+    :param apply_standard_schema: Value of the eponymous argument from `parse_response`.
+    """
+    if 0 == len(entities) or "mentions" not in entities[0].keys():
+        # No mentions to unroll. Return an empty DataFrame.
+        return util.apply_schema(
+            pd.DataFrame(columns=[e[0] for e in _entity_mentions_schema]),
+            _entity_mentions_schema, apply_standard_schema)
+    if original_text is None:
+        raise ValueError(
+            "Unable to construct target text for converting entity mentions to spans")
+    # Explode out the nested relations containing entity location information.
+    # If there was a version of DataFrame.explode() that could handle structs,
+    # we would be able to vectorize this operation.
+    # Instead we build up the values one row at a time.
+    # Some columns come from "parent" entity records, and some columns come from the
+    # "child" entity mention records.
+    num_parent_cols = len(_entity_mentions_parent_elems)
+    parent_cols = [[] for i in range(num_parent_cols)]
+    begins = []
+    ends = []
+    confidences = []
+    for e in entities:
+        for m in e["mentions"]:
+            for i in range(num_parent_cols):
+                parent_elem = e[_entity_mentions_parent_names[i]]
+                parent_cols[i].append(parent_elem)
+            begins.append(m["location"][0])
+            ends.append(m["location"][1])
+            confidences.append(m["confidence"])  # N.B. confidence of mention, not entity
+    # Construct columns, then convert to a DataFrame
+    df_cols = {
+        _entity_mentions_parent_names[i]: parent_cols[i]
+        for i in range(len(_entity_mentions_parent_names))
+    }
+    df_cols["span"] = SpanArray(original_text, begins, ends)
+    df_cols["confidence"] = confidences
+    return util.apply_schema(pd.DataFrame(df_cols), _entity_mentions_schema,
+                             apply_standard_schema)
+
+
 def parse_response(response: Dict[str, Any],
-                              original_text: str = None,
-                              apply_standard_schema: bool = False) -> Dict[str, pd.DataFrame]:
+                   original_text: str = None,
+                   apply_standard_schema: bool = False) -> Dict[str, pd.DataFrame]:
     """
     Parse a Watson NLU response as a decoded JSON string, e.g. dictionary containing requested
     features and convert into a dict of Pandas DataFrames. The following features in the response
     will be converted:
         * entities
+        * entity_mentions (elements of the "mentions" field of `response["entities"]`)
         * keywords
         * relations
         * semantic_roles
@@ -410,25 +489,32 @@ def parse_response(response: Dict[str, Any],
         else:
             warnings.warn("Did not receive and could not build original text")
 
-    # Create the entities DataFrame
+    # Create the entities DataFrames
     entities = response.get("entities", [])
     entities_df = util.make_dataframe(entities)
-    dfs["entities"] = util.apply_schema(entities_df, _entities_schema, apply_standard_schema)
+    dfs["entities"] = util.apply_schema(entities_df, _entities_schema,
+                                        apply_standard_schema)
+    dfs["entity_mentions"] = _make_entity_mentions_dataframe(entities,
+                                                             original_text,
+                                                             apply_standard_schema)
 
     # Create the keywords DataFrame
     keywords = response.get("keywords", [])
     keywords_df = util.make_dataframe(keywords)
-    dfs["keywords"] = util.apply_schema(keywords_df, _keywords_schema, apply_standard_schema)
+    dfs["keywords"] = util.apply_schema(keywords_df, _keywords_schema,
+                                        apply_standard_schema)
 
     # Create the relations DataFrame
     relations = response.get("relations", [])
     relations_df = _make_relations_dataframe(relations, original_text, sentence_series)
-    dfs["relations"] = util.apply_schema(relations_df, _relations_schema, apply_standard_schema)
+    dfs["relations"] = util.apply_schema(relations_df, _relations_schema,
+                                         apply_standard_schema)
 
     # Create the semantic roles DataFrame
     semantic_roles = response.get("semantic_roles", [])
     semantic_roles_df = util.make_dataframe(semantic_roles)
-    dfs["semantic_roles"] = util.apply_schema(semantic_roles_df, _semantic_roles_schema, apply_standard_schema)
+    dfs["semantic_roles"] = util.apply_schema(semantic_roles_df, _semantic_roles_schema,
+                                              apply_standard_schema)
 
     if "warnings" in response:
         # TODO: check structure of warnings and improve message
