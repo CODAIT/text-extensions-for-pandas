@@ -46,7 +46,8 @@ class TestWatson(unittest.TestCase):
         pd.reset_option("display.max_columns")
         warnings.simplefilter("default")
 
-    def load_response_file(self, filename):
+    @staticmethod
+    def load_response_file(filename):
         with open(filename, mode='r') as f:
             return json.load(f)
 
@@ -57,9 +58,10 @@ class TestWatson(unittest.TestCase):
     def test_check_basic_response(self):
         filename = "test_data/io/test_watson/basic_response.txt"
         result = self.parse_response_file(filename)
-        self.assertEqual(len(result), 5)
+        self.assertEqual(len(result), 6)
         self.assertSequenceEqual(sorted(result.keys()),
-                                 ["entities", "keywords", "relations", "semantic_roles", "syntax"])
+                                 ["entities", "entity_mentions",
+                                  "keywords", "relations", "semantic_roles", "syntax"])
 
         # Uncomment to regenerate expected output below.
         # print(f"****{repr(result['syntax'])}****")
@@ -220,9 +222,36 @@ class TestWatson(unittest.TestCase):
     def test_large_response(self):
         filename = "test_data/io/test_watson/holy_grail_response.txt"
         result = self.parse_response_file(filename)
-        self.assertEqual(len(result), 5)
+        self.assertEqual(len(result), 6)
         self.assertSequenceEqual(sorted(result.keys()),
-                                 ["entities", "keywords", "relations", "semantic_roles", "syntax"])
+                                 ["entities", "entity_mentions",
+                                  "keywords", "relations", "semantic_roles",
+                                  "syntax"])
+
+    def test_entity_mentions(self):
+        filename = "test_data/io/test_watson/mentions_response.txt"
+        # Make sure the file loads.
+        response = self.load_response_file(filename)
+        result = parse_response(response)
+        self.assertEqual(
+            repr(result["entities"]),
+            textwrap.dedent("""\
+               type           text sentiment.label  sentiment.score  relevance  count  \\
+        0    Person  Steven Wright        negative        -0.866897   0.978348      2   
+        1  Location         Alaska        negative        -0.940095   0.277941      1   
+        
+           confidence  
+        0    0.999997  
+        1    0.999498  """)
+        )
+        self.assertEqual(
+            repr(result["entity_mentions"]),
+            textwrap.dedent("""\
+                       type           text                         span  confidence
+                0    Person  Steven Wright    [64, 77): 'Steven Wright'    0.998251
+                1    Person  Steven Wright  [177, 190): 'Steven Wright'    0.998251
+                2  Location         Alaska         [138, 144): 'Alaska'    0.999498""")
+        )
 
     def test_response_entities(self):
         filename = "test_data/io/test_watson/basic_response.txt"
@@ -315,9 +344,10 @@ class TestWatson(unittest.TestCase):
         response = self.load_response_file(filename)
         result = parse_response(response, apply_standard_schema=True)
 
-        for df in result.values():
+        for key, df in result.items():
             self.assertIsInstance(df, pd.DataFrame)
-            self.assertGreater(len(df), 0)
+            if key != "entity_mentions":  # No entity mentions in test response
+                self.assertGreater(len(df), 0)
 
         for name, empty_df in empty_result.items():
             empty_response_cols = list(empty_df.columns)
