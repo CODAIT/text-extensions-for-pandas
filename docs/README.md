@@ -99,7 +99,7 @@ You can generate a DataFrame of low-level table components...
 ![Generate a live DataFrame that matches a table in a PDF file](images/table_to_df.png)
 
 To learn more about our Watson Discovery Table Understanding integration, 
-[take a look at our demo notebook](https://nbviewer.jupyter.org/github/CODAIT/text-extensions-for-pandas/blob/master/notebooks/Analyze_Text.ipynb).
+[take a look at our demo notebook](https://nbviewer.jupyter.org/github/CODAIT/text-extensions-for-pandas/blob/master/notebooks/Understand_Tables.ipynb).
 
 
 
