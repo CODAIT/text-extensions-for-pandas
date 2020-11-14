@@ -4,7 +4,6 @@
 [![Documentation Status](https://readthedocs.org/projects/text-extensions-for-pandas/badge/?version=latest)](https://text-extensions-for-pandas.readthedocs.io/en/latest/?badge=latest)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/frreiss/tep-fred/branch-binder?urlpath=lab/tree/notebooks)
 
-
 Natural language processing support for Pandas dataframes.
 
 Text Extensions for Pandas turns Pandas DataFrames into a universal data
@@ -33,6 +32,13 @@ application development workflow.
 * [IBM Watson Natural Language Understanding](https://www.ibm.com/cloud/watson-natural-language-understanding)
 * [IBM Watson Discovry Table Understanding](https://cloud.ibm.com/docs/discovery-data?topic=discovery-data-understanding_tables)
 
+
+## CoNLL-2020 Paper
+
+Looking for the model training code from our CoNLL-2020 paper, ["Identifying Incorrect Labels in the CoNLL-2003 Corpus"](https://www.aclweb.org/anthology/2020.conll-1.16/)?
+See the notebooks in [this directory](https://github.com/CODAIT/text-extensions-for-pandas/tree/master/tutorials/corpus).
+
+The associated data set is [here](https://github.com/CODAIT/Identifying-Incorrect-Labels-In-CoNLL-2003).
 
 ## Installation
 
