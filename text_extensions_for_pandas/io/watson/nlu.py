@@ -54,30 +54,11 @@ _entities_schema = [
     ("disambiguation.dbpedia_resource", "string"),
 ]
 
-# Schema for a DataFrame that unrolls the nested field "mentions" containing
-# the locations of individual mentions of an entity.
-# Fields from parent "entities" relation:
-_entity_mentions_parent_elems = [
+_entity_mentions_schema = [
     ("type", "string"),
-    ("text", "string"),
-    # Sentiment is not an attribute of the individual mentions
-    # ("sentiment.label", "string"),
-    # ("sentiment.score", "double"),
-    # ("relevance", "double"),
-    # ("count", "int64"),
-    # ("confidence", "double"),
-    # ("disambiguation.subtype", "string"),
-    # ("disambiguation.name", "string"),
-    # ("disambiguation.dbpedia_resource", "string"),
-]
-# Fields from nested "mentions" field that we unroll:
-_entity_mentions_child_elems = [
     ("span", "ArrowSpanType"),  # NOTE: Renamed from "location"
     ("confidence", "double")
 ]
-_entity_mentions_schema = _entity_mentions_parent_elems + _entity_mentions_child_elems
-_entity_mentions_parent_names = util.schema_to_names(_entity_mentions_parent_elems)
-_entity_mentions_child_names = util.schema_to_names(_entity_mentions_child_elems)
 
 _keywords_schema = [
     ("text", "string"),
@@ -387,19 +368,14 @@ def _make_entity_dataframes(entities: List,
     if len(mention_name_cols) > 0:
         mention_names, mention_cols = zip(*mention_name_cols)
 
-        # Remove mention arrays from main table
+        # Create the entities DataFrame with mention arrays dropped
         table = table.drop(mention_names)
-
-        # Need mention cols non-chunked to flatten, should have 1 chunk anyway
-        mention_arrays = [pa.concat_arrays(col.iterchunks()) for col in mention_cols]
-
-        # Flatten the mention arrays to be put in separate DataFrame
-        flat_mention_arrays = [a.flatten() for a in mention_arrays]
-
-        table_mentions = pa.Table.from_arrays(flat_mention_arrays, names=mention_names)
-
-        # Create the entities DataFrame
         pdf = table.to_pandas()
+
+        # Flatten the mention arrays to be put in separate table
+        mention_arrays = [pa.concat_arrays(col.iterchunks()) for col in mention_cols]
+        flat_mention_arrays = [a.flatten() for a in mention_arrays]
+        table_mentions = pa.Table.from_arrays(flat_mention_arrays, names=mention_names)
 
         # Convert location/text columns to span
         location_col, location_name = util.find_column(table_mentions, "location")
@@ -426,7 +402,6 @@ def _make_entity_dataframes(entities: List,
         # Remove "mentions" from column names
         pdf_mentions.rename(columns={c: c.split("mentions.")[-1] for c in pdf_mentions.columns},
                             inplace=True)
-
     else:
         pdf = table.to_pandas()
         pdf_mentions = pd.DataFrame()
@@ -513,8 +488,7 @@ def parse_response(response: Dict[str, Any],
     entities_df, entity_mentions_df = _make_entity_dataframes(entities, original_text)
     dfs["entities"] = util.apply_schema(entities_df, _entities_schema,
                                         apply_standard_schema)
-    dfs["entity_mentions"] = util.apply_schema(entity_mentions_df,
-                                               _entity_mentions_schema,
+    dfs["entity_mentions"] = util.apply_schema(entity_mentions_df, _entity_mentions_schema,
                                                apply_standard_schema)
 
     # Create the keywords DataFrame

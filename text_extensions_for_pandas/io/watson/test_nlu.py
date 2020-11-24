@@ -247,10 +247,10 @@ class TestWatson(unittest.TestCase):
         self.assertEqual(
             repr(result["entity_mentions"]),
             textwrap.dedent("""\
-                       type           text                         span  confidence
-                0    Person  Steven Wright    [64, 77): 'Steven Wright'    0.998251
-                1    Person  Steven Wright  [177, 190): 'Steven Wright'    0.998251
-                2  Location         Alaska         [138, 144): 'Alaska'    0.999498""")
+                       type                         span  confidence
+                0    Person    [64, 77): 'Steven Wright'    0.998251
+                1    Person  [177, 190): 'Steven Wright'    0.998251
+                2  Location         [138, 144): 'Alaska'    0.999498""")
         )
 
     def test_response_entities(self):
