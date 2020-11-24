@@ -368,21 +368,22 @@ def _make_relations_dataframe_zero_copy(relations):
 def _make_entity_dataframes(entities: List,
                             original_text: str) -> (pd.DataFrame, pd.DataFrame):
     """
-    Unroll the records of the "mentions" element of NLU entities into a flat
-    DataFrame. Schema of this DataFrame is `_entity_mentions_schema`
-    above.
+    Create the entities and entity_mentions DataFrames.
+
     :param entities: The "entities" section of a parsed NLU response
     :param original_text: Text of the document.  This argument must be provided if there
      are entity mention spans.
     """
     if len(entities) == 0:
-        return pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame()
 
     table = util.make_table(entities)
+
+    # Check if response includes entity mentions
     mention_name_cols = [(name, table.column(name)) for name in table.column_names
                          if name.lower().startswith("mentions")]
 
-    # Check if response includes entity mentions
+    # Make entities and entity mentions (optional) DataFrames
     if len(mention_name_cols) > 0:
         mention_names, mention_cols = zip(*mention_name_cols)
 
@@ -395,63 +396,42 @@ def _make_entity_dataframes(entities: List,
         # Flatten the mention arrays to be put in separate DataFrame
         flat_mention_arrays = [a.flatten() for a in mention_arrays]
 
-        # Build index back into parent table
-        mention_offsets = mention_arrays[0].offsets.to_numpy()
-        parent_index = np.zeros_like(flat_mention_arrays[0], mention_offsets.dtype)
-        for i in range(len(table)):
-            parent_index[mention_offsets[i]:mention_offsets[i + 1]] = i
+        table_mentions = pa.Table.from_arrays(flat_mention_arrays, names=mention_names)
 
-        table_mentions = pa.Table.from_arrays([parent_index] + flat_mention_arrays,
-                                              names=("parent_index",) + mention_names)
-    else:
-        table_mentions = None
+        # Create the entities DataFrame
+        pdf = table.to_pandas()
 
-    pdf = table.to_pandas()
-
-    if table_mentions is not None:
+        # Convert location/text columns to span
+        location_col, location_name = util.find_column(table_mentions, "location")
+        text_col, text_name = util.find_column(table_mentions, "text")
         if original_text is None:
             raise ValueError(
                 "Unable to construct target text for converting entity mentions to spans")
-        
-        location_col, location_name = util.find_column(table_mentions, "location")
-        text_col, text_name = util.find_column(table_mentions, "text")
-        char_span = util.make_char_span(location_col, text_col, original_text)
 
+        char_span = util.make_char_span(location_col, text_col, original_text)
+        table_mentions = table_mentions.drop([location_name, text_name])
+
+        # Create the entity_mentions DataFrame
         pdf_mentions = table_mentions.to_pandas()
         pdf_mentions["span"] = char_span
-        result = pdf_mentions.merge(pdf, left_on="parent_index")
-        #parent_index = pdf_mentions["parent_index"]
-        #pdf_mentions["type"] = pdf["type"].iloc[parent_index.values]
 
+        # Align index of parent entities DataFrame with flattened DataFrame and ffill values
+        mention_offsets = mention_arrays[0].offsets.to_numpy()
+        pdf_parent = pdf.set_index(mention_offsets[:-1])
+        pdf_parent = pdf_parent.reindex(pdf_mentions.index, method="ffill")
 
-    # Explode out the nested relations containing entity location information.
-    # If there was a version of DataFrame.explode() that could handle structs,
-    # we would be able to vectorize this operation.
-    # Instead we build up the values one row at a time.
-    # Some columns come from "parent" entity records, and some columns come from the
-    # "child" entity mention records.
-    num_parent_cols = len(_entity_mentions_parent_elems)
-    parent_cols = [[] for i in range(num_parent_cols)]
-    begins = []
-    ends = []
-    confidences = []
-    for e in entities:
-        for m in e["mentions"]:
-            for i in range(num_parent_cols):
-                parent_elem = e[_entity_mentions_parent_names[i]]
-                parent_cols[i].append(parent_elem)
-            begins.append(m["location"][0])
-            ends.append(m["location"][1])
-            confidences.append(m["confidence"])  # N.B. confidence of mention, not entity
-    # Construct columns, then convert to a DataFrame
-    df_cols = {
-        _entity_mentions_parent_names[i]: parent_cols[i]
-        for i in range(len(_entity_mentions_parent_names))
-    }
-    df_cols["span"] = SpanArray(original_text, begins, ends)
-    df_cols["confidence"] = confidences
-    return util.apply_schema(pd.DataFrame(df_cols), _entity_mentions_schema,
-                             apply_standard_schema)
+        # Add columns from entities parent DataFrame
+        pdf_mentions["type"] = pdf_parent["type"]
+
+        # Remove "mentions" from column names
+        pdf_mentions.rename(columns={c: c.split("mentions.")[-1] for c in pdf_mentions.columns},
+                            inplace=True)
+
+    else:
+        pdf = table.to_pandas()
+        pdf_mentions = pd.DataFrame()
+
+    return pdf, pdf_mentions
 
 
 def parse_response(response: Dict[str, Any],
