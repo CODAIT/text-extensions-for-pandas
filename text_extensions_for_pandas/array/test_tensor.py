@@ -690,6 +690,14 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             )
         )
 
+    def test_display_time(self):
+        times = pd.date_range('2018-01-01', periods=5, freq='H').to_numpy()
+        times_repeated = np.tile(times, (3, 1))
+        times_array = TensorArray(times_repeated)
+        times_series = pd.Series(times_array)
+        repr(times_series)
+
+
 
 class TensorArrayIOTests(unittest.TestCase):
     def test_feather(self):
