@@ -221,7 +221,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         for information about this method.
         """
         if self._tensor.dtype.type is np.object_:
-            return self._tensor == None
+            return self._tensor is None
         elif self._tensor.dtype.type is np.str_:
             return np.all(self._tensor == "", axis=-1)
         else:
