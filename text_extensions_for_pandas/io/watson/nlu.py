@@ -47,6 +47,11 @@ _entities_schema = [
     ("sentiment.label", "string"),
     ("sentiment.score", "double"),
     ("relevance", "double"),
+    ("emotion.sadness", "double"),
+    ("emotion.joy", "double"),
+    ("emotion.fear", "double"),
+    ("emotion.disgust", "double"),
+    ("emotion.anger", "double"),
     ("count", "int64"),
     ("confidence", "double"),
     ("disambiguation.subtype", "string"),
@@ -56,6 +61,7 @@ _entities_schema = [
 
 _entity_mentions_schema = [
     ("type", "string"),
+    ("text", "string"),
     ("span", "ArrowSpanType"),  # NOTE: Renamed from "location"
     ("confidence", "double")
 ]
@@ -397,6 +403,7 @@ def _make_entity_dataframes(entities: List,
         pdf_parent = pdf_parent.reindex(pdf_mentions.index, method="ffill")
 
         # Add columns from entities parent DataFrame
+        pdf_mentions["text"] = pdf_parent["text"]
         pdf_mentions["type"] = pdf_parent["type"]
 
         # Remove "mentions" from column names
