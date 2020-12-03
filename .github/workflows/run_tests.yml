@@ -21,10 +21,10 @@ jobs:
         with:
           python-version: '3.7'
           architecture: 'x64'
-      - name: Install Conda Environment
+      - name: Setup Conda Environment
         run: |
           echo $CONDA
           echo $CONDA_PREFIX
       - name: Test with pytest
         run: |
-          pytest
+          pytest -v text_extensions_for_pandas
