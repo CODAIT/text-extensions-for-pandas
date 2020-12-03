@@ -1,0 +1,30 @@
+name: Run tests
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target branch to run'
+        required: true
+
+jobs:
+  run_python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+          architecture: 'x64'
+      - name: Setup Conda Environment
+        run: |
+          echo $CONDA
+          echo $CONDA_PREFIX
+      - name: Test with pytest
+        run: |
+          pytest -v text_extensions_for_pandas
