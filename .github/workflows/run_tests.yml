@@ -25,6 +25,7 @@ jobs:
         run: |
           echo $CONDA
           echo $CONDA_PREFIX
+          $CONDA/bin/conda install pytest
       - name: Test with pytest
         run: |
           pytest -v text_extensions_for_pandas
