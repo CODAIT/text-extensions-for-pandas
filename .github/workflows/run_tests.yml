@@ -23,9 +23,13 @@ jobs:
           architecture: 'x64'
       - name: Setup Conda Environment
         run: |
-          echo $CONDA
-          echo $CONDA_PREFIX
+          echo "Conda base path ${CONDA}"
+          hash -r
+          $CONDA/bin/conda config --set always_yes yes --set changeps1 no
+          $CONDA/bin/conda update -q conda
+          $CONDA/bin/conda info -a
           $CONDA/bin/conda install pytest
+          CONDA_HOME="${CONDA}" ./env.sh
       - name: Test with pytest
         run: |
           pytest -v text_extensions_for_pandas
