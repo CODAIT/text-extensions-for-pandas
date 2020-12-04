@@ -30,8 +30,7 @@ jobs:
           $CONDA/bin/conda config --set always_yes yes --set changeps1 no
           $CONDA/bin/conda update -q conda
           $CONDA/bin/conda info -a
-          CONDA_HOME="${CONDA}" ./env.sh
-          $CONDA/bin/conda activate pd
+          CONDA_HOME="${CONDA}" ./env.sh --use_active_env
       - name: Test with pytest
         run: |
           pytest -v text_extensions_for_pandas
