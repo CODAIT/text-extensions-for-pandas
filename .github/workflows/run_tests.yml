@@ -23,6 +23,11 @@ jobs:
           architecture: 'x64'
       - name: Setup Conda Environment
         run: |
+          pwd
+          ls .
+          echo "${GITHUB_WORKSPACE}"
+          ls "${GITHUB_WORKSPACE}"
+          echo "${WORKSPACE}"
           echo "Conda base path: ${CONDA}"
           hash -r
           $CONDA/bin/conda config --set always_yes yes --set changeps1 no
