@@ -26,6 +26,7 @@ jobs:
         run: |
           echo "Conda base path: ${CONDA}"
           hash -r
+          source "${CONDA}/etc/profile.d/conda.sh"
           $CONDA/bin/conda config --set always_yes yes --set changeps1 no
           $CONDA/bin/conda update -q conda
           $CONDA/bin/conda info -a
