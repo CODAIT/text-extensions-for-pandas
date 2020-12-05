@@ -16,13 +16,24 @@ on:
 jobs:
   run_python:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ 3.6, 3.7, 3.8 ]
+        inlcude:
+          - python-version: 3.7
+            pandas-version: [1.0.x, 1.1.x]
+            env:
+              PANDAS_VERSION: ${{ matrix.pandas-version }}
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
         with:
-          python-version: '3.7'
+          python-version: ${{ matrix.python-version }}
           architecture: 'x64'
       - name: Setup Conda Environment
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
           echo "Conda base path: ${CONDA}"
           hash -r
