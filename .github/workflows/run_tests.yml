@@ -19,12 +19,14 @@ jobs:
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
-        pandas-version: [1.0.x, ""]
+        # Test against Pandas 1.0 and latest version
+        pandas-version: [1.0, ""]
         exclude:
+          # Only run one test with Pandas 1.0.x and Python 3.7, exclude others
           - python-version: 3.6
-            pandas-version: 1.0.x
+            pandas-version: 1.0
           - python-version: 3.8
-            pandas-version: 1.0.x
+            pandas-version: 1.0
 
     steps:
       - uses: actions/checkout@v2
