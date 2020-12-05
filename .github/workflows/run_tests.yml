@@ -18,10 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ 3.6, 3.7, 3.8 ]
-        inlcude:
-          - python-version: 3.7
-            pandas-version: [1.0.x, 1.1.x]
+        python-version: [3.6, 3.7, 3.8]
+        pandas-version: [1.0.x, ""]
+        exclude:
+          - python-version: 3.6
+            pandas-version: 1.0.x
+          - python-version: 3.8
+            pandas-version: 1.0.x
 
     steps:
       - uses: actions/checkout@v2
