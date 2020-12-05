@@ -24,9 +24,9 @@ jobs:
         exclude:
           # Only run one test with Pandas 1.0.x and Python 3.7, exclude others
           - python-version: 3.6
-            pandas-version: 1.0
+            pandas-version: "1.0.*"
           - python-version: 3.8
-            pandas-version: 1.0
+            pandas-version: "1.0.*"
 
     steps:
       - uses: actions/checkout@v2
