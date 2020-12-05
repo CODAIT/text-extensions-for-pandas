@@ -19,11 +19,7 @@ jobs:
     strategy:
       matrix:
         python-version: [ 3.6, 3.7, 3.8 ]
-        inlcude:
-          - python-version: 3.7
-            pandas-version: [1.0.x, 1.1.x]
-            env:
-              PANDAS_VERSION: ${{ matrix.pandas-version }}
+
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
