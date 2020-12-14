@@ -19,6 +19,7 @@ ENV_NAME="pd"
 
 usage() {
     echo "Usage: ./env.sh [-h] [--env_name <name>] "
+    echo "                     [--use_active_env]"
     echo "                     [--python_version <version>]"
     echo "                     [--pandas_version <version>]"
     echo ""
@@ -47,14 +48,17 @@ while :; do
             else die "ERROR: --env_name requires an environment name"
             fi
             ;;
+        --use_active_env)
+            unset ENV_NAME; shift
+            ;;
         --python_version)
             if [ "$2" ]; then PYTHON_VERSION=$2; shift
-            else die "ERROR: --python_version requires an environment name"
+            else die "ERROR: --python_version requires a python version"
             fi
             ;;
         --pandas_version)
             if [ "$2" ]; then PANDAS_VERSION=$2; shift
-            else die "ERROR: --pandas_version requires an environment name"
+            else die "ERROR: --pandas_version requires a pandas version"
             fi
             ;;
         ?*)
@@ -66,7 +70,12 @@ while :; do
     shift # Move on to next argument
 done
 
-echo "Creating environment '${ENV_NAME}' with Python '${PYTHON_VERSION}'."
+if [ -n "${ENV_NAME}" ]; then
+    echo "Creating environment '${ENV_NAME}' with Python '${PYTHON_VERSION}'."
+else
+    echo "Using active environment with Python '${PYTHON_VERSION}'."
+fi
+
 if [ -n "${PANDAS_VERSION}" ]; then
     echo "Will use non-default Pandas version '${PANDAS_VERSION}'."
 fi
@@ -95,19 +104,20 @@ fi
 ############################
 
 ################################################################################
-# Create the environment
+# Create the environment if not using active
 
-# Remove the detrius of any previous runs of this script
-conda env remove -n ${ENV_NAME}
+if [ -n "${ENV_NAME}" ]; then
 
-conda create -y --name ${ENV_NAME} python=${PYTHON_VERSION}
+    # Remove the detrius of any previous runs of this script
+    conda env remove -n ${ENV_NAME}
 
-################################################################################
-# All the installation steps that follow must be done from within the new
-# environment.
-conda activate ${ENV_NAME}
+    conda create -y --name ${ENV_NAME} python=${PYTHON_VERSION}
 
-# Ensure a specific version of Pandas is installed
+    ################################################################################
+    # All the installation steps that follow must be done from within the new
+    # environment.
+    conda activate ${ENV_NAME}
+fi
 
 
 ################################################################################
@@ -154,8 +164,12 @@ jupyter labextension install --no-build @jupyterlab/debugger
 # JuptyerLab resources, since we'll be running from the local machine.
 jupyter lab build --minimize=False
 
-conda deactivate
+if [ -n "${ENV_NAME}" ]; then
+    conda deactivate
 
-echo "Anaconda environment '${ENV_NAME}' successfully created."
-echo "To use, type 'conda activate ${ENV_NAME}'."
+    echo "Anaconda environment '${ENV_NAME}' successfully created."
+    echo "To use, type 'conda activate ${ENV_NAME}'."
+else
+    echo "Current environment updated successfully."
+fi
 

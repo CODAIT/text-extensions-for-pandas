@@ -16,15 +16,37 @@ on:
 jobs:
   run_python:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+        # Test against Pandas 1.0 and latest version
+        pandas-version: ["1.0.*", ""]
+        exclude:
+          # Only run one test with Pandas 1.0.x and Python 3.7, exclude others
+          - python-version: 3.6
+            pandas-version: "1.0.*"
+          - python-version: 3.8
+            pandas-version: "1.0.*"
+
     steps:
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
         with:
-          python-version: '3.7'
+          python-version: ${{ matrix.python-version }}
           architecture: 'x64'
       - name: Setup Conda Environment
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+          PANDAS_VERSION: ${{ matrix.pandas-version }}
         run: |
-          echo $CONDA
-          echo $CONDA_PREFIX
+          echo "Conda base path: ${CONDA}"
+          hash -r
+          source "${CONDA}/etc/profile.d/conda.sh"
+          $CONDA/bin/conda config --set always_yes yes --set changeps1 no
+          $CONDA/bin/conda update -q conda
+          $CONDA/bin/conda info -a
+          CONDA_HOME="${CONDA}" ./env.sh --use_active_env
       - name: Test with pytest
         run: |
           pytest -v text_extensions_for_pandas
