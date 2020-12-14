@@ -268,6 +268,64 @@ class TestWatson(unittest.TestCase):
         text_series = result["entities"]["text"]
         self.assertListEqual(sorted(text_series), expected_text)
 
+    def test_response_entities_with_emotion(self):
+        """
+        Test Watson response from following request:
+
+        natural_language_understanding.analyze(
+            text="I hate John Smith. You love John Smith.",,
+            return_analyzed_text=True,
+            features=nlu.Features(
+                entities=nlu.EntitiesOptions(sentiment=True, mentions=True, emotion=True)
+            )).get_result()
+        """
+        response_str = textwrap.dedent("""\
+            {"usage": {"text_units": 1, "text_characters": 39, "features": 1},
+             "language": "en",
+             "entities": [{"type": "Person",
+               "text": "John Smith",
+               "sentiment": {"score": -0.296829, "mixed": "1", "label": "negative"},
+               "relevance": 0.9999,
+               "mentions": [{"text": "John Smith",
+                 "location": [7, 17],
+                 "confidence": 0.995878},
+                {"text": "John Smith", "location": [28, 38], "confidence": 0.992923}],
+               "emotion": {"sadness": 0.112204,
+                "joy": 0.289177,
+                "fear": 0.061407,
+                "disgust": 0.134739,
+                "anger": 0.409954},
+               "count": 2,
+               "confidence": 0.999971}],
+             "analyzed_text": "I hate John Smith. You love John Smith."}""")
+
+        response = json.loads(response_str)
+        result = parse_response(response)
+
+        self.assertIn("entities", result)
+        self.assertIn("entity_mentions", result)
+
+        self.assertEqual(
+            repr(result["entities"]),
+            textwrap.dedent("""\
+                     type        text sentiment.label  sentiment.score  relevance  \\
+                0  Person  John Smith        negative        -0.296829     0.9999   
+                
+                   emotion.sadness  emotion.joy  emotion.fear  emotion.disgust  emotion.anger  \\
+                0         0.112204     0.289177      0.061407         0.134739       0.409954   
+                
+                   count  confidence  
+                0      2    0.999971  """)
+        )
+
+        self.assertEqual(
+            repr(result["entity_mentions"]),
+            textwrap.dedent("""\
+                     type        text                    span  confidence
+                0  Person  John Smith   [7, 17): 'John Smith'    0.995878
+                1  Person  John Smith  [28, 38): 'John Smith'    0.992923""")
+        )
+
     def test_make_span_from_entities(self):
         filename = "test_data/io/test_watson/holy_grail_response.txt"
         dfs = self.parse_response_file(filename)
