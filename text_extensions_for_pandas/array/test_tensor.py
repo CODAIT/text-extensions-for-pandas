@@ -695,8 +695,36 @@ class TensorArrayDataFrameTests(unittest.TestCase):
         times_repeated = np.tile(times, (3, 1))
         times_array = TensorArray(times_repeated)
         times_series = pd.Series(times_array)
-        repr(times_series)
+        st = repr(times_series)
+        print(st)
+        st = None
+        """
+        import pandas.io.formats.format as fmt
+        x = np.array([[1, 2], [3, 4]])
+        formatter = fmt.GenericArrayFormatter(x)
+        result = formatter.get_result()
+        #x = pd.date_range('2018-01-01', periods=5, freq='H').to_numpy()
+        #x = np.tile(x, (3, 1))
+        #formatter = fmt.Datetime64Formatter(x)
+        #result = formatter.get_result()
 
+        import dateutil
+        from datetime import datetime
+        utc = dateutil.tz.tzutc()
+        x = pd.Series([datetime(2013, 1, 1, tzinfo=utc), datetime(2013, 1, 1, 12, tzinfo=utc), pd.NaT])
+        result = fmt.Datetime64TZFormatter(x).get_result()
+        print(result)
+
+        x = pd.date_range('2018-01-01', periods=5, freq='H', tz='US/Pacific').to_numpy()
+        #x = np.tile(x, (3, 1))
+        formatter = fmt.Datetime64TZFormatter(x)
+        result = formatter.get_result()
+        print(result)
+        #x_repeated = np.tile(x, (3, 1))
+        #times_array = TensorArray(x_repeated)
+        #times_series = pd.Series(times_array)
+        #st = repr(times_series)
+        #print(st)"""
 
 
 class TensorArrayIOTests(unittest.TestCase):
