@@ -26,7 +26,6 @@ from typing import *
 import numpy as np
 import pandas as pd
 from pandas.compat import set_function_name
-from pandas.core import ops
 from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
 from pandas.core.indexers import check_array_indexer, validate_indices
 
@@ -117,7 +116,7 @@ class TensorOpsMixin(pd.api.extensions.ExtensionScalarOpsMixin):
 
             return result_wrapped
 
-        op_name = ops._get_op_name(op, True)
+        op_name = f"__{op.__name__}__"
         return set_function_name(_binop, op_name, cls)
 
 
