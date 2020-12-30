@@ -347,6 +347,35 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             values = self._tensor.astype(dtype, copy=copy)
         return values
 
+    def any(self, axis=None, out=None, keepdims=False):
+        """
+        Test whether any array element along a given axis evaluates to True.
+
+        See numpy.any() documentation for more information
+        https://numpy.org/doc/stable/reference/generated/numpy.any.html#numpy.any
+
+        :param axis: Axis or axes along which a logical OR reduction is performed.
+        :param out: Alternate output array in which to place the result.
+        :param keepdims: If this is set to True, the axes which are reduced are left in the
+        result as dimensions with size one.
+        :return: single boolean unless axis is not None else TensorArray
+        """
+        result = self._tensor.any(axis=axis, out=out, keepdims=keepdims)
+        return result if axis is None else TensorArray(result)
+
+    def all(self, axis=None, out=None, keepdims=False):
+        """
+        Test whether all array elements along a given axis evaluate to True.
+
+        :param axis: Axis or axes along which a logical AND reduction is performed.
+        :param out: Alternate output array in which to place the result.
+        :param keepdims: If this is set to True, the axes which are reduced are left in the
+        result as dimensions with size one.
+        :return: single boolean unless axis is not None else TensorArray
+        """
+        result = self._tensor.all(axis=axis, out=out, keepdims=keepdims)
+        return result if axis is None else TensorArray(result)
+
     def __len__(self) -> int:
         return len(self._tensor)
 
@@ -387,6 +416,13 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         else:
             raise NotImplementedError(f"__setitem__ with key type '{type(key)}' "
                                       f"not implemented")
+
+    def __contains__(self, item) -> bool:
+        if isinstance(item, TensorElement):
+            npitem = np.asarray(item)
+            if npitem.size == 1 and  np.isnan(npitem).all():
+                return self.isna().any()
+        return super().__contains__(item)
 
     def __repr__(self):
         """

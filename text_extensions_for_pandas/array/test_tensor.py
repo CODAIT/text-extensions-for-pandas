@@ -811,24 +811,7 @@ class TestPandasGetitem(base.BaseGetitemTests):
 
 
 class TestPandasSetitem(base.BaseSetitemTests):
-
-    def test_setitem_mask_boolean_array_with_na(self, data, box_in_series):
-        mask = pd.array(np.zeros(data.shape, dtype="bool"), dtype="boolean")
-        mask[:3] = True
-        mask[3:5] = pd.NA
-
-        if box_in_series:
-            data = pd.Series(data)
-
-        data[mask] = data[0]
-
-        result = data[:3]
-        if box_in_series:
-            # Must unwrap Series
-            result = result.values
-
-        # Must compare all values of result
-        assert np.all(result == data[0])
+    pass
 
 
 class TestPandasMissing(base.BaseMissingTests):
