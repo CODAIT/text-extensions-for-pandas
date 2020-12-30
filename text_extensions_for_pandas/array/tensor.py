@@ -335,7 +335,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         dtype = pd.api.types.pandas_dtype(dtype)
 
         if isinstance(dtype, TensorDtype):
-            values = TensorArray(self._tensor.copy() if copy else self._tensor)
+            values = TensorArray(self._tensor.copy()) if copy else self
         elif not pd.api.types.is_object_dtype(dtype) and \
                 pd.api.types.is_string_dtype(dtype):
             values = np.array([str(t) for t in self._tensor])
