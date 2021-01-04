@@ -560,12 +560,15 @@ class TestPandasComparisonOps(base.BaseComparisonOpsTests):
             # Compare with scalar
             other = data[0]
 
-        # TODO check result
-        op(data, other)
+        result = op(data, other)
 
-    @pytest.mark.skip("assert result is NotImplemented")
-    def test_direct_arith_with_series_returns_not_implemented(self, data):
-        pass
+        if op_name in ["__gt__", "__ne__"]:
+            assert not result[0]
+            assert result[1:].all()
+        elif op_name in ["__lt__", "__eq__"]:
+            assert not result.all()
+        else:
+            raise NotImplementedError("Unknown Operation Comparison")
 
 
 class TestPandasReshaping(base.BaseReshapingTests):
