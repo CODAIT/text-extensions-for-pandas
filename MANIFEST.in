@@ -1,0 +1,3 @@
+include LICENSE.txt
+include package.md
+include requirements.txt
