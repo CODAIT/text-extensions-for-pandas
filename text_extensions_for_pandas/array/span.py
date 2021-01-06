@@ -446,6 +446,9 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
                              "'{}' and '{}'".format(type(self), type(other)))
 
     def __ne__(self, other):
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+            # Rely on pandas to unbox and dispatch to us.
+            return NotImplemented
         return ~(self == other)
 
     def __hash__(self):

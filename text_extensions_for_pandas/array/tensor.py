@@ -26,7 +26,6 @@ from typing import *
 import numpy as np
 import pandas as pd
 from pandas.compat import set_function_name
-from pandas.core import ops
 from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
 from pandas.core.indexers import check_array_indexer, validate_indices
 
@@ -117,7 +116,7 @@ class TensorOpsMixin(pd.api.extensions.ExtensionScalarOpsMixin):
 
             return result_wrapped
 
-        op_name = ops._get_op_name(op, True)
+        op_name = f"__{op.__name__}__"
         return set_function_name(_binop, op_name, cls)
 
 
@@ -336,7 +335,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         dtype = pd.api.types.pandas_dtype(dtype)
 
         if isinstance(dtype, TensorDtype):
-            values = TensorArray(self._tensor.copy() if copy else self._tensor)
+            values = TensorArray(self._tensor.copy()) if copy else self
         elif not pd.api.types.is_object_dtype(dtype) and \
                 pd.api.types.is_string_dtype(dtype):
             values = np.array([str(t) for t in self._tensor])
@@ -347,6 +346,35 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         else:
             values = self._tensor.astype(dtype, copy=copy)
         return values
+
+    def any(self, axis=None, out=None, keepdims=False):
+        """
+        Test whether any array element along a given axis evaluates to True.
+
+        See numpy.any() documentation for more information
+        https://numpy.org/doc/stable/reference/generated/numpy.any.html#numpy.any
+
+        :param axis: Axis or axes along which a logical OR reduction is performed.
+        :param out: Alternate output array in which to place the result.
+        :param keepdims: If this is set to True, the axes which are reduced are left in the
+        result as dimensions with size one.
+        :return: single boolean unless axis is not None else TensorArray
+        """
+        result = self._tensor.any(axis=axis, out=out, keepdims=keepdims)
+        return result if axis is None else TensorArray(result)
+
+    def all(self, axis=None, out=None, keepdims=False):
+        """
+        Test whether all array elements along a given axis evaluate to True.
+
+        :param axis: Axis or axes along which a logical AND reduction is performed.
+        :param out: Alternate output array in which to place the result.
+        :param keepdims: If this is set to True, the axes which are reduced are left in the
+        result as dimensions with size one.
+        :return: single boolean unless axis is not None else TensorArray
+        """
+        result = self._tensor.all(axis=axis, out=out, keepdims=keepdims)
+        return result if axis is None else TensorArray(result)
 
     def __len__(self) -> int:
         return len(self._tensor)
@@ -388,6 +416,13 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         else:
             raise NotImplementedError(f"__setitem__ with key type '{type(key)}' "
                                       f"not implemented")
+
+    def __contains__(self, item) -> bool:
+        if isinstance(item, TensorElement):
+            npitem = np.asarray(item)
+            if npitem.size == 1 and  np.isnan(npitem).all():
+                return self.isna().any()
+        return super().__contains__(item)
 
     def __repr__(self):
         """

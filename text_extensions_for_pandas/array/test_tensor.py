@@ -24,6 +24,7 @@ import numpy.testing as npt
 import pandas as pd
 import pandas.testing as pdt
 from pandas.tests.extension import base
+from pandas.core.dtypes.generic import ABCSeries
 import pyarrow as pa
 import pytest
 
@@ -811,24 +812,7 @@ class TestPandasGetitem(base.BaseGetitemTests):
 
 
 class TestPandasSetitem(base.BaseSetitemTests):
-
-    def test_setitem_mask_boolean_array_with_na(self, data, box_in_series):
-        mask = pd.array(np.zeros(data.shape, dtype="bool"), dtype="boolean")
-        mask[:3] = True
-        mask[3:5] = pd.NA
-
-        if box_in_series:
-            data = pd.Series(data)
-
-        data[mask] = data[0]
-
-        result = data[:3]
-        if box_in_series:
-            # Must unwrap Series
-            result = result.values
-
-        # Must compare all values of result
-        assert np.all(result == data[0])
+    pass
 
 
 class TestPandasMissing(base.BaseMissingTests):
@@ -853,11 +837,18 @@ class TestPandasArithmeticOps(base.BaseArithmeticOpsTests):
     base.BaseArithmeticOpsTests.frame_scalar_exc = None
     base.BaseArithmeticOpsTests.divmod_exc = NotImplementedError
 
+    def test_arith_series_with_scalar(self, data, all_arithmetic_operators):
+        """ Override to prevent div by zero warning."""
+        # series & scalar
+        op_name = all_arithmetic_operators
+        s = pd.Series(data[1:])  # Avoid zero values for div
+        self.check_opname(s, op_name, s.iloc[0], exc=self.series_scalar_exc)
+
     def test_arith_series_with_array(self, data, all_arithmetic_operators):
         """ Override because creates Series from list of TensorElements as dtype=object."""
         # ndarray & other series
         op_name = all_arithmetic_operators
-        s = pd.Series(data)
+        s = pd.Series(data[1:])  # Avoid zero values for div
         self.check_opname(
             s, op_name, pd.Series([s.iloc[0]] * len(s), dtype=TensorDtype()), exc=self.series_array_exc
         )
