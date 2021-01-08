@@ -41,9 +41,14 @@ Steps to release a new version:
    (pd) freiss@fuzzy:~/pd/tep-alpha2$ 
    ```   
 
-1. Upload to PyPI by running:
+1. (optional): Do a test upload to TestPyPI by running:
    ```
    python -m twine upload --repository testpypi dist/*
+   ```
+   
+1. Upload to PyPI by running:
+   ```
+   python -m twine upload dist/*
    ```   
    
 1. Tag and create a new release using the Github web UI.
