@@ -296,11 +296,11 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         super().__init__(tokens.target_text, tokens.begin, tokens.end)
 
         begin_tokens = (
-            np.array(begin_tokens) if not isinstance(begin_tokens, np.ndarray)
+            np.array(begin_tokens, dtype=int) if not isinstance(begin_tokens, np.ndarray)
             else begin_tokens
         )
         end_tokens = (
-            np.array(end_tokens) if not isinstance(end_tokens, np.ndarray)
+            np.array(end_tokens, dtype=int) if not isinstance(end_tokens, np.ndarray)
             else end_tokens
         )
 
