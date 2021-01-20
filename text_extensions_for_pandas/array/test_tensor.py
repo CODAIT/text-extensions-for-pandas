@@ -419,6 +419,25 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(arr.numpy_shape, data.shape)
         self.assertEqual(arr.numpy_dtype, data.dtype)
 
+    def test_bool_tensor_selection(self):
+        data = TensorArray([[1, 2], [3, 4], [5, 6]])
+        sel = TensorArray([True, False, True])
+        expected = np.array([[1, 2], [5, 6]])
+
+        # Test TensorArray.__getitem__ with TensorArray
+        result = data[sel]
+        npt.assert_array_equal(result, expected)
+
+        # Test Series of TensorDType selection with numpy array
+        s = pd.Series(data)
+        result = s[np.asarray(sel)]
+        npt.assert_array_equal(result, expected)
+
+        # Test Series  of TensorDType selection with TensorArray
+        # Currently fails due to Pandas not recognizing as bool index GH#162
+        with self.assertRaises(Exception):
+            result = s[sel]
+
 
 class TensorArrayDataFrameTests(unittest.TestCase):
     def test_create(self):

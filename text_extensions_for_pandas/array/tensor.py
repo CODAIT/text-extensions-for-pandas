@@ -393,6 +393,8 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             else:
                 return TensorElement(value)
         else:
+            if isinstance(item, TensorArray):
+                item = np.asarray(item)
             item = check_array_indexer(self, item)
             return TensorArray(self._tensor[item])
 
