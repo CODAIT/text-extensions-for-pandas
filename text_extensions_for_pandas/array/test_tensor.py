@@ -435,8 +435,12 @@ class TestTensor(unittest.TestCase):
 
         # Test Series  of TensorDType selection with TensorArray
         # Currently fails due to Pandas not recognizing as bool index GH#162
-        with self.assertRaises(Exception):
+        if LooseVersion(pd.__version__) >= LooseVersion("1.1.0"):
+            with self.assertRaises(Exception):
+                result = s[sel]
+        else:
             result = s[sel]
+            npt.assert_array_equal(result, expected)
 
 
 class TensorArrayDataFrameTests(unittest.TestCase):
