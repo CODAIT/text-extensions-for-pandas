@@ -433,7 +433,7 @@ class TestTensor(unittest.TestCase):
         result = s[np.asarray(sel)]
         npt.assert_array_equal(result, expected)
 
-        # Test Series  of TensorDType selection with TensorArray
+        # Test Series of TensorDType selection with TensorArray
         # Currently fails due to Pandas not recognizing as bool index GH#162
         if LooseVersion(pd.__version__) >= LooseVersion("1.1.0"):
             with self.assertRaises(Exception):
@@ -456,8 +456,11 @@ class TestTensor(unittest.TestCase):
         result = s[np.asarray(sel)]
         npt.assert_array_equal(result, expected)
 
-        # Test Series  of TensorDType selection with TensorArray
+        # Test Series of TensorDType selection with TensorArray
         result = s[sel]
+        npt.assert_array_equal(result, expected)
+
+        result = s.iloc[sel]
         npt.assert_array_equal(result, expected)
 
     def test_inferred_type(self):
