@@ -442,6 +442,31 @@ class TestTensor(unittest.TestCase):
             result = s[sel]
             npt.assert_array_equal(result, expected)
 
+    def test_int_tensor_selection(self):
+        data = TensorArray([[1, 2], [3, 4], [5, 6]])
+        sel = TensorArray([0, 2])
+        expected = np.array([[1, 2], [5, 6]])
+
+        # Test TensorArray.__getitem__ with TensorArray
+        result = data[sel]
+        npt.assert_array_equal(result, expected)
+
+        # Test Series of TensorDType selection with numpy array
+        s = pd.Series(data)
+        result = s[np.asarray(sel)]
+        npt.assert_array_equal(result, expected)
+
+        # Test Series  of TensorDType selection with TensorArray
+        result = s[sel]
+        npt.assert_array_equal(result, expected)
+
+    def test_inferred_type(self):
+        arr = TensorArray([0, 2])
+        self.assertEqual(arr.inferred_type, "integer")
+
+        arr = TensorArray([True, False, True])
+        self.assertEqual(arr.inferred_type, "boolean")
+
 
 class TensorArrayDataFrameTests(unittest.TestCase):
     def test_create(self):
