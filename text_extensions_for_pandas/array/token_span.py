@@ -218,6 +218,15 @@ class TokenSpanDtype(SpanDtype):
         """:return: A string representation of the dtype."""
         return "TokenSpanDtype"
 
+    @property
+    def na_value(self) -> object:
+        """
+        See docstring in `ExtensionDType` class in `pandas/core/dtypes/base.py`
+        for information about this method.
+        """
+        empty_span_array = SpanArray(None, [], [])
+        return TokenSpan(empty_span_array, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE)
+
     @classmethod
     def construct_array_type(cls):
         """
