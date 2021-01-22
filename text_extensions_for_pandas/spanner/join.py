@@ -22,6 +22,8 @@
 import numpy as np
 import pandas as pd
 
+from text_extensions_for_pandas import SpanDtype, TokenSpanDtype
+
 
 def adjacent_join(
     first_series: pd.Series,
@@ -112,11 +114,18 @@ def overlap_join(
     the join predicate. Columns of the DataFrame will be named according
     to the `first_name` and `second_name` arguments.
     """
+    # Python type checking doesn't enforce Pandas series dtypes.
+    if (not isinstance(first_series.dtype, (SpanDtype, TokenSpanDtype))
+            or not isinstance(second_series.dtype, (SpanDtype, TokenSpanDtype))):
+        raise ValueError(f"Series must be of dtype {SpanDtype.name} "
+                         f"or {TokenSpanDtype.name}. Dtypes received were "
+                         f"{first_series.dtype} and {second_series.dtype}")
+
     # For now we always use character offsets.
     # TODO: Use token offsets of both sides of the join are TokenSpanArrays
     def _get_char_offsets(s: pd.Series):
         # noinspection PyUnresolvedReferences
-        return s.values.begin, s.values.end
+        return s.array.begin, s.array.end
 
     first_begins, first_ends = _get_char_offsets(first_series)
     second_begins, second_ends = _get_char_offsets(second_series)
@@ -128,7 +137,8 @@ def overlap_join(
     # Compute average span length to determine blocking factor
     # TODO: Is average the right aggregate to use here?
     total_len = np.sum(first_ends - first_begins) + np.sum(second_ends - second_begins)
-    average_len = total_len / (len(first_series) + len(second_series))
+    num_spans = len(first_series.index) + len(second_series.index)
+    average_len = 0. if 0 == num_spans else total_len / num_spans
     blocking_factor = max(1, int(np.floor(average_len)))
 
     # Generate a table of which blocks each row of the input participates in.

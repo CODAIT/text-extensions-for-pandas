@@ -32,6 +32,7 @@ from memoized_property import memoized_property
 
 # Internal imports
 import text_extensions_for_pandas.jupyter as jupyter
+from text_extensions_for_pandas.util import to_int_array
 
 
 def _check_same_text(o1, o2):
@@ -299,8 +300,8 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         if not isinstance(ends, (pd.Series, np.ndarray, list)):
             raise TypeError(f"ends is of unsupported type {type(ends)}. "
                             f"Supported types are Series, ndarray and List[int].")
-        begins = np.array(begins) if not isinstance(begins, np.ndarray) else begins
-        ends = np.array(ends) if not isinstance(ends, np.ndarray) else ends
+        begins = to_int_array(begins)
+        ends = to_int_array(ends)
 
         if not np.issubdtype(begins.dtype, np.integer):
             raise TypeError(f"Begins array is of dtype {begins.dtype}, "

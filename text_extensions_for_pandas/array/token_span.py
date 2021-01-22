@@ -37,6 +37,7 @@ from text_extensions_for_pandas.array.span import (
     SpanDtype,
     SpanOpMixin
 )
+from text_extensions_for_pandas.util import to_int_array
 
 
 def _check_same_tokens(array1, array2):
@@ -304,14 +305,8 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
 
         super().__init__(tokens.target_text, tokens.begin, tokens.end)
 
-        begin_tokens = (
-            np.array(begin_tokens) if not isinstance(begin_tokens, np.ndarray)
-            else begin_tokens
-        )
-        end_tokens = (
-            np.array(end_tokens) if not isinstance(end_tokens, np.ndarray)
-            else end_tokens
-        )
+        begin_tokens = to_int_array(begin_tokens)
+        end_tokens = to_int_array(end_tokens)
 
         self._begin_tokens = begin_tokens  # Type: np.ndarray
         self._end_tokens = end_tokens  # Type: np.ndarray

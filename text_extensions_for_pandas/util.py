@@ -20,6 +20,7 @@
 #
 # Internal utility functions, not exposed in the public API.
 #
+from typing import Any
 
 import numpy as np
 from typing import *
@@ -65,3 +66,14 @@ class TestBase(unittest.TestCase):
                 f"   {a2}\n"
                 f"differ at positions: {np.argwhere(~mask)}"
             )
+
+
+def to_int_array(arr: Any) -> np.ndarray:
+    """
+    Turn an input into a Numpy array with an integer dtype, avoiding making a copy
+    if possible.
+    """
+    if isinstance(arr, np.ndarray) and np.issubdtype(arr.dtype, np.integer):
+        return arr  # Avoid making a copy even if the input is an unusual integer dtype
+    else:
+        return np.array(arr, dtype=np.int, copy=False)
