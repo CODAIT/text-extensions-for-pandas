@@ -291,9 +291,8 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         if not isinstance(ends, (pd.Series, np.ndarray, list)):
             raise TypeError(f"ends is of unsupported type {type(ends)}. "
                             f"Supported types are Series, ndarray and List[int].")
-        begins = (np.array(begins, dtype=int) if not isinstance(begins, np.ndarray)
-                  else begins)
-        ends = np.array(ends, dtype=int) if not isinstance(ends, np.ndarray) else ends
+        begins = np.array(begins, dtype=int)
+        ends = np.array(ends, dtype=int)
 
         if not np.issubdtype(begins.dtype, np.integer):
             raise TypeError(f"Begins array is of dtype {begins.dtype}, "

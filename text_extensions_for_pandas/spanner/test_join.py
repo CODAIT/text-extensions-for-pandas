@@ -238,11 +238,11 @@ class JoinTest(TestBase):
         self.assertIsInstance(result1["first"].dtype, SpanDtype)
         self.assertIsInstance(result1["second"].dtype, TokenSpanDtype)
 
-        result2 = overlap_join(self._make_empty_series_span_array(),
-                               self._make_join_arg())
-        self.assertEqual(len(result1.index), 0)
-        self.assertIsInstance(result1["first"].dtype, SpanDtype)
-        self.assertIsInstance(result1["second"].dtype, TokenSpanDtype)
+        result2 = overlap_join(self._make_join_arg(),
+                               self._make_empty_series_span_array())
+        self.assertEqual(len(result2.index), 0)
+        self.assertIsInstance(result2["first"].dtype, TokenSpanDtype)
+        self.assertIsInstance(result2["second"].dtype, SpanDtype)
 
         result3 = overlap_join(self._make_empty_series_span_array(),
                                self._make_empty_series_span_array())
