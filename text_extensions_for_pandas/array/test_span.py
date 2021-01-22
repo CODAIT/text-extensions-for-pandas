@@ -282,6 +282,7 @@ class CharSpanArrayTest(ArrayTestBase):
     def test_reduce(self):
         arr = self._make_spans_of_tokens()
         self.assertEqual(arr._reduce("sum"), Span(arr.target_text, 0, 14))
+        self.assertEqual(arr._reduce("first"), Span(arr.target_text, 0, 4))
         # Remind ourselves to modify this test after implementing min and max
         with self.assertRaises(TypeError):
             arr._reduce("min")
