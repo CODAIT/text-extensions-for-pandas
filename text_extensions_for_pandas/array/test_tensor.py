@@ -488,8 +488,10 @@ class TestTensor(unittest.TestCase):
             result = s[sel]
 
         # Test Series of TensorDtype selection by integer location
-        s = pd.Series(data)
-        result = s.iloc[sel]
+        if LooseVersion(pd.__version__) >= LooseVersion("1.1.0"):
+            s = pd.Series(data)
+            result = s.iloc[sel]
+            npt.assert_array_equal(result, expected)
 
     def test_inferred_type(self):
         arr = TensorArray([0, 2])
