@@ -428,12 +428,12 @@ class TestTensor(unittest.TestCase):
         result = data[sel]
         npt.assert_array_equal(result, expected)
 
-        # Test Series of TensorDType selection with numpy array
+        # Test Series of TensorDtype selection with numpy array
         s = pd.Series(data)
         result = s[np.asarray(sel)]
         npt.assert_array_equal(result, expected)
 
-        # Test Series of TensorDType selection with TensorArray
+        # Test Series of TensorDtype selection with TensorArray
         # Currently fails due to Pandas not recognizing as bool index GH#162
         if LooseVersion(pd.__version__) >= LooseVersion("1.1.0"):
             with self.assertRaises(Exception):
@@ -451,17 +451,45 @@ class TestTensor(unittest.TestCase):
         result = data[sel]
         npt.assert_array_equal(result, expected)
 
-        # Test Series of TensorDType selection with numpy array
+        # Test Series of TensorDtype selection with numpy array
         s = pd.Series(data)
         result = s[np.asarray(sel)]
         npt.assert_array_equal(result, expected)
 
-        # Test Series of TensorDType selection with TensorArray
+        # Test Series of TensorDtype selection with TensorArray
         result = s[sel]
         npt.assert_array_equal(result, expected)
 
+        # Test Series of TensorDtype selection by integer location
         result = s.iloc[sel]
         npt.assert_array_equal(result, expected)
+
+    def test_2d_int_tensor_selection(self):
+        data = TensorArray([[1, 2], [3, 4], [5, 6]])
+        sel = TensorArray([[0, 1], [1, 2]])
+        expected = np.array([[[1, 2], [3, 4]],
+                             [[3, 4], [5, 6]]])
+
+        # Test TensorArray.__getitem__ with TensorArray
+        result = data[sel]
+        npt.assert_array_equal(result, expected)
+
+        # Test Series of TensorDtype selection with numpy array
+        # Currently fails with: ValueError: Cannot index with multidimensional key
+        s = pd.Series(data)
+        with self.assertRaises(ValueError):
+            result = s[np.asarray(sel)]
+
+        # Test Series of TensorDtype selection with TensorArray
+        # Currently fails with: TypeError: 'TensorElement' object is not iterable
+        # TODO: not sure if this should be allowed
+        s = pd.Series(data)
+        with self.assertRaises(Exception):
+            result = s[sel]
+
+        # Test Series of TensorDtype selection by integer location
+        s = pd.Series(data)
+        result = s.iloc[sel]
 
     def test_inferred_type(self):
         arr = TensorArray([0, 2])
