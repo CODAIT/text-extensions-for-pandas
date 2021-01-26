@@ -35,6 +35,7 @@ class TensorDtype(pd.api.extensions.ExtensionDtype):
     """
     Pandas data type for a column of tensors with the same shape.
     """
+    base = None
 
     @property
     def type(self):
@@ -279,6 +280,16 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         return TensorDtype()
 
     @property
+    def inferred_type(self) -> str:
+        """
+        Return string describing type of TensorArray. Delegates to
+        `pandas.api.types.infer_dtype`. See docstring for more information.
+
+        :return: string describing numpy type of this TensorArray
+        """
+        return pd.api.types.infer_dtype(self._tensor)
+
+    @property
     def nbytes(self) -> int:
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
@@ -393,6 +404,8 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             else:
                 return TensorElement(value)
         else:
+            if isinstance(item, TensorArray):
+                item = np.asarray(item)
             item = check_array_indexer(self, item)
             return TensorArray(self._tensor[item])
 

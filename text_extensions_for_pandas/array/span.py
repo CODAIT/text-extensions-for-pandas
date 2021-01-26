@@ -33,6 +33,7 @@ from pandas.core.indexers import check_array_indexer
 # Internal imports
 import text_extensions_for_pandas.jupyter as jupyter
 from text_extensions_for_pandas.array.string_table import StringTable
+from text_extensions_for_pandas.util import to_int_array
 
 
 def _check_same_text(o1, o2):
@@ -270,6 +271,14 @@ class SpanDtype(pd.api.extensions.ExtensionDtype):
         """
         return SpanArray
 
+    @property
+    def na_value(self) -> object:
+        """
+        See docstring in `ExtensionDType` class in `pandas/core/dtypes/base.py`
+        for information about this method.
+        """
+        return Span(None, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE)
+
     def __from_arrow__(self, extension_array):
         """
         Convert the given extension array of type ArrowSpanType to a
@@ -304,8 +313,8 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         if not isinstance(ends, (pd.Series, np.ndarray, list)):
             raise TypeError(f"ends is of unsupported type {type(ends)}. "
                             f"Supported types are Series, ndarray and List[int].")
-        begins = np.array(begins) if not isinstance(begins, np.ndarray) else begins
-        ends = np.array(ends) if not isinstance(ends, np.ndarray) else ends
+        begins = to_int_array(begins)
+        ends = to_int_array(ends)
 
         if not np.issubdtype(begins.dtype, np.integer):
             raise TypeError(f"Begins array is of dtype {begins.dtype}, "
@@ -742,6 +751,12 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
             #         spans in the series
             return Span(self.target_text, np.min(self.begin),
                         np.max(self.end))
+        elif name == "first":
+            if 0 == len(self):
+                # TODO: Should we return None instead of null span here?
+                return Span(self.target_text, Span.NULL_OFFSET_VALUE,
+                            Span.NULL_OFFSET_VALUE)
+            return Span(self.target_text, self.begin[0], self.end[0])
         else:
             raise TypeError(f"'{name}' aggregation not supported on a series "
                             f"backed by a SpanArray")
