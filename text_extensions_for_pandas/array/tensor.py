@@ -433,7 +433,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     def __contains__(self, item) -> bool:
         if isinstance(item, TensorElement):
             npitem = np.asarray(item)
-            if npitem.size == 1 and  np.isnan(npitem).all():
+            if npitem.size == 1 and np.isnan(npitem).all():
                 return self.isna().any()
         return super().__contains__(item)
 

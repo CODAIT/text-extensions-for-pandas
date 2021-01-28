@@ -466,6 +466,17 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
                                self._ends.tobytes()))
         return self._hash
 
+    def __contains__(self, item) -> bool:
+        """
+        Return true if scalar item exists in this SpanArray.
+        :param item: scalar Span value.
+        :return: true if item exists in this SpanArray.
+        """
+        if isinstance(item, Span) and \
+                item.begin == Span.NULL_OFFSET_VALUE:
+            return Span.NULL_OFFSET_VALUE in self._begins
+        return super().__contains__(item)
+
     def equals(self, other: "SpanArray"):
         """
         :param other: A second `SpanArray`
@@ -541,12 +552,16 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         i = 0
         for s in scalars:
             if not isinstance(s, Span):
-                raise ValueError(f"Can only convert a sequence of Span "
-                                 f"objects to a SpanArray. Found an "
-                                 f"object of type {type(s)}")
-            if text is None:
+                # TODO: Temporary fix for np.nan values, pandas-dev GH#38980
+                if np.isnan(s):
+                    s = Span(text, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE)
+                else:
+                    raise ValueError(f"Can only convert a sequence of Span "
+                                     f"objects to a SpanArray. Found an "
+                                     f"object of type {type(s)}")
+            if text is None and s.begin != Span.NULL_OFFSET_VALUE:
                 text = s.target_text
-            if s.target_text != text:
+            if s.target_text != text and s.begin != Span.NULL_OFFSET_VALUE:
                 raise ValueError(
                     f"Mixing different target texts is not currently "
                     f"supported. Received two different strings:\n"

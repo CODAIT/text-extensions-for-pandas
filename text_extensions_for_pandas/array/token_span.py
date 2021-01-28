@@ -433,6 +433,17 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
             self._hash = SpanArray.__hash__(self)
         return self._hash
 
+    def __contains__(self, item) -> bool:
+        """
+        Return true if scalar item exists in this TokenSpanArray.
+        :param item: scalar TokenSpan value.
+        :return: true if item exists in this TokenSpanArray.
+        """
+        if isinstance(item, TokenSpan) and \
+                item.begin == TokenSpan.NULL_OFFSET_VALUE:
+            return TokenSpan.NULL_OFFSET_VALUE in self._begin_tokens
+        return super().__contains__(item)
+
     @classmethod
     def _concat_same_type(
         cls, to_concat: Sequence[pd.api.extensions.ExtensionArray]
@@ -474,7 +485,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         for information about this method.
         """
         tokens = None
-        if isinstance(scalars, Span):
+        if isinstance(scalars, TokenSpan):
             scalars = [scalars]
         if isinstance(scalars, TokenSpanArray):
             tokens = scalars.tokens
@@ -483,14 +494,18 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         i = 0
         for s in scalars:
             if not isinstance(s, TokenSpan):
-                raise ValueError(
-                    f"Can only convert a sequence of TokenSpan "
-                    f"objects to a TokenSpanArray. Found an "
-                    f"object of type {type(s)}"
-                )
-            if tokens is None:
+                # TODO: Temporary fix for np.nan values, pandas-dev GH#38980
+                if np.isnan(s):
+                    s = TokenSpanDtype().na_value
+                else:
+                    raise ValueError(
+                        f"Can only convert a sequence of TokenSpan "
+                        f"objects to a TokenSpanArray. Found an "
+                        f"object of type {type(s)}"
+                    )
+            if tokens is None and not (s.begin == TokenSpan.NULL_OFFSET_VALUE and s.tokens.target_text is None):
                 tokens = s.tokens
-            if not s.tokens.equals(tokens):
+            if not (s.begin == TokenSpan.NULL_OFFSET_VALUE and s.tokens.target_text is None) and not s.tokens.equals(tokens):
                 raise ValueError(
                     f"Mixing different token sets is not currently "
                     f"supported. Received two token sets:\n"
