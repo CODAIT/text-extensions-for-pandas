@@ -34,8 +34,8 @@ from pandas.io.formats.format import ExtensionArrayFormatter
 
 
 def _format_strings_patched(self) -> List[str]:
-    from pandas.io.formats.format import extract_array, format_array, \
-        GenericArrayFormatter
+    from pandas.core.construction import extract_array
+    from pandas.io.formats.format import format_array
 
     values = extract_array(self.values, extract_numpy=True)
     array = np.asarray(values)
