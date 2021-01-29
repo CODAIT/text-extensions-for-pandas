@@ -223,9 +223,9 @@ class TestTensor(unittest.TestCase):
         result = repr(pd.Series(s))
         expected = textwrap.dedent(
             """\
-            0   [1 2]
-            1   [3 4]
-            2   [5 6]
+            0    [1, 2]
+            1    [3, 4]
+            2    [5, 6]
             dtype: TensorDtype"""
         )
         self.assertEqual(expected, result)
@@ -306,11 +306,11 @@ class TestTensor(unittest.TestCase):
             result,
             textwrap.dedent(
                 """\
-                0        [0 1 2 3 4]
-                1        [5 6 7 8 9]
-                          ...       
-                8   [40 41 42 43 44]
-                9   [45 46 47 48 49]"""
+                0    [ 0,  1,  2,  3,  4]
+                1    [ 5,  6,  7,  8,  9]
+                             ...         
+                8    [40, 41, 42, 43, 44]
+                9    [45, 46, 47, 48, 49]"""
             ),
         )
 
@@ -523,11 +523,11 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             repr(result_df),
             textwrap.dedent(
                 """\
-                    value
-                key      
-                a   [2 2]
-                b   [1 1]
-                c   [3 3]"""
+                      value
+                key        
+                a    [2, 2]
+                b    [1, 1]
+                c    [3, 3]"""
             ),
         )
 
@@ -547,14 +547,11 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             repr(result2_df),
             textwrap.dedent(
                 """\
-                             value
-                key               
-                a   [[2 2]
-                 [2 2]]
-                b   [[1 1]
-                 [1 1]]
-                c   [[3 3]
-                 [3 3]]"""
+                                value
+                key                  
+                a    [[2, 2], [2, 2]]
+                b    [[1, 1], [1, 1]]
+                c    [[3, 3], [3, 3]]"""
             ),
         )
 
@@ -622,18 +619,18 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             repr(df),
             textwrap.dedent(
                 """\
-                     foo
-                0  [1 2]
-                1  [1 2]
-                2  [1 2]
-                3  [1 2]
-                4  [1 2]
-                ..   ...
-                95 [1 2]
-                96 [1 2]
-                97 [1 2]
-                98 [1 2]
-                99 [1 2]
+                       foo
+                0   [1, 2]
+                1   [1, 2]
+                2   [1, 2]
+                3   [1, 2]
+                4   [1, 2]
+                ..     ...
+                95  [1, 2]
+                96  [1, 2]
+                97  [1, 2]
+                98  [1, 2]
+                99  [1, 2]
                 
                 [100 rows x 1 columns]"""
             )
@@ -645,18 +642,18 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             repr(df),
             textwrap.dedent(
                 """\
-                         foo
-                0  [1.1 2.2]
-                1  [1.1 2.2]
-                2  [1.1 2.2]
-                3  [1.1 2.2]
-                4  [1.1 2.2]
-                ..       ...
-                95 [1.1 2.2]
-                96 [1.1 2.2]
-                97 [1.1 2.2]
-                98 [1.1 2.2]
-                99 [1.1 2.2]
+                           foo
+                0   [1.1, 2.2]
+                1   [1.1, 2.2]
+                2   [1.1, 2.2]
+                3   [1.1, 2.2]
+                4   [1.1, 2.2]
+                ..         ...
+                95  [1.1, 2.2]
+                96  [1.1, 2.2]
+                97  [1.1, 2.2]
+                98  [1.1, 2.2]
+                99  [1.1, 2.2]
                 
                 [100 rows x 1 columns]"""
             )
