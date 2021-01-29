@@ -44,32 +44,19 @@ def _format_strings_patched(self) -> List[str]:
     if array.ndim == 1:
         return self._format_strings_orig()
 
-    def format_strings_flat(flat_array, formatter):
-        if LooseVersion(pd.__version__) >= LooseVersion("1.1.0"):
-            fmt_values = format_array(
-                flat_array,
-                formatter,
-                float_format=self.float_format,
-                na_rep=self.na_rep,
-                digits=self.digits,
-                space=self.space,
-                justify=self.justify,
-                decimal=self.decimal,
-                leading_space=self.leading_space,
-                quoting=self.quoting,
-            )
-        else:
-            fmt_values = format_array(
-                flat_array,
-                formatter,
-                float_format=self.float_format,
-                na_rep=self.na_rep,
-                digits=self.digits,
-                space=self.space,
-                justify=self.justify,
-                decimal=self.decimal,
-                leading_space=self.leading_space,
-            )
+    def format_array_wrap(array_, formatter_):
+        fmt_values = format_array(
+            array_,
+            formatter_,
+            float_format=self.float_format,
+            na_rep=self.na_rep,
+            digits=self.digits,
+            space=self.space,
+            justify=self.justify,
+            decimal=self.decimal,
+            leading_space=self.leading_space,
+            quoting=self.quoting,
+        )
         return fmt_values
 
     flat_formatter = self.formatter
@@ -79,17 +66,76 @@ def _format_strings_patched(self) -> List[str]:
     # Flatten array, call function, reshape (use ravel_compat in v1.3.0)
     flat_array = array.ravel("K")
     fmt_flat_array = np.asarray(
-        format_strings_flat(flat_array, flat_formatter))
+        format_array_wrap(flat_array, flat_formatter))
     order = "F" if array.flags.f_contiguous else "C"
     fmt_array = fmt_flat_array.reshape(array.shape, order=order)
 
     # Format the array of nested strings, use default formatter
-    return format_strings_flat(fmt_array, None)
+    return format_array_wrap(fmt_array, None)
+
+
+def _format_strings_patched_v1_0_0(self) -> List[str]:
+    from functools import partial
+    from pandas.core.construction import extract_array
+    from pandas.io.formats.format import format_array
+    from pandas.io.formats.printing import pprint_thing
+
+    values = extract_array(self.values, extract_numpy=True)
+    array = np.asarray(values)
+
+    if array.ndim == 1:
+        return self._format_strings_orig()
+
+    def format_array_wrap(array_, formatter_):
+        fmt_values = format_array(
+            array_,
+            formatter_,
+            float_format=self.float_format,
+            na_rep=self.na_rep,
+            digits=self.digits,
+            space=self.space,
+            justify=self.justify,
+            decimal=self.decimal,
+            leading_space=self.leading_space,
+        )
+        return fmt_values
+
+    flat_formatter = self.formatter
+    if flat_formatter is None:
+        flat_formatter = values._formatter(boxed=True)
+
+    # Flatten array, call function, reshape (use ravel_compat in v1.3.0)
+    flat_array = array.ravel("K")
+    fmt_flat_array = np.asarray(
+        format_array_wrap(flat_array, flat_formatter))
+    order = "F" if array.flags.f_contiguous else "C"
+    fmt_array = fmt_flat_array.reshape(array.shape, order=order)
+
+    # Slimmed down version of GenericArrayFormatter due to pandas-dev GH#33770
+    def format_strings_slim(array_):
+        formatter = partial(
+            pprint_thing,
+            escape_chars=("\t", "\r", "\n"),
+        )
+
+        def _format(x):
+            return str(formatter(x))
+
+        fmt_values = []
+        for v in array_:
+            tpl = "{v}"
+            fmt_values.append(tpl.format(v=_format(v)))
+        return fmt_values
+
+    return format_strings_slim(fmt_array)
 
 
 ExtensionArrayFormatter._format_strings_orig = \
     ExtensionArrayFormatter._format_strings
-ExtensionArrayFormatter._format_strings = _format_strings_patched
+if LooseVersion(pd.__version__) >= LooseVersion("1.1.0"):
+    ExtensionArrayFormatter._format_strings = _format_strings_patched
+else:
+    ExtensionArrayFormatter._format_strings = _format_strings_patched_v1_0_0
 ExtensionArrayFormatter._patched_by_text_extensions_for_pandas = True
 """ End Patching of ExtensionArrayFormatter """
 
