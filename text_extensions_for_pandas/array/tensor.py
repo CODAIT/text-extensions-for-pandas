@@ -38,14 +38,12 @@ def _format_strings_patched(self) -> List[str]:
         GenericArrayFormatter
 
     values = extract_array(self.values, extract_numpy=True)
-
-    formatter = self.formatter
-    if formatter is None:
-        formatter = values._formatter(boxed=True)
-
     array = np.asarray(values)
 
-    def format_strings_flat(flat_array):
+    if array.ndim == 1:
+        return self._format_strings_orig()
+
+    def format_strings_flat(flat_array, formatter):
         fmt_values = format_array(
             flat_array,
             formatter,
@@ -60,21 +58,19 @@ def _format_strings_patched(self) -> List[str]:
         )
         return fmt_values
 
-    if array.ndim == 1:
-        return format_strings_flat(array)
+    flat_formatter = self.formatter
+    if flat_formatter is None:
+        flat_formatter = values._formatter(boxed=True)
 
     # Flatten array, call function, reshape (use ravel_compat in v1.3.0)
-    flags = array.flags
     flat_array = array.ravel("K")
-    order = "F" if flags.f_contiguous else "C"
-    fmt_flat_array = np.asarray(format_strings_flat(flat_array))
+    fmt_flat_array = np.asarray(
+        format_strings_flat(flat_array, flat_formatter))
+    order = "F" if array.flags.f_contiguous else "C"
     fmt_array = fmt_flat_array.reshape(array.shape, order=order)
 
-    # Format the array of nested strings
-    fmt = GenericArrayFormatter(fmt_array)
-    fmt_values = fmt.get_result()
-
-    return fmt_values
+    # Format the array of nested strings, use default formatter
+    return format_strings_flat(fmt_array, None)
 
 
 ExtensionArrayFormatter._format_strings_orig = \
