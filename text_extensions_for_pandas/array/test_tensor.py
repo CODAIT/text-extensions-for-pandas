@@ -24,7 +24,6 @@ import numpy.testing as npt
 import pandas as pd
 import pandas.testing as pdt
 from pandas.tests.extension import base
-from pandas.core.dtypes.generic import ABCSeries
 import pyarrow as pa
 import pytest
 
@@ -640,7 +639,7 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             )
         )
 
-        # Test float, uses IntArrayFormatter
+        # Test float, uses FloatArrayFormatter
         df = pd.DataFrame({"foo": TensorArray(np.array([[1.1, 2.2]] * 100))})
         self.assertEqual(
             repr(df),
@@ -663,68 +662,130 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             )
         )
 
-    @pytest.mark.skipif(LooseVersion(pd.__version__) < LooseVersion("1.1.0"),
-                        reason="Display of TensorArray with non-numeric dtype not supported")
+    def test_numeric_display_3D(self):
+
+        # Verify using patched method
+        from pandas.io.formats.format import ExtensionArrayFormatter
+        self.assertTrue(
+            ExtensionArrayFormatter._patched_by_text_extensions_for_pandas)
+
+        # Test integer format 3D values, uses IntArrayFormatter
+        df = pd.DataFrame({"foo": TensorArray([[[1, 1], [2, 2]],
+                                               [[3, 3], [4, 4]]])})
+        self.assertEqual(
+            repr(df),
+            textwrap.dedent(
+                """\
+                                foo
+                0  [[1, 1], [2, 2]]
+                1  [[3, 3], [4, 4]]"""
+            )
+        )
+
+        # Test floating format 3D values, uses FloatArrayFormatter
+        df = pd.DataFrame({"foo": TensorArray([[[1.1, 1.1], [2.2, 2.2]],
+                                               [[3.3, 3.3], [4.4, 4.4]]])})
+        self.assertEqual(
+            repr(df),
+            textwrap.dedent(
+                """\
+                                        foo
+                0  [[1.1, 1.1], [2.2, 2.2]]
+                1  [[3.3, 3.3], [4.4, 4.4]]"""
+            )
+        )
+
     def test_large_display_string(self):
 
-        # Uses the GenericArrayFormatter, doesn't work for Pandas 1.0.x but fixed in later versions
+        # Verify using patched method
+        # Unpatched method doesn't work for Pandas 1.0.x but fixed in later versions
+        from pandas.io.formats.format import ExtensionArrayFormatter
+        self.assertTrue(
+            ExtensionArrayFormatter._patched_by_text_extensions_for_pandas)
+
+        # Uses the GenericArrayFormatter
         df = pd.DataFrame({"foo": TensorArray(np.array([["Hello", "world"]] * 100))})
         self.assertEqual(
             repr(df),
             textwrap.dedent(
                 """\
-                                  foo
-                0   ['Hello' 'world']
-                1   ['Hello' 'world']
-                2   ['Hello' 'world']
-                3   ['Hello' 'world']
-                4   ['Hello' 'world']
-                ..                ...
-                95  ['Hello' 'world']
-                96  ['Hello' 'world']
-                97  ['Hello' 'world']
-                98  ['Hello' 'world']
-                99  ['Hello' 'world']
+                                 foo
+                0   [ Hello,  world]
+                1   [ Hello,  world]
+                2   [ Hello,  world]
+                3   [ Hello,  world]
+                4   [ Hello,  world]
+                ..               ...
+                95  [ Hello,  world]
+                96  [ Hello,  world]
+                97  [ Hello,  world]
+                98  [ Hello,  world]
+                99  [ Hello,  world]
                 
                 [100 rows x 1 columns]"""
             )
         )
 
     def test_display_time(self):
+
+        # Verify using patched method
+        from pandas.io.formats.format import ExtensionArrayFormatter
+        self.assertTrue(
+            ExtensionArrayFormatter._patched_by_text_extensions_for_pandas)
+
+        # datetime64 2D, Uses Datetime64Formatter
         times = pd.date_range('2018-01-01', periods=5, freq='H').to_numpy()
         times_repeated = np.tile(times, (3, 1))
         times_array = TensorArray(times_repeated)
-        times_series = pd.Series(times_array)
-        st = repr(times_series)
-        print(st)
-        st = None
-        """
-        import pandas.io.formats.format as fmt
-        x = np.array([[1, 2], [3, 4]])
-        formatter = fmt.GenericArrayFormatter(x)
-        result = formatter.get_result()
-        #x = pd.date_range('2018-01-01', periods=5, freq='H').to_numpy()
-        #x = np.tile(x, (3, 1))
-        #formatter = fmt.Datetime64Formatter(x)
-        #result = formatter.get_result()
 
+        df = pd.DataFrame({"t": times_array})
+        self.assertEqual(
+            repr(df),
+            textwrap.dedent(
+                """\
+                                                                   t
+                0  [2018-01-01 00:00:00, 2018-01-01 01:00:00, 201...
+                1  [2018-01-01 00:00:00, 2018-01-01 01:00:00, 201...
+                2  [2018-01-01 00:00:00, 2018-01-01 01:00:00, 201..."""
+            )
+        )
+
+        # datetime64 3D, Uses Datetime64Formatter
+        times = pd.date_range('2018-01-01', periods=4, freq='H').to_numpy()
+        times = times.reshape(2, 2)
+        times_repeated = np.tile(times, (3, 1, 1))
+        times_array = TensorArray(times_repeated)
+
+        df = pd.DataFrame({"t": times_array})
+        self.assertEqual(
+            repr(df),
+            textwrap.dedent(
+                """\
+                                                                   t
+                0  [[2018-01-01 00:00:00, 2018-01-01 01:00:00], [...
+                1  [[2018-01-01 00:00:00, 2018-01-01 01:00:00], [...
+                2  [[2018-01-01 00:00:00, 2018-01-01 01:00:00], [..."""
+            )
+        )
+
+        # datetime64tz, Uses Datetime64TZFormatter
         import dateutil
         from datetime import datetime
         utc = dateutil.tz.tzutc()
-        x = pd.Series([datetime(2013, 1, 1, tzinfo=utc), datetime(2013, 1, 1, 12, tzinfo=utc), pd.NaT])
-        result = fmt.Datetime64TZFormatter(x).get_result()
-        print(result)
+        times = [[datetime(2013, 1, 1, tzinfo=utc), datetime(2014, 2, 2, 2, tzinfo=utc)],
+                 [pd.NaT, datetime(2015, 3, 3, tzinfo=utc)]]
+        times_array = TensorArray(times)
 
-        x = pd.date_range('2018-01-01', periods=5, freq='H', tz='US/Pacific').to_numpy()
-        #x = np.tile(x, (3, 1))
-        formatter = fmt.Datetime64TZFormatter(x)
-        result = formatter.get_result()
-        print(result)
-        #x_repeated = np.tile(x, (3, 1))
-        #times_array = TensorArray(x_repeated)
-        #times_series = pd.Series(times_array)
-        #st = repr(times_series)
-        #print(st)"""
+        df = pd.DataFrame({"t": times_array})
+        self.assertEqual(
+            repr(df),
+            textwrap.dedent(
+                """\
+                                                                   t
+                0  [ 2013-01-01 00:00:00+00:00,  2014-02-02 02:00...
+                1  [                       NaT,  2015-03-03 00:00..."""
+            )
+        )
 
 
 class TensorArrayIOTests(unittest.TestCase):

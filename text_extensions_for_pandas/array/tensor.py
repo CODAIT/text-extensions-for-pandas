@@ -29,6 +29,60 @@ from pandas.compat import set_function_name
 from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
 from pandas.core.indexers import check_array_indexer, validate_indices
 
+""" Begin Patching of ExtensionArrayFormatter """
+from pandas.io.formats.format import ExtensionArrayFormatter
+
+
+def _format_strings_patched(self) -> List[str]:
+    from pandas.io.formats.format import extract_array, format_array, \
+        GenericArrayFormatter
+
+    values = extract_array(self.values, extract_numpy=True)
+
+    formatter = self.formatter
+    if formatter is None:
+        formatter = values._formatter(boxed=True)
+
+    array = np.asarray(values)
+
+    def format_strings_flat(flat_array):
+        fmt_values = format_array(
+            flat_array,
+            formatter,
+            float_format=self.float_format,
+            na_rep=self.na_rep,
+            digits=self.digits,
+            space=self.space,
+            justify=self.justify,
+            decimal=self.decimal,
+            leading_space=self.leading_space,
+            quoting=self.quoting,
+        )
+        return fmt_values
+
+    if array.ndim == 1:
+        return format_strings_flat(array)
+
+    # Flatten array, call function, reshape (use ravel_compat in v1.3.0)
+    flags = array.flags
+    flat_array = array.ravel("K")
+    order = "F" if flags.f_contiguous else "C"
+    fmt_flat_array = np.asarray(format_strings_flat(flat_array))
+    fmt_array = fmt_flat_array.reshape(array.shape, order=order)
+
+    # Format the array of nested strings
+    fmt = GenericArrayFormatter(fmt_array)
+    fmt_values = fmt.get_result()
+
+    return fmt_values
+
+
+ExtensionArrayFormatter._format_strings_orig = \
+    ExtensionArrayFormatter._format_strings
+ExtensionArrayFormatter._format_strings = _format_strings_patched
+ExtensionArrayFormatter._patched_by_text_extensions_for_pandas = True
+""" End Patching of ExtensionArrayFormatter """
+
 
 @pd.api.extensions.register_extension_dtype
 class TensorDtype(pd.api.extensions.ExtensionDtype):
