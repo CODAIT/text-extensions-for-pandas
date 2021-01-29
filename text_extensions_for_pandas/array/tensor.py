@@ -21,6 +21,7 @@
 # Pandas extensions to support columns of N-dimensional tensors of equal shape.
 #
 
+from distutils.version import LooseVersion
 from typing import *
 
 import numpy as np
@@ -44,18 +45,31 @@ def _format_strings_patched(self) -> List[str]:
         return self._format_strings_orig()
 
     def format_strings_flat(flat_array, formatter):
-        fmt_values = format_array(
-            flat_array,
-            formatter,
-            float_format=self.float_format,
-            na_rep=self.na_rep,
-            digits=self.digits,
-            space=self.space,
-            justify=self.justify,
-            decimal=self.decimal,
-            leading_space=self.leading_space,
-            quoting=self.quoting,
-        )
+        if LooseVersion(pd.__version__) >= LooseVersion("1.1.0"):
+            fmt_values = format_array(
+                flat_array,
+                formatter,
+                float_format=self.float_format,
+                na_rep=self.na_rep,
+                digits=self.digits,
+                space=self.space,
+                justify=self.justify,
+                decimal=self.decimal,
+                leading_space=self.leading_space,
+                quoting=self.quoting,
+            )
+        else:
+            fmt_values = format_array(
+                flat_array,
+                formatter,
+                float_format=self.float_format,
+                na_rep=self.na_rep,
+                digits=self.digits,
+                space=self.space,
+                justify=self.justify,
+                decimal=self.decimal,
+                leading_space=self.leading_space,
+            )
         return fmt_values
 
     flat_formatter = self.formatter
