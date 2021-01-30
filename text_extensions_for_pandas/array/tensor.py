@@ -112,7 +112,7 @@ def _format_strings_patched_v1_0_0(self) -> List[str]:
     fmt_array = fmt_flat_array.reshape(array.shape, order=order)
 
     # Slimmed down version of GenericArrayFormatter due to pandas-dev GH#33770
-    def format_strings_slim(array_):
+    def format_strings_slim(array_, leading_space):
         formatter = partial(
             pprint_thing,
             escape_chars=("\t", "\r", "\n"),
@@ -123,11 +123,11 @@ def _format_strings_patched_v1_0_0(self) -> List[str]:
 
         fmt_values = []
         for v in array_:
-            tpl = "{v}"
+            tpl = "{v}" if leading_space is False else " {v}"
             fmt_values.append(tpl.format(v=_format(v)))
         return fmt_values
 
-    return format_strings_slim(fmt_array)
+    return format_strings_slim(fmt_array, self.leading_space)
 
 
 ExtensionArrayFormatter._format_strings_orig = \
