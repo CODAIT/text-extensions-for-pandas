@@ -7,6 +7,9 @@ Steps to release a new version:
    and Pandas. The current versions are:
    * Python: 3.6, 3.7, 3.8
    * Pandas: 1.0.x, 1.1.x
+   
+1. Ensure Watson NLU service API tests are enabled and passing by setting 
+   IBM_API_KEY and IBM_SERVICE_URL, then running unit tests with pytest.
 
 1. Activate your Text Extensions for Pandas build environment (usually called 
    `pd`)
