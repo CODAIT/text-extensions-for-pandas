@@ -424,8 +424,9 @@ class TestWatsonApiHandling(unittest.TestCase):
     def _make_request():
         from ibm_watson import NaturalLanguageUnderstandingV1
         from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
-        from ibm_watson.natural_language_understanding_v1 import Features, CategoriesOptions, ConceptsOptions, EmotionOptions, EntitiesOptions, KeywordsOptions, \
-            MetadataOptions, RelationsOptions, SemanticRolesOptions, SentimentOptions, SyntaxOptions, SyntaxOptionsTokens
+        from ibm_watson.natural_language_understanding_v1 import Features, CategoriesOptions, ConceptsOptions, \
+            EmotionOptions, EntitiesOptions, KeywordsOptions, RelationsOptions, SemanticRolesOptions, \
+            SentimentOptions, SyntaxOptions, SyntaxOptionsTokens
 
         # Retrieve the APIKEY for authentication
         apikey = os.environ.get("IBM_API_KEY")
@@ -454,8 +455,7 @@ class TestWatsonApiHandling(unittest.TestCase):
                 #concepts=ConceptsOptions(limit=3),
                 #emotion=EmotionOptions(targets=['grail']),
                 entities=EntitiesOptions(sentiment=True),
-                keywords=KeywordsOptions(sentiment=True,emotion=True),
-                #metadata=MetadataOptions(),
+                keywords=KeywordsOptions(sentiment=True, emotion=True),
                 relations=RelationsOptions(),
                 semantic_roles=SemanticRolesOptions(),
                 #sentiment=SentimentOptions(targets=['Arthur']),

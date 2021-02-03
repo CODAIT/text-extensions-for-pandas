@@ -20,6 +20,8 @@
 #
 # Pandas extensions to support columns of spans with character offsets.
 #
+
+import collections
 import textwrap
 from typing import *
 
@@ -137,15 +139,19 @@ class Span(SpanOpMixin):
         span1 < span2 if span1.end <= span2.begin and both spans are over the same
         target text
         """
-        if isinstance(other, (Span, SpanArray)):
-            if self.target_text != other.target_text:
-                return False
-            else:
-                return self.end <= other.begin
+        if not isinstance(other, (Span, SpanArray)):
+            raise ValueError(f"Less-than relationship not defined for {self} and {other} "
+                             f"of types {type(self)} and {type(other)}.")
+        elif isinstance(other, Span) and self.target_text != other.target_text:
+            raise ValueError(f"Less-than relationship undefined for different target "
+                             f"texts.")
+        elif isinstance(other, SpanArray) and np.any(self.target_text
+                                                     != other.target_text):
+            raise ValueError(f"Less-than relationship undefined for different target "
+                             f"texts. Indexes that differ are "
+                             f"{np.argmin(self.target_text != other.target_text)}.")
         else:
-            raise ValueError("Less-than relationship not defined for {} and {} "
-                             "of types {} and {}"
-                             "".format(self, other, type(self), type(other)))
+            return self.end <= other.begin
 
     def __gt__(self, other):
         return other < self
@@ -299,11 +305,12 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
     are character offsets into the target text.
     """
 
-    def __init__(self, text: str,
+    def __init__(self, text: Union[str, Sequence[str], np.ndarray],
                  begins: Union[pd.Series, np.ndarray, Sequence[int]],
                  ends: Union[pd.Series, np.ndarray, Sequence[int]]):
         """
-        :param text: Target text from which the spans of this array are drawn
+        :param text: Target text from which the spans of this array are drawn,
+         or a sequence of texts if different spans can have different targets
         :param begins: Begin offsets of spans (closed)
         :param ends: End offsets (open)
         """
@@ -313,6 +320,9 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         if not isinstance(ends, (pd.Series, np.ndarray, list)):
             raise TypeError(f"ends is of unsupported type {type(ends)}. "
                             f"Supported types are Series, ndarray and List[int].")
+        if len(begins) != len(ends):
+            raise ValueError(f"Received {len(begins)} begin offsets and {len(ends)} "
+                             f"offsets. Lengths should be equal.")
         begins = to_int_array(begins)
         ends = to_int_array(ends)
 
@@ -323,9 +333,18 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
             raise TypeError(f"Ends array is of dtype {begins.dtype}, "
                             f"which is not an integer type.")
 
-        # With a single string, every row gets string ID 0
-        string_table = StringTable.single_string_table(text)  # type: StringTable
-        text_ids = np.zeros_like(begins)  # type: np.ndarray
+        if text is None or isinstance(text, str):
+            # With a single string, every row gets string ID 0
+            string_table = StringTable.single_string_table(text)  # type: StringTable
+            text_ids = np.zeros_like(begins)  # type: np.ndarray
+        elif isinstance(text, (collections.Sequence, np.ndarray)):
+            if len(text) != len(begins):  # Checked len(begins) == len(ends) earlier
+                raise ValueError(f"Received {len(text)} target text values and "
+                                 f"{len(begins)} begin offsets. Lengths should be equal.")
+            string_table, text_ids = StringTable.merge_strings(text)
+        else:
+            raise TypeError(f"text argument is of unsupported type {type(text)}. "
+                            f"Supported types are str and Sequence[str].")
 
         # *** HACK ALERT *** HACK ALERT ***
         # "declare" these fields, which are initialized in _init_internal(),
@@ -439,7 +458,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         for information about this method.
         """
         if isinstance(item, int):
-            return Span(self._text, int(self._begins[item]),
+            return Span(self.target_text[item], int(self._begins[item]),
                         int(self._ends[item]))
         else:
             # item not an int --> assume it's a numpy-compatible index
@@ -506,8 +525,8 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
             return np.logical_and(
                 self.target_text == other.target_text,
                 np.logical_and(
-                    self.begin == self.begin,
-                    self.end == self.end
+                    self.begin == other.begin,
+                    self.end == other.end
                 )
             )
         else:
@@ -527,6 +546,17 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
             self._hash = hash((self._text_ids.tobytes(), self._begins.tobytes(),
                                self._ends.tobytes()))
         return self._hash
+
+    def __contains__(self, item) -> bool:
+        """
+        Return true if scalar item exists in this SpanArray.
+        :param item: scalar Span value.
+        :return: true if item exists in this SpanArray.
+        """
+        if isinstance(item, Span) and \
+                item.begin == Span.NULL_OFFSET_VALUE:
+            return Span.NULL_OFFSET_VALUE in self._begins
+        return super().__contains__(item)
 
     def equals(self, other: "SpanArray"):
         """
@@ -618,6 +648,14 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         target_texts = np.empty(len(scalars), dtype=object)
         i = 0
         for s in scalars:
+            if not isinstance(s, Span):
+                # TODO: Temporary fix for np.nan values, pandas-dev GH#38980
+                if np.isnan(s):
+                    s = NULL_SPAN_VALUE
+                else:
+                    raise ValueError(f"Can only convert a sequence of Span "
+                                     f"objects to a SpanArray. Found an "
+                                     f"object of type {type(s)}")
             begins[i] = s.begin
             ends[i] = s.end
             target_texts[i] = s.target_text
@@ -713,14 +751,13 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
-        if isinstance(other, [Span, SpanArray]):
+        elif not isinstance(other, (Span, SpanArray)):
+            raise ValueError(f"'<' relationship not defined for {self} and {other} "
+                             f"of types {type(self)} and {type(other)}.")
+        else:
             offsets_mask = self.end <= other.begin
             text_mask = self.same_target_text(other)
             return np.logical_and(offsets_mask, text_mask)
-        else:
-            raise ValueError("'<' relationship not defined for {} and {} "
-                             "of types {} and {}"
-                             "".format(self, other, type(self), type(other)))
 
     def __gt__(self, other):
         if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
