@@ -219,17 +219,32 @@ class CharSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(arr == arr2, [True] * 4)
 
         self.assertTrue(arr.equals(arr2))
-        arr2._text = "This is a different string."
-        arr2.increment_version()
-        self.assertFalse(arr.equals(arr2))
-        arr2._text = arr.target_text
+        self.assertTrue(arr2.equals(arr))
+
+        # Different target text ==> not equal
+        arr3 = SpanArray("This is a different string.", arr2.begin, arr2.end)
+        self.assertFalse(arr.equals(arr3))
+        self.assertFalse(arr3.equals(arr2))
+
+        # Increment version without changing ==> still equal
         arr2.increment_version()
         self.assertTrue(arr.equals(arr2))
         self.assertTrue(arr2.equals(arr))
-        arr[2] = arr[1]
+
+        # Change begin and increment version ==> no longer equal
+        arr.begin[2] += 1
+        arr.increment_version()
+        self._assertArrayEquals(arr == arr2, [True, True, False, True])
+        self.assertFalse(arr.equals(arr2))
+
+        # Change individual cells ==> equality cache invalidated
+        arr[1] = arr[2]
+        self._assertArrayEquals(arr == arr2, [True, False, False, True])
         self.assertFalse(arr.equals(arr2))
         self.assertFalse(arr2.equals(arr))
         arr[2] = arr2[2]
+        self._assertArrayEquals(arr == arr2, [True, False, True, True])
+        arr[1] = arr2[1]
         self.assertTrue(arr.equals(arr2))
         self.assertTrue(arr2.equals(arr))
 
@@ -242,7 +257,7 @@ class CharSpanArrayTest(ArrayTestBase):
     def test_nulls(self):
         arr = self._make_spans_of_tokens()
         arr[2] = Span(
-            arr.target_text, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE
+            arr[0].target_text, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE
         )
         self.assertIsNone(arr.covered_text[2])
         self._assertArrayEquals(arr.covered_text, ["This", "is", None, "test"])
@@ -251,7 +266,7 @@ class CharSpanArrayTest(ArrayTestBase):
     def test_copy(self):
         arr = self._make_spans_of_tokens()
         arr2 = arr.copy()
-        arr[0] = Span(arr.target_text, 8, 9)
+        arr[0] = Span(arr[0].target_text, 8, 9)
         self._assertArrayEquals(arr2.covered_text, ["This", "is", "a", "test"])
         self._assertArrayEquals(arr.covered_text, ["a", "is", "a", "test"])
 
@@ -270,9 +285,9 @@ class CharSpanArrayTest(ArrayTestBase):
         arr1 = SpanArray(
             "This is a test.", np.array([0, 5, 8, 10]), np.array([4, 7, 9, 14])
         )
-        s1 = Span(arr1.target_text, 0, 1)
-        s2 = Span(arr1.target_text, 11, 14)
-        arr2 = SpanArray(arr1.target_text, [0, 3, 10, 7], [0, 4, 12, 9])
+        s1 = Span(arr1[0].target_text, 0, 1)
+        s2 = Span("This is a test.", 11, 14)
+        arr2 = SpanArray(arr1[0].target_text, [0, 3, 10, 7], [0, 4, 12, 9])
 
         self._assertArrayEquals(s1 < arr1, [False, True, True, True])
         self._assertArrayEquals(s2 > arr1, [True, True, True, False])
@@ -281,8 +296,8 @@ class CharSpanArrayTest(ArrayTestBase):
 
     def test_reduce(self):
         arr = self._make_spans_of_tokens()
-        self.assertEqual(arr._reduce("sum"), Span(arr.target_text, 0, 14))
-        self.assertEqual(arr._reduce("first"), Span(arr.target_text, 0, 4))
+        self.assertEqual(arr._reduce("sum"), Span(arr[0].target_text, 0, 14))
+        self.assertEqual(arr._reduce("first"), Span(arr[0].target_text, 0, 4))
         # Remind ourselves to modify this test after implementing min and max
         with self.assertRaises(TypeError):
             arr._reduce("min")

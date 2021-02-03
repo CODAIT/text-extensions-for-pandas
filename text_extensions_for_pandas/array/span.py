@@ -95,6 +95,8 @@ class Span(SpanOpMixin):
             begin: Begin offset (inclusive) within `text`
             end: End offset (exclusive, one past the last char) within `text`
         """
+        if text is not None and not isinstance(text, str):
+            raise TypeError(f"Text must be a string. Got {text} of type {type(text)}.")
         if Span.NULL_OFFSET_VALUE == begin:
             if Span.NULL_OFFSET_VALUE != end:
                 raise ValueError("Begin offset with special 'null' value {} "
@@ -115,9 +117,11 @@ class Span(SpanOpMixin):
     def __repr__(self) -> str:
         if self.begin == Span.NULL_OFFSET_VALUE:
             return "NA"
+        elif self.target_text is None:
+            return f"[{self.begin}, {self.end}): None"
         else:
-            return "[{}, {}): '{}'".format(self.begin, self.end,
-                                           textwrap.shorten(self.covered_text, 80))
+            return f"[{self.begin}, {self.end}): " \
+                   f"'{textwrap.shorten(self.covered_text, 80)}'"
 
     def __eq__(self, other):
         if isinstance(other, Span):
@@ -472,6 +476,18 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
+        # Subroutine of the if-else sequence below
+        def _is_sequence_of_spans(seq: Any):
+            if isinstance(seq, SpanArray):
+                return True
+            if not isinstance(seq, (collections.Sequence, np.ndarray)):
+                return False
+            else:
+                # For other sequences, check for everything being Span or None
+                for elem in seq:
+                    if elem is not None and not isinstance(elem, Span):
+                        return False
+                return True
 
         key = check_array_indexer(self, key)
         if isinstance(value, ABCSeries) and isinstance(value.dtype, SpanDtype):
@@ -480,21 +496,26 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         if value is None or isinstance(value, Sequence) and len(value) == 0:
             self._begins[key] = Span.NULL_OFFSET_VALUE
             self._ends[key] = Span.NULL_OFFSET_VALUE
-        elif isinstance(value, Span) or \
-                ((isinstance(key, slice) or
-                  (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype)))
-                 and isinstance(value, SpanArray)):
+            self._text_ids[key] = StringTable.NONE_ID
+        elif isinstance(value, Span):
             self._begins[key] = value.begin
             self._ends[key] = value.end
-        elif isinstance(key, np.ndarray) and len(value) > 0 and len(value) == len(key) and \
-                ((isinstance(value, Sequence) and isinstance(value[0], Span)) or
-                 isinstance(value, SpanArray)):
+            self._text_ids[key] = self._string_table.maybe_add_str(value.target_text)
+        elif ((isinstance(key, slice) or
+               (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype)))
+              and isinstance(value, SpanArray)):
+            self._begins[key] = value.begin
+            self._ends[key] = value.end
+            self._text_ids[key] = self._string_table.maybe_add_strs(value.target_text)
+        elif (isinstance(key, np.ndarray) and len(value) > 0 and len(value) == len(key)
+              and _is_sequence_of_spans(value)):
             for k, v in zip(key, value):
                 self._begins[k] = v.begin
                 self._ends[k] = v.end
+                self._text_ids[k] = self._string_table.maybe_add_str(v.target_text)
         else:
             raise ValueError(
-                f"Attempted to set element of SpanArray with "
+                f"Attempted to set element {key} (type {type(key)}) of a SpanArray with "
                 f"an object of type {type(value)}")
         # We just changed the contents of this array, so invalidate any cached
         # results computed from those contents.
@@ -731,7 +752,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         )
         text_ids = pd.api.extensions.take(
             self._text_ids, indices, allow_fill=allow_fill,
-            fill_value=StringTable.NONE_ID
+            fill_value=self._string_table.string_to_id(fill_value.target_text)
         )
 
         # StringTables are append-only, so should be safe to share
@@ -783,17 +804,25 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
+        if 0 == len(self):
+            # Special case: Empty array
+            # For all aggregates defined so far, we should return NA for this case.
+            return NULL_SPAN_VALUE
+
+        # Common code to pull out the target text of the first element without triggering
+        # creation of an entire array of target text strings.
+        first_text_id = self._text_ids[0]
+        first_target_text = self._string_table.id_to_string(first_text_id)
+
         if name == "sum":
             # Sum ==> combine, i.e. return the smallest span that contains all
             #         spans in the series
-            return Span(self.target_text, np.min(self.begin),
+            if not np.all(self._text_ids == first_text_id):
+                raise ValueError(f"Sum of spans not defined for different target texts.")
+            return Span(first_target_text, np.min(self.begin),
                         np.max(self.end))
         elif name == "first":
-            if 0 == len(self):
-                # TODO: Should we return None instead of null span here?
-                return Span(self.target_text, Span.NULL_OFFSET_VALUE,
-                            Span.NULL_OFFSET_VALUE)
-            return Span(self.target_text, self.begin[0], self.end[0])
+            return Span(first_target_text, self.begin[0], self.end[0])
         else:
             raise TypeError(f"'{name}' aggregation not supported on a series "
                             f"backed by a SpanArray")
@@ -885,6 +914,10 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
             if self._begins[i] == Span.NULL_OFFSET_VALUE:
                 # Null value at this index
                 result[i] = None
+            elif texts[i] is None:
+                # Null text and non-null begin/end. Shouldn't happen in normal use but
+                # does occur in some parts of the Pandas regression suite.
+                result[i] = None
             else:
                 result[i] = texts[i][self._begins[i]:self._ends[i]]
         return result
@@ -898,7 +931,11 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         # Currently we can't use np.char.lower directly because
         # self.covered_text needs to be an object array, not a numpy string
         # array, to allow for null values.
-        return np.vectorize(np.char.lower)(self.covered_text)
+        covered_text = self.covered_text
+        result = np.empty_like(covered_text)
+        for i in range(len(result)):
+            result[i] = None if covered_text[i] is None else covered_text[i].lower()
+        return result
 
     def as_frame(self) -> pd.DataFrame:
         """

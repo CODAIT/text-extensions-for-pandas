@@ -98,7 +98,7 @@ class StringTable(object):
         return new_table, new_ids_list
 
     @classmethod
-    def merge_strings(cls, strings: Sequence[str]):
+    def merge_strings(cls, strings: Union[Sequence[str], np.ndarray]):
         """
         Factory method for bulk-adding multiple strings to create a single
         StringTable and a list of integer IDs against that StringTable.
@@ -146,7 +146,8 @@ class StringTable(object):
         Vectorized version of :func:`string_to_id` for translating multiple strings
         at once.
 
-        :param strings: Multiple strings to be translated to IDs
+        :param strings: Multiple strings to be translated to IDs. Must be already
+         in the StringTable's set of strings.
         :returns: A numpy array of the same integers that :func:`string_to_id` would
          return.
         """
@@ -167,8 +168,6 @@ class StringTable(object):
         for i in range(len(int_ids)):
             ret[i] = self.id_to_string(int_ids[i])
         return ret
-
-
 
     def add_str(self, s: str) -> int:
         """
@@ -197,6 +196,20 @@ class StringTable(object):
             return self.add_str(s)
         else:
             return self.string_to_id(s)
+
+    def maybe_add_strs(self, s: Sequence[str]) -> np.ndarray:
+        """
+        Vectorized version of :func:`maybe_add_str` for translating, and
+        potentially adding multiple strings at once.
+
+        :param s: Multiple strings to be translated and potentially added
+        :returns: A numpy array of the corresponding integer IDs for the strings.
+        Adds each string to the table if it is not already present.
+        """
+        result = np.empty(len(s), dtype=np.int)
+        for i in range(len(result)):
+            result[i] = self.maybe_add_str(s[i])
+        return result
 
     def nbytes(self):
         """
