@@ -22,6 +22,7 @@
 #
 
 from distutils.version import LooseVersion
+import os
 from typing import *
 
 import numpy as np
@@ -37,6 +38,9 @@ from pandas.io.formats.format import ExtensionArrayFormatter
 def _format_strings_patched(self) -> List[str]:
     from pandas.core.construction import extract_array
     from pandas.io.formats.format import format_array
+
+    if not isinstance(self.values, TensorArray):
+        return self._format_strings_orig()
 
     values = extract_array(self.values, extract_numpy=True)
     array = np.asarray(values)
@@ -79,6 +83,9 @@ def _format_strings_patched_v1_0_0(self) -> List[str]:
     from pandas.core.construction import extract_array
     from pandas.io.formats.format import format_array
     from pandas.io.formats.printing import pprint_thing
+
+    if not isinstance(self.values, TensorArray):
+        return self._format_strings_orig()
 
     values = extract_array(self.values, extract_numpy=True)
     array = np.asarray(values)
@@ -130,13 +137,16 @@ def _format_strings_patched_v1_0_0(self) -> List[str]:
     return format_strings_slim(fmt_array, self.leading_space)
 
 
-ExtensionArrayFormatter._format_strings_orig = \
-    ExtensionArrayFormatter._format_strings
-if LooseVersion(pd.__version__) >= LooseVersion("1.1.0"):
-    ExtensionArrayFormatter._format_strings = _format_strings_patched
-else:
-    ExtensionArrayFormatter._format_strings = _format_strings_patched_v1_0_0
-ExtensionArrayFormatter._patched_by_text_extensions_for_pandas = True
+_FORMATTER_ENABLED_KEY = "TEXT_EXTENSIONS_FOR_PANDAS_FORMATTER_ENABLED"
+
+if os.getenv(_FORMATTER_ENABLED_KEY, "true").lower() == "true":
+    ExtensionArrayFormatter._format_strings_orig = \
+        ExtensionArrayFormatter._format_strings
+    if LooseVersion(pd.__version__) >= LooseVersion("1.1.0"):
+        ExtensionArrayFormatter._format_strings = _format_strings_patched
+    else:
+        ExtensionArrayFormatter._format_strings = _format_strings_patched_v1_0_0
+    ExtensionArrayFormatter._patched_by_text_extensions_for_pandas = True
 """ End Patching of ExtensionArrayFormatter """
 
 
