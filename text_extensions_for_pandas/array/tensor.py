@@ -142,7 +142,7 @@ _FORMATTER_ENABLED_KEY = "TEXT_EXTENSIONS_FOR_PANDAS_FORMATTER_ENABLED"
 if os.getenv(_FORMATTER_ENABLED_KEY, "true").lower() == "true":
     ExtensionArrayFormatter._format_strings_orig = \
         ExtensionArrayFormatter._format_strings
-    if LooseVersion(pd.__version__) >= LooseVersion("1.1.0"):
+    if LooseVersion("1.1.0") <= LooseVersion(pd.__version__) < LooseVersion("1.3.0"):
         ExtensionArrayFormatter._format_strings = _format_strings_patched
     else:
         ExtensionArrayFormatter._format_strings = _format_strings_patched_v1_0_0
