@@ -10,6 +10,10 @@ Text Extensions for Pandas turns Pandas DataFrames into a universal data
 structure for representing intermediate data in all phases of your NLP
 application development workflow.
 
+**Web site:** https://ibm.biz/text-extensions-for-pandas
+
+**API docs:** https://text-extensions-for-pandas.readthedocs.io/
+
 ## Features
 
 ### SpanArray: A Pandas extension type for *spans* of text
