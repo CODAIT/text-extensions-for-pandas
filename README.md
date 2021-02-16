@@ -52,7 +52,7 @@ pip install text-extensions-for-pandas
 Depending on your use case, you may also need the following additional
 packages:
 * `spacy` (for SpaCy support)
-* `transformers` (for 
+* `transformers` (for transformer-based embeddings and BERT tokenization)
 * `ibm_watson` (for IBM Watson support)
 
 ## Installation from Source
