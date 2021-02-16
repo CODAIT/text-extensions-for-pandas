@@ -87,7 +87,7 @@ API documentation can be found at [https://text-extensions-for-pandas.readthedoc
 
 * **`text_extensions_for_pandas`**: Source code for the `text_extensions_for_pandas` module.
 * **env.sh**: Script to create a conda environment `pd` capable of running the notebooks and test cases in this project
-* **generate_docs.sh**: Script to build the [API documentation]((https://readthedocs.org/projects/text-extensions-for-pandas/)
+* **generate_docs.sh**: Script to build the [API documentation](https://readthedocs.org/projects/text-extensions-for-pandas/)
 * **api_docs**: Configuration files for `generate_docs.sh`
 * **binder**: Configuration files for [running notebooks on Binder](https://mybinder.org/v2/gh/frreiss/tep-fred/branch-binder?urlpath=lab/tree/notebooks)
 * **config**: Configuration files for `env.sh`.
