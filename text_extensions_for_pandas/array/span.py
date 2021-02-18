@@ -21,7 +21,7 @@
 # Pandas extensions to support columns of spans with character offsets.
 #
 
-import collections
+import collections.abc
 import textwrap
 from typing import *
 
@@ -36,7 +36,6 @@ from pandas.core.indexers import check_array_indexer
 import text_extensions_for_pandas.jupyter as jupyter
 from text_extensions_for_pandas.array.string_table import StringTable
 from text_extensions_for_pandas.util import to_int_array
-
 
 def _check_same_text(o1, o2):
     if not ((o1.target_text is o2.target_text) or (o1.target_text == o2.target_text)):

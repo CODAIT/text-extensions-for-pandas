@@ -23,27 +23,22 @@
 #
 
 import numpy as np
-import textwrap
+
 from typing import *
 
-class StringTable(object):
+from text_extensions_for_pandas.array.thing_table import ThingTable
+
+
+class StringTable(ThingTable):
     """
     A set of immutable strings, plus integer IDs for said strings.
 
     Also implicitly maps `None` to ID -1.
     """
 
-    # Special integer ID for None as a string.
-    NONE_ID = -1
-
-    # Special integer ID for "not an id"
-    NOT_AN_ID = -2
-
     def __init__(self):
-        # Bidirectional map from unique string to integer ID and back
-        self._str_to_id = {}  # type: Dict[str, int]
-        self._id_to_str = []  # type: List[str]
-        self._total_bytes = 0  # type: int
+        super().__init__()
+        # Currently everything we need is in the superclass.
 
     @classmethod
     def single_string_table(cls, s: str) -> "StringTable":
@@ -89,8 +84,8 @@ class StringTable(object):
             old_ids = int_ids[i]
             new_ids = np.empty_like(old_ids, dtype=int)
             old_id_to_new_id = [
-                new_table.maybe_add_str(old_table._id_to_str[j])
-                for j in range(len(old_table._id_to_str))
+                new_table.maybe_add_str(old_table.id_to_string(j))
+                for j in range(old_table.num_things())
             ]
             for j in range(len(old_ids)):
                 new_ids[j] = old_id_to_new_id[old_ids[j]]
@@ -126,20 +121,10 @@ class StringTable(object):
         * `StringTable.NONE_ID` if string is None
         * `StringTable.NOT_AN_ID` if string is not present in the table
         """
-        if string is None:
-            # By convention, None maps to -1
-            return StringTable.NONE_ID
-        elif string not in self._str_to_id:
-            return StringTable.NOT_AN_ID
-        else:
-            return self._str_to_id[string]
+        return self.thing_to_id(string)
 
     def id_to_string(self, int_id: int) -> str:
-        if int_id <= StringTable.NOT_AN_ID:
-            raise ValueError(f"Invalid string ID {int_id}")
-        if StringTable.NONE_ID == int_id:
-            return None
-        return self._id_to_str[int_id]
+        return self.id_to_thing(int_id)
 
     def strings_to_ids(self, strings: Sequence[str]) -> np.ndarray:
         """
@@ -177,13 +162,12 @@ class StringTable(object):
         :param s: String to add
         :return: unique ID for this string
         """
-        if s in self._str_to_id:
-            raise ValueError(f"String '{textwrap.shorten(s, 40)}' already in table")
-        new_id = len(self._id_to_str)
-        self._id_to_str.append(s)
-        self._str_to_id[s] = new_id
-        self._total_bytes += len(s.encode("utf-8"))
-        return new_id
+        return self.add_thing(s)
+
+    def size_of_thing(self, thing: Any) -> int:
+        if not isinstance(thing, str):
+            raise TypeError(f"Only know how to handle strings; got {thing}")
+        return len(thing.encode("utf-8"))
 
     def maybe_add_str(self, s: str) -> int:
         """
@@ -192,10 +176,7 @@ class StringTable(object):
         :param s: String to add
         :return: unique ID for this string
         """
-        if s is not None and s not in self._str_to_id:
-            return self.add_str(s)
-        else:
-            return self.string_to_id(s)
+        return self.maybe_add_thing(s)
 
     def maybe_add_strs(self, s: Sequence[str]) -> np.ndarray:
         """
@@ -211,11 +192,6 @@ class StringTable(object):
             result[i] = self.maybe_add_str(s[i])
         return result
 
-    def nbytes(self):
-        """
-        Number of bytes in a (currently hypothetical) serialized version of this table.
-        """
-        return self._total_bytes
 
 
 
