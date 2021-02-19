@@ -10,6 +10,10 @@ Text Extensions for Pandas turns Pandas DataFrames into a universal data
 structure for representing intermediate data in all phases of your NLP
 application development workflow.
 
+**Web site:** https://ibm.biz/text-extensions-for-pandas
+
+**API docs:** https://text-extensions-for-pandas.readthedocs.io/
+
 ## Features
 
 ### SpanArray: A Pandas extension type for *spans* of text
@@ -52,7 +56,7 @@ pip install text-extensions-for-pandas
 Depending on your use case, you may also need the following additional
 packages:
 * `spacy` (for SpaCy support)
-* `transformers` (for 
+* `transformers` (for transformer-based embeddings and BERT tokenization)
 * `ibm_watson` (for IBM Watson support)
 
 ## Installation from Source
@@ -87,7 +91,7 @@ API documentation can be found at [https://text-extensions-for-pandas.readthedoc
 
 * **`text_extensions_for_pandas`**: Source code for the `text_extensions_for_pandas` module.
 * **env.sh**: Script to create a conda environment `pd` capable of running the notebooks and test cases in this project
-* **generate_docs.sh**: Script to build the [API documentation]((https://readthedocs.org/projects/text-extensions-for-pandas/)
+* **generate_docs.sh**: Script to build the [API documentation](https://readthedocs.org/projects/text-extensions-for-pandas/)
 * **api_docs**: Configuration files for `generate_docs.sh`
 * **binder**: Configuration files for [running notebooks on Binder](https://mybinder.org/v2/gh/frreiss/tep-fred/branch-binder?urlpath=lab/tree/notebooks)
 * **config**: Configuration files for `env.sh`.
