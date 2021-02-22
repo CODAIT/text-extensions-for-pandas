@@ -21,6 +21,11 @@ import unittest
 import pytest
 from pandas.tests.extension import base
 
+# import pytest fixtures
+# noinspection PyUnresolvedReferences
+from pandas.tests.extension.conftest import all_data, as_array, as_frame, as_series, \
+    box_in_series, data_repeated, fillna_method, groupby_apply_op, use_numpy
+
 from text_extensions_for_pandas.array.span import *
 from text_extensions_for_pandas.util import TestBase
 
@@ -513,7 +518,7 @@ def all_numeric_reductions(request):
 def sort_by_key(request):
     return request.param
 
-# import pytest fixtures
+
 
 
 class TestPandasDtype(base.BaseDtypeTests):
