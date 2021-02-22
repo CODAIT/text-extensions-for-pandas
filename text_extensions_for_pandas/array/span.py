@@ -75,6 +75,10 @@ class SpanOpMixin:
         :param other: Span or SpanArray
         :return: minimal span (or array of spans) that covers both inputs.
         """
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+            # Rely on pandas to unbox and dispatch to us.
+            return NotImplemented
+
         if isinstance(self, Span) and isinstance(other, Span):
             # Span + *Span = Span
             _check_same_text(self, other)

@@ -408,6 +408,50 @@ class CharSpanArrayTest(ArrayTestBase):
             one_one_2_2.contains(Span(test_text, 1, 1)), [True, False]
         )
 
+    def test_addition(self):
+        arr = self._make_spans_of_tokens()
+
+        # Test SpanArray + SpanArray
+        a = arr[:2]
+        b = arr[2:]
+        result = a + b  # ["This is", "a test"]
+        self.assertIsInstance(result, SpanArray)
+        self._assertArrayEquals(result.begin, [0, 5])
+        self._assertArrayEquals(result.end, [9, 14])
+
+        # Test Span + SpanArray
+        a = arr[0]
+        b = arr[2:]
+        result = a + b  # ['This is a' 'This is a test']
+        self.assertIsInstance(result, SpanArray)
+        self._assertArrayEquals(result.begin, [0, 0])
+        self._assertArrayEquals(result.end, [9, 14])
+
+        # Test SpanArray + Span
+        a = arr[:2]
+        b = arr[3]
+        result = a + b  # ['This is a test' 'is a test']
+        self.assertIsInstance(result, SpanArray)
+        self._assertArrayEquals(result.begin, [0, 5])
+        self._assertArrayEquals(result.end, [14, 14])
+
+        # Test Span + Span
+        a = arr[0]
+        b = arr[3]
+        result = a + b  # ['This is a test']
+        self.assertIsInstance(result, Span)
+        self.assertEqual(result.begin, 0)
+        self.assertEqual(result.end, 14)
+
+        # Test unwrapping from Series, Span + Series
+        df = pd.DataFrame({'Span': arr})
+        a = df["Span"].iloc[0]
+        b = df["Span"].iloc[2:]
+        result = a + b  # ['This is a' 'This is a test']
+        self.assertIsInstance(result, ABCSeries)
+        self._assertArrayEquals(result.array.begin, [0, 0])
+        self._assertArrayEquals(result.array.end, [9, 14])
+
 
 class CharSpanArrayIOTests(ArrayTestBase):
 
