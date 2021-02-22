@@ -37,12 +37,29 @@ import text_extensions_for_pandas.jupyter as jupyter
 from text_extensions_for_pandas.array.string_table import StringTable
 from text_extensions_for_pandas.util import to_int_array
 
-def _check_same_text(o1, o2):
-    if not ((o1.target_text is o2.target_text) or (o1.target_text == o2.target_text)):
+
+def _check_same_text(obj1, obj2):
+    if isinstance(obj1, Span) and isinstance(obj2, Span):
+        if obj1.target_text != obj1.target_text:
+            raise ValueError(
+                f"Spans are over different target text "
+                f"(got {obj1.target_text} and {obj2.target_text})"
+            )
+        return
+    if not (isinstance(obj1, SpanArray) or isinstance(obj2, SpanArray)):
+        raise TypeError(f"Expected some combination of Span and SpanArray, "
+                        f"but received {type(obj1)} and {type(obj2)}")
+
+    same_text_mask = (
+        obj1.same_target_text(obj2) if isinstance(obj1, SpanArray)
+        else obj2.same_target_text(obj1))
+    if not np.all(same_text_mask):
         raise ValueError(
-            f"Spans are over different target text "
-            f"(got {o1.target_text} and {o2.target_text})"
+            f"SpanArrays are over different target text "
+            f"(got {obj1.same_target_text} and {obj2.same_target_text})\n"
+            f"Comparison result: {same_text_mask}"
         )
+
 
 
 class SpanOpMixin:
@@ -66,9 +83,9 @@ class SpanOpMixin:
         elif isinstance(self, (Span, SpanArray)) and isinstance(other, (Span, SpanArray)):
             # SpanArray + *Span* = SpanArray
             _check_same_text(self, other)
-            return SpanArray(self.target_text,
-                             np.minimum(self.begin, other.begin),
-                             np.maximum(self.end, other.end))
+            return SpanArray.create(self.target_text,
+                                    np.minimum(self.begin, other.begin),
+                                    np.maximum(self.end, other.end))
         else:
             raise TypeError(f"Unexpected combination of span types for add operation: "
                             f"{type(self)} and {type(other)}")
@@ -81,6 +98,9 @@ class Span(SpanOpMixin):
 
     An offset of `Span.NULL_OFFSET_VALUE` (currently -1) indicates
     "not a span" in the sense that NaN is "not a number".
+
+    Most of the methods and properties of this class are single-span versions of the
+     eponymous methods in :class:`SpanArray`. See that class for API documentation.
     """
 
     # Begin/end value that indicates "not a span" in the sense that NaN is
@@ -124,9 +144,14 @@ class Span(SpanOpMixin):
 
     def __eq__(self, other):
         if isinstance(other, Span):
-            return (self.begin == other.begin
+            return (
+                # All NAs considered equal
+                (self.begin == Span.NULL_OFFSET_VALUE
+                 and other.begin == Span.NULL_OFFSET_VALUE)
+                or
+                (self.begin == other.begin
                     and self.end == other.end
-                    and self.target_text == other.target_text)
+                    and self.target_text == other.target_text))
         elif isinstance(other, SpanArray):
             return other == self
         else:
@@ -177,6 +202,10 @@ class Span(SpanOpMixin):
     def target_text(self):
         return self._text
 
+    @property
+    def document_text(self):
+        return self.target_text
+
     @memoized_property
     def covered_text(self):
         """
@@ -188,7 +217,7 @@ class Span(SpanOpMixin):
         else:
             return self.target_text[self.begin:self.end]
 
-    def overlaps(self, other: "text_extensions_for_pandas.Span"):
+    def overlaps(self, other: "Span"):
         """
         :param other: Another Span or TokenSpan
         :return: True if the two spans overlap. Also True if a zero-length
@@ -206,7 +235,7 @@ class Span(SpanOpMixin):
         else:  # other.begin < self.end and other.end >= self.begin
             return True
 
-    def contains(self, other: "text_extensions_for_pandas.Span"):
+    def contains(self, other: "Span"):
         """
         :param other: Another Span or TokenSpan
         :return: True if `other` is entirely within the bounds of this span. Also
@@ -234,16 +263,12 @@ class Span(SpanOpMixin):
         return f"{before_text}[{self.covered_text}]{after_text}"
 
 
-# Singleton instance of the Span value that corresponds to NA
-NULL_SPAN_VALUE = Span(None, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE)
-
 @pd.api.extensions.register_extension_dtype
 class SpanDtype(pd.api.extensions.ExtensionDtype):
     """
     Panda datatype for a span that represents a range of characters within a
     target string.
     """
-
     @property
     def type(self):
         # The type for a single row of a column of type Span
@@ -286,7 +311,7 @@ class SpanDtype(pd.api.extensions.ExtensionDtype):
         See docstring in `ExtensionDType` class in `pandas/core/dtypes/base.py`
         for information about this method.
         """
-        return Span(None, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE)
+        return _NULL_SPAN_SINGLETON
 
     def __from_arrow__(self, extension_array):
         """
@@ -297,7 +322,10 @@ class SpanDtype(pd.api.extensions.ExtensionDtype):
         return arrow_to_span(extension_array)
 
 
+_NULL_SPAN_SINGLETON = Span("", Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE)
+
 _EMPTY_INT_ARRAY = np.zeros(0, dtype=int)
+
 
 class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
     """
@@ -308,14 +336,18 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
     are character offsets into the target text.
     """
 
-    def __init__(self, text: Union[str, Sequence[str], np.ndarray],
-                 begins: Union[pd.Series, np.ndarray, Sequence[int]],
-                 ends: Union[pd.Series, np.ndarray, Sequence[int]]):
+    @classmethod
+    def create(cls, text: Union[str, Sequence[str], np.ndarray],
+               begins: Union[pd.Series, np.ndarray, Sequence[int]],
+               ends: Union[pd.Series, np.ndarray, Sequence[int]]):
         """
+        Factory method for creating instances of this class.
+        
         :param text: Target text from which the spans of this array are drawn,
          or a sequence of texts if different spans can have different targets
         :param begins: Begin offsets of spans (closed)
         :param ends: End offsets (open)
+        :return: A new `SpanArray` object
         """
         if not isinstance(begins, (pd.Series, np.ndarray, list)):
             raise TypeError(f"begins is of unsupported type {type(begins)}. "
@@ -338,27 +370,45 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
 
         if text is None or isinstance(text, str):
             # With a single string, every row gets string ID 0
-            string_table = StringTable.single_string_table(text)  # type: StringTable
+            string_table = StringTable.create_single(text)  # type: StringTable
             text_ids = np.zeros_like(begins)  # type: np.ndarray
-        elif isinstance(text, (collections.Sequence, np.ndarray)):
+        elif isinstance(text, (collections.abc.Sequence, np.ndarray)):
             if len(text) != len(begins):  # Checked len(begins) == len(ends) earlier
                 raise ValueError(f"Received {len(text)} target text values and "
                                  f"{len(begins)} begin offsets. Lengths should be equal.")
-            string_table, text_ids = StringTable.merge_strings(text)
+            string_table, text_ids = StringTable.merge_things(text)
         else:
             raise TypeError(f"text argument is of unsupported type {type(text)}. "
                             f"Supported types are str and Sequence[str].")
 
-        # *** HACK ALERT *** HACK ALERT ***
-        # "declare" these fields, which are initialized in _init_internal(),
-        # so that PyCharm's linter knows they exist.
-        self._text_objs = None  # type: np.ndarray
-        self._equivalent_arrays = None  # type: List[int]
-        self._equiv_array_versions = None  # type: List[int]
-        self._hash = None  # type: Union[None, int]
-        # *** END HACK ***
+        ret = cls()
+        ret._init_internal(string_table, text_ids, begins, ends)
+        return ret
 
-        self._init_internal(string_table, text_ids, begins, ends)
+    def __init__(self):
+        """
+        Constructor for internal use. Creates an empty array with a target text of `None`.
+
+        Most user code should use the factory method :func:`create` to
+        instantiate this class.
+        """
+        # Begin and end offsets in characters
+        self._begins = _EMPTY_INT_ARRAY  # type: np.ndarray
+        self._ends = _EMPTY_INT_ARRAY  # type: np.ndarray
+
+        self._string_table = None  # type: Union[StringTable, None]
+
+        # Cached list of other SpanArrays that are exactly the same as this
+        # one. Each element is the result of calling id()
+        self._equivalent_arrays = []  # type: List[int]
+
+        # Version numbers of elements in self._equivalent_arrays, to ensure that
+        # a change hasn't made the arrays no longer equal
+        self._equiv_array_versions = []  # type: List[int]
+
+        # Monotonically increasing version number for tracking changes and
+        # invalidating caches
+        self._version = 0
 
         # Flag that tells whether to display details of offsets in Jupyter notebooks
         self._repr_html_show_offsets = True  # type: bool
@@ -373,30 +423,15 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         Assumes that upstream code has done most type-checking and error-handling for
         the input arguments.
         """
-        self._string_table = string_table  # type: StringTable
-        self._text_ids = text_ids  # type: np.ndarray
-        self._text_objs = None  # Created on demand
+        if string_table is None:
+            raise ValueError("Received None for string table")
+        self._string_table = string_table
+        self._text_ids = text_ids
+        self._begins = begins
+        self._ends = ends
 
-        self._begins = begins  # type: np.ndarray
-        self._ends = ends  # type: np.ndarray
-
-        # Monotonically increasing version number for tracking changes and
-        # invalidating caches
-        if not hasattr(self, "_version"):
-            self._version = 0  # type: int
-        else:
-            self._version += 1
-
-        # Cached list of other SpanArrays that are exactly the same as this
-        # one. Each element is the result of calling id()
-        self._equivalent_arrays = []  # type: List[int]
-
-        # Version numbers of elements in self._equivalent_arrays, to ensure that
-        # a change hasn't made the arrays no longer equal
-        self._equiv_array_versions = []  # type: List[int]
-
-        # Cached hash value of this array
-        self._hash = None  # type: Union[None, int]
+        # Reset all cached data.
+        self.increment_version()
 
     @classmethod
     def _construct(cls,
@@ -408,7 +443,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         Common entry point for creating an empty SpanArray directly from its internal
         data structures.
         """
-        ret = SpanArray(None, _EMPTY_INT_ARRAY, _EMPTY_INT_ARRAY)
+        ret = cls()
         ret._init_internal(string_table, text_ids, begins, ends)
         return ret
 
@@ -433,10 +468,11 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         if isinstance(dtype, SpanDtype):
             data = self.copy() if copy else self
         elif isinstance(dtype, pd.StringDtype):
+            # noinspection PyProtectedMember
             return dtype.construct_array_type()._from_sequence(self, copy=False)
         else:
             na_value = Span(
-                None, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE
+                self.document_text, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE
             )
             data = self.to_numpy(dtype=dtype, copy=copy, na_value=na_value)
         return data
@@ -466,9 +502,9 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         else:
             # item not an int --> assume it's a numpy-compatible index
             item = check_array_indexer(self, item)
-            return SpanArray(self.target_text[item],
-                             self._begins[item],
-                             self._ends[item])
+            return SpanArray.create(self.target_text[item],
+                                    self._begins[item],
+                                    self._ends[item])
 
     def __setitem__(self, key: Union[int, np.ndarray], value: Any) -> None:
         """
@@ -499,19 +535,19 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         elif isinstance(value, Span):
             self._begins[key] = value.begin
             self._ends[key] = value.end
-            self._text_ids[key] = self._string_table.maybe_add_str(value.target_text)
+            self._text_ids[key] = self._string_table.maybe_add_thing(value.target_text)
         elif ((isinstance(key, slice) or
                (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype)))
               and isinstance(value, SpanArray)):
             self._begins[key] = value.begin
             self._ends[key] = value.end
-            self._text_ids[key] = self._string_table.maybe_add_strs(value.target_text)
+            self._text_ids[key] = self._string_table.maybe_add_things(value.target_text)
         elif (isinstance(key, np.ndarray) and len(value) > 0 and len(value) == len(key)
               and _is_sequence_of_spans(value)):
             for k, v in zip(key, value):
                 self._begins[k] = v.begin
                 self._ends[k] = v.end
-                self._text_ids[k] = self._string_table.maybe_add_str(v.target_text)
+                self._text_ids[k] = self._string_table.maybe_add_thing(v.target_text)
         else:
             raise ValueError(
                 f"Attempted to set element {key} (type {type(key)}) of a SpanArray with "
@@ -533,7 +569,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
         if isinstance(other, Span):
-            mask = np.full(len(self), True, dtype=np.bool)
+            mask = np.full(len(self), True, dtype=bool)
             mask[self.target_text != other.target_text] = False
             mask[self.begin != other.begin] = False
             mask[self.end != other.end] = False
@@ -562,9 +598,6 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         return ~(self == other)
 
     def __hash__(self):
-        if self._hash is None:
-            self._hash = hash((self._text_ids.tobytes(), self._begins.tobytes(),
-                               self._ends.tobytes()))
         return self._hash
 
     def __contains__(self, item) -> bool:
@@ -636,14 +669,14 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
                                  f"  Types are: {[type(t) for t in to_concat]})")
             span_arrays.append(tc)
 
-        string_table, text_ids_list = StringTable.merge_string_tables_and_ids(
+        string_table, text_ids_list = StringTable.merge_tables_and_ids(
             [s._string_table for s in span_arrays],
             [s._text_ids for s in span_arrays]
         )
 
         text_ids = np.concatenate(text_ids_list)
-        begins = np.concatenate([a.begin for a in to_concat])
-        ends = np.concatenate([a.end for a in to_concat])
+        begins = np.concatenate([a.begin for a in span_arrays])
+        ends = np.concatenate([a.end for a in span_arrays])
 
         return SpanArray._construct(string_table, text_ids, begins, ends)
 
@@ -670,9 +703,12 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         for s in scalars:
             if not isinstance(s, Span):
                 # TODO: Temporary fix for np.nan values, pandas-dev GH#38980
-                if np.isnan(s):
-                    s = NULL_SPAN_VALUE
-                else:
+                try:
+                    if np.isnan(s):  # May throw TypeError
+                        s = _NULL_SPAN_SINGLETON
+                    else:
+                        raise TypeError()
+                except TypeError:
                     raise ValueError(f"Can only convert a sequence of Span "
                                      f"objects to a SpanArray. Found an "
                                      f"object of type {type(s)}")
@@ -680,7 +716,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
             ends[i] = s.end
             target_texts[i] = s.target_text
             i += 1
-        string_table, text_ids = StringTable.merge_strings(target_texts)
+        string_table, text_ids = StringTable.merge_things(target_texts)
         return SpanArray._construct(string_table, text_ids, begins, ends)
 
     @classmethod
@@ -696,7 +732,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        return self.astype(object), NULL_SPAN_VALUE
+        return self.astype(object), _NULL_SPAN_SINGLETON
 
     def isna(self) -> np.array:
         """
@@ -731,13 +767,13 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
             # `fill_value`.  Any other negative values raise a ``ValueError``."
             if fill_value is None or \
                (np.isscalar(fill_value) and np.math.isnan(fill_value)):
-                fill_value = NULL_SPAN_VALUE
+                fill_value = _NULL_SPAN_SINGLETON
             elif not isinstance(fill_value, Span):
                 raise ValueError("Fill value must be Null, nan, or a Span "
                                  "(was {})".format(fill_value))
         else:
             # Dummy fill value to keep code below happy
-            fill_value = NULL_SPAN_VALUE
+            fill_value = _NULL_SPAN_SINGLETON
 
         # Pandas' internal implementation of take() does most of the heavy
         # lifting.
@@ -751,7 +787,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         )
         text_ids = pd.api.extensions.take(
             self._text_ids, indices, allow_fill=allow_fill,
-            fill_value=self._string_table.string_to_id(fill_value.target_text)
+            fill_value=self._string_table.maybe_add_thing(fill_value.target_text)
         )
 
         # StringTables are append-only, so should be safe to share
@@ -806,22 +842,19 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         if 0 == len(self):
             # Special case: Empty array
             # For all aggregates defined so far, we should return NA for this case.
-            return NULL_SPAN_VALUE
-
-        # Common code to pull out the target text of the first element without triggering
-        # creation of an entire array of target text strings.
-        first_text_id = self._text_ids[0]
-        first_target_text = self._string_table.id_to_string(first_text_id)
+            return _NULL_SPAN_SINGLETON
 
         if name == "sum":
             # Sum ==> combine, i.e. return the smallest span that contains all
             #         spans in the series
-            if not np.all(self._text_ids == first_text_id):
+            if not self.is_single_document:
                 raise ValueError(f"Sum of spans not defined for different target texts.")
+            first_target_text = self.target_text[0]
             return Span(first_target_text, np.min(self.begin),
                         np.max(self.end))
         elif name == "first":
-            return Span(first_target_text, self.begin[0], self.end[0])
+            return self[0]
+            # return Span(first_target_text, self.begin[0], self.end[0])
         else:
             raise TypeError(f"'{name}' aggregation not supported on a series "
                             f"backed by a SpanArray")
@@ -845,18 +878,74 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
             return o
         elif isinstance(o, pd.Series):
             return cls.make_array(o.values)
-        elif isinstance(o, Iterable):
+        elif isinstance(o, Sequence):
             return cls._from_sequence(o)
+        elif isinstance(o, Iterable):
+            return cls._from_sequence([e for e in o])
 
-    @property
+    @memoized_property
     def target_text(self) -> np.ndarray:
         """
-        "document" texts that the spans in this array reference.
+        :return: "document" texts that the spans in this array reference, as opposed to
+         the regions of these documents that the spans cover.
         """
-        # Use cached value if present; otherwise create and cache.
-        if self._text_objs is None:
-            self._text_objs = self._string_table.ids_to_strings(self._text_ids)
-        return self._text_objs
+        return self._string_table.ids_to_things(self._text_ids)
+
+    @property
+    def document_text(self) -> Union[str, None]:
+        """
+        :return: if all spans in this array cover the same document, text of that
+         document. Unless :meth:`target_text`, this property has a value even for a
+         zero-length array. Returns None if the Spans in this SpanArray cover more
+         than one document.
+        """
+        if not self.is_single_document:
+            return None
+        elif self._string_table.num_things == 0:
+            # Empty array with no target text metadata at all
+            return None
+        elif self._string_table.num_things == 1:
+            # Only one string in StringTable, so it must be the document text.
+            return next(self._string_table.things)
+        elif len(self._text_ids) > 0:
+            # String table has extra elements, but we have an index into that table.
+            return self._string_table.id_to_thing(self._text_ids[0])
+        else:
+            # Multiple elements in StringTable and no spans. Usually this happens
+            # due to filtering and slicing operations.
+            # We consider the first element of the table to be the document text
+            # in this case.
+            return next(self._string_table.things)
+
+    @memoized_property
+    def is_single_document(self) -> bool:
+        """
+        :return: True if every span in this array is over the same target text
+         or if there are zero spans in this array.
+        """
+        if len(self) == 0:
+            # If there are zero spans, we consider there to be one document with the
+            # document text being whatever is the first element of the StringTable.
+            return True
+        elif self._string_table.num_things == 1:
+            return True
+        else:
+            # More than one string in the StringTable and at least one span. Check whether
+            # every span has the same text ID.
+            return not np.any(self._text_ids[0] != self._text_ids)
+
+    def split_by_document(self) -> List["SpanArray"]:
+        """
+        :return: A list of slices of this `SpanArray` that cover single documents.
+        """
+        if self.is_single_document:
+            return [self]
+        slices = []
+        for text_id in self._string_table.ids:
+            mask = self._text_ids == text_id
+            if np.any(mask):
+                slices.append(self[mask])
+        return slices
 
     @property
     def begin(self) -> np.ndarray:
@@ -883,10 +972,10 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         data derived from the array's state.
         """
         # Invalidate cached computation
+        self._clear_cached_properties()
+
         self._equivalent_arrays = []
         self._equiv_array_versions = []
-        self._hash = None
-        self._text_objs = None
 
         # Increment the counter
         self._version += 1
@@ -908,7 +997,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         # TODO: Vectorized version of this
         texts = self.target_text
         # Need dtype=np.object so we can return nulls
-        result = np.empty(len(self), dtype=np.object)
+        result = np.empty(len(self), dtype=object)
         for i in range(len(self)):
             if self._begins[i] == Span.NULL_OFFSET_VALUE:
                 # Null value at this index
@@ -957,10 +1046,10 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
             target text.
         """
         if isinstance(other, Span):
-            other_id = self._string_table.string_to_id(other.target_text)
+            other_id = self._string_table.thing_to_id(other.target_text)
             return self._text_ids == other_id
         elif isinstance(other, SpanArray):
-            other_ids = self._string_table.strings_to_ids(other.target_text)
+            other_ids = self._string_table.things_to_ids(other.target_text)
             return self._text_ids == other_ids
         else:
             raise TypeError(f"same_target_text not defined for input type "
@@ -1040,6 +1129,33 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
     @repr_html_show_offsets.setter
     def repr_html_show_offsets(self, show_offsets: bool):
         self._repr_html_show_offsets = show_offsets
+
+    ##########################################
+    # Keep private and protected methods here.
+
+    @memoized_property
+    def _hash(self):
+        return hash((self.target_text.tobytes(), self._begins.tobytes(),
+                     self._ends.tobytes()))
+
+    # noinspection PyMethodMayBeStatic
+    def _cached_property_names(self) -> List[str]:
+        """
+        :return: names of cached properties whose values are computed on demand
+         and invalidated when the set of spans change.
+        """
+        return ["_hash", "is_single_document", "target_text",
+                "normalized_covered_text"]
+
+    def _clear_cached_properties(self) -> None:
+        """
+        Remove cached values of memoized properties to reflect changes to the
+        data on which they are based.
+        """
+        for n in self._cached_property_names():
+            attr_name = "_{0}".format(n)
+            if hasattr(self, attr_name):
+                delattr(self, attr_name)
 
     def __arrow_array__(self, type=None):
         """
