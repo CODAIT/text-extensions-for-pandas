@@ -32,16 +32,18 @@ _TEST_TEXT = "Item's for < $100 & change"
 _TEST_TOKS = make_tokens_and_features(_TEST_TEXT, _SPACY_LANGUAGE_MODEL)
 
 
-class UtilTest(TestBase):
+class JupyterTest(TestBase):
     def test_pretty_print_html(self):
         self.maxDiff = None
         html = pretty_print_html(_TEST_TOKS["span"].values, True)
-        suffix = html[-809:]
+        suffix = html[-800:]
         # print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
             """\
-</tr>
+<td>19</td>
+      <td>&amp;</td>
+    </tr>
     <tr>
       <th>7</th>
       <td>20</td>
@@ -50,17 +52,19 @@ class UtilTest(TestBase):
     </tr>
   </tbody>
 </table>
-            </div>
-            <div id="text"
-             style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 60%;">
+    </div>
+    <div id="text"
+     style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 60%;">
+
                 <div style="float:center; padding:10px">
                     <p style="font-family:monospace">
                         <span style="background-color:yellow">Item&#39;s</span> <span style="background-color:yellow">for</span> <span style="background-color:yellow">&lt;</span> <span style="background-color:yellow"><span>&#36;</span>100</span> <span style="background-color:yellow">&amp;</span> <span style="background-color:yellow">change
                     </p>
                 </div>
-            </div>
-        </div>
-        """)
+
+    </div>
+</div>
+""")
 
         html = pretty_print_html(_TEST_TOKS["span"].values, False)
         suffix = html[-809:]
@@ -69,12 +73,14 @@ class UtilTest(TestBase):
             suffix,
             """\
 
-        <div id="text"
-         style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 100%;">
-            <div style="float:center; padding:10px">
-                <p style="font-family:monospace">
-                    <span style="background-color:yellow">Item&#39;s</span> <span style="background-color:yellow">for</span> <span style="background-color:yellow">&lt;</span> <span style="background-color:yellow"><span>&#36;</span>100</span> <span style="background-color:yellow">&amp;</span> <span style="background-color:yellow">change
-                </p>
-            </div>
-        </div>
-        """)
+<div id="text"
+ style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 100%;">
+
+                <div style="float:center; padding:10px">
+                    <p style="font-family:monospace">
+                        <span style="background-color:yellow">Item&#39;s</span> <span style="background-color:yellow">for</span> <span style="background-color:yellow">&lt;</span> <span style="background-color:yellow"><span>&#36;</span>100</span> <span style="background-color:yellow">&amp;</span> <span style="background-color:yellow">change
+                    </p>
+                </div>
+
+</div>
+""")

@@ -105,9 +105,10 @@ def extract_dict(tokens: Union[SpanArray, pd.Series],
         tokens = pd.Series(tokens)
 
     # Wrap the important parts of the tokens series in a temporary dataframe.
+    # noinspection PyUnresolvedReferences
     toks_tmp = pd.DataFrame({
         "token_id": tokens.index,
-        "normalized_text": tokens.values.normalized_covered_text
+        "normalized_text": tokens.array.normalized_covered_text
     })
 
     # Start by matching the first token.
@@ -151,8 +152,8 @@ def extract_dict(tokens: Union[SpanArray, pd.Series],
     # Gather together all the sets of matches and wrap in a dataframe.
     begins = np.concatenate(begins_list)
     ends = np.concatenate(ends_list)
-    result = pd.DataFrame({output_col_name: TokenSpanArray(tokens.values,
-                                                           begins, ends)})
+    result = pd.DataFrame({output_col_name:
+                           TokenSpanArray.create(tokens.values, begins, ends)})
     # Results are sorted by number of tokens; sort by location instead.
     result["__begin"] = result[output_col_name].values.begin
     return result.sort_values("__begin")[[output_col_name]]
@@ -183,8 +184,7 @@ def extract_regex_tok(
     :returns: A single-column DataFrame containing a span for each match of the
     regex.
     """
-    if isinstance(tokens, pd.Series):
-        tokens = tokens.values
+    tokens = SpanArray.make_array(tokens)
 
     num_tokens = len(tokens)
     matches_regex_f = np.vectorize(lambda s: compiled_regex.fullmatch(s)
@@ -200,8 +200,8 @@ def extract_regex_tok(
         window_begin_toks = np.arange(0, num_tokens - cur_len + 1)
         window_end_toks = window_begin_toks + cur_len
 
-        window_tok_spans = TokenSpanArray(tokens, window_begin_toks,
-                                          window_end_toks)
+        window_tok_spans = TokenSpanArray.create(tokens, window_begin_toks,
+                                                 window_end_toks)
         matches_list.append(pd.Series(
             window_tok_spans[matches_regex_f(window_tok_spans.covered_text)]
         ))

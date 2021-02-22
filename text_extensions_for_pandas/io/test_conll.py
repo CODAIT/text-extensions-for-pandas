@@ -76,7 +76,7 @@ class CoNLLTest(unittest.TestCase):
                                        ["ent"], [True])
         self.assertEqual(len(dfs), 2)
         self.assertEqual(
-            dfs[0]["span"].values.target_text,
+            dfs[0]["span"].values.document_text,
             textwrap.dedent(
                 """\
                 Who is General Failure (and why is he reading my hard disk)?
@@ -84,7 +84,7 @@ class CoNLLTest(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            dfs[1]["span"].values.target_text,
+            dfs[1]["span"].values.document_text,
             "-DOCSTART-\nI'd kill for a Nobel Peace Prize.",
         )
         # print(f"***{repr(dfs[0])}***")  # Uncomment to regenerate gold standard
@@ -250,7 +250,7 @@ class CoNLLTest(unittest.TestCase):
         )
         self.assertEqual(len(output_dfs), 2)
         self.assertEqual(
-            output_dfs[0]["span"].values.target_text,
+            output_dfs[0]["span"].values.document_text,
             textwrap.dedent(
                 """\
                 Who is General Failure (and why is he reading my hard disk)?
@@ -258,7 +258,7 @@ class CoNLLTest(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            output_dfs[1]["span"].values.target_text,
+            output_dfs[1]["span"].values.document_text,
             "-DOCSTART-\nI'd kill for a Nobel Peace Prize.",
         )
         # print(f"***{repr(output_dfs[0])}***")  # Uncomment to regenerate gold standard
@@ -403,8 +403,8 @@ class CoNLLTest(unittest.TestCase):
             "Everywhere is walking distance if you have the time.",
         ]
         arrays = [
-            SpanArray(texts[0], [7, 20], [12, 23]),
-            SpanArray(texts[1], [14], [21]),
+            SpanArray.create(texts[0], [7, 20], [12, 23]),
+            SpanArray.create(texts[1], [14], [21]),
         ]
         folds = {
             "train": [pd.DataFrame({"spans": arrays[0], "foos": [1, 2], "bars": True})],

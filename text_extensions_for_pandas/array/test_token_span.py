@@ -54,7 +54,7 @@ class TokenSpanTest(ArrayTestBase):
         s1 = TokenSpan(toks, 0, 2)
         self.assertEqual(repr(s1), "[0, 7): 'This is'")
 
-        toks2 = SpanArray(
+        toks2 = SpanArray.create(
             "This is a really really really really really really really really "
             "really long string.",
             np.array([0, 5, 8, 10, 17, 24, 31, 38, 45, 52, 59, 66, 73, 78, 84]),
@@ -96,8 +96,8 @@ class TokenSpanTest(ArrayTestBase):
         s2 = TokenSpan(toks, 0, 2)
         s3 = TokenSpan(toks, 0, 3)
         s4 = TokenSpan(other_toks, 0, 2)
-        s5 = Span(toks.target_text, s4.begin, s4.end)
-        s6 = Span(toks.target_text, s4.begin, s4.end + 1)
+        s5 = Span(toks.document_text, s4.begin, s4.end)
+        s6 = Span(toks.document_text, s4.begin, s4.end + 1)
 
         self.assertEqual(s1, s2)
         self.assertNotEqual(s1, s3)
@@ -121,8 +121,8 @@ class TokenSpanTest(ArrayTestBase):
         s1 = TokenSpan(toks, 0, 3)
         s2 = TokenSpan(toks, 2, 3)
         s3 = TokenSpan(toks, 3, 4)
-        char_s1 = Span(s1.target_text, s1.begin, s1.end)
-        char_s2 = Span(s2.target_text, s2.begin, s2.end)
+        char_s1 = Span(s1.document_text, s1.begin, s1.end)
+        char_s2 = Span(s2.document_text, s2.begin, s2.end)
 
         self.assertEqual(s1 + s2, s1)
         self.assertEqual(char_s1 + s2, char_s1)
@@ -148,7 +148,7 @@ class TokenSpanTest(ArrayTestBase):
 class TokenSpanArrayTest(ArrayTestBase):
     def _make_spans(self):
         toks = self._make_spans_of_tokens()
-        return TokenSpanArray(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
+        return TokenSpanArray.create(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
 
     def test_create(self):
         arr = self._make_spans()
@@ -158,7 +158,8 @@ class TokenSpanArrayTest(ArrayTestBase):
         )
 
         with self.assertRaises(TypeError):
-            TokenSpanArray(self._make_spans_of_tokens(), "Not a valid begins list", [42])
+            TokenSpanArray.create(self._make_spans_of_tokens(),
+                                  "Not a valid begins list", [42])
 
     def test_dtype(self):
         arr = self._make_spans()
@@ -197,7 +198,7 @@ class TokenSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(arr == arr, [True] * 7)
         self._assertArrayEquals(arr == arr2, [True] * 7)
         self._assertArrayEquals(arr[0:3] == arr[3:6], [False, False, False])
-        arr3 = SpanArray(arr.target_text, arr.begin, arr.end)
+        arr3 = SpanArray.create(arr.target_text, arr.begin, arr.end)
         self._assertArrayEquals(arr == arr3, [True] * 7)
         self._assertArrayEquals(arr3 == arr, [True] * 7)
 
@@ -211,7 +212,6 @@ class TokenSpanArrayTest(ArrayTestBase):
     def test_concat_same_type(self):
         arr = self._make_spans()
         arr2 = self._make_spans()
-        # Type: TokenSpanArray
         arr3 = TokenSpanArray._concat_same_type((arr, arr2))
         self._assertArrayEquals(arr3.covered_text, np.tile(arr2.covered_text, 2))
 
@@ -230,19 +230,18 @@ class TokenSpanArrayTest(ArrayTestBase):
     def test_nulls(self):
         arr = self._make_spans()
         self._assertArrayEquals(arr.isna(), [False] * 7)
-        self.assertFalse(arr.have_nulls)
-        arr[2] = TokenSpan.make_null(arr.tokens)
+        arr[2] = TokenSpan.make_null(arr.tokens[0])
         self.assertIsNone(arr.covered_text[2])
         self._assertArrayEquals(arr[0:4].covered_text, ["This", "is", None, "test"])
         self._assertArrayEquals(arr[0:4].isna(), [False, False, True, False])
-        self.assertTrue(arr.have_nulls)
+        self.assertTrue(np.any(arr.isna()))
 
     def test_copy(self):
         arr = self._make_spans()
         arr2 = arr.copy()
         self._assertArrayEquals(arr.covered_text, arr2.covered_text)
         self.assertEqual(arr[1], arr2[1])
-        arr[1] = TokenSpan.make_null(arr.tokens)
+        arr[1] = TokenSpan.make_null(arr.tokens[0])
         self.assertNotEqual(arr[1], arr2[1])
 
     # Double underscore because you can't call a test case "test_take"
@@ -259,10 +258,10 @@ class TokenSpanArrayTest(ArrayTestBase):
 
     def test_less_than(self):
         tokens = self._make_spans_of_tokens()
-        arr1 = TokenSpanArray(tokens, [0, 2], [4, 3])
+        arr1 = TokenSpanArray.create(tokens, [0, 2], [4, 3])
         s1 = TokenSpan(tokens, 0, 1)
         s2 = TokenSpan(tokens, 3, 4)
-        arr2 = TokenSpanArray(tokens, [0, 3], [0, 4])
+        arr2 = TokenSpanArray.create(tokens, [0, 3], [0, 4])
 
         self._assertArrayEquals(s1 < arr1, [False, True])
         self._assertArrayEquals(s2 > arr1, [False, True])
@@ -323,7 +322,7 @@ class TokenSpanArrayTest(ArrayTestBase):
 
     def test_reduce(self):
         arr = self._make_spans()
-        self.assertEqual(arr._reduce("sum"), TokenSpan(arr.tokens, 0, 4))
+        self.assertEqual(arr._reduce("sum"), TokenSpan(arr.tokens[0], 0, 4))
         # Remind ourselves to modify this test after implementing min and max
         with self.assertRaises(TypeError):
             arr._reduce("min")
@@ -366,6 +365,7 @@ class TokenSpanArrayTest(ArrayTestBase):
         self.assertEqual(len(df), len(arr))
 
 
+@pytest.mark.skip("Feather not yet reimplemented")
 class TokenSpanArrayIOTests(ArrayTestBase):
 
     def do_roundtrip(self, df):
@@ -379,22 +379,22 @@ class TokenSpanArrayIOTests(ArrayTestBase):
         toks = self._make_spans_of_tokens()
 
         # Equal token spans to tokens
-        ts1 = TokenSpanArray(toks, np.arange(len(toks)), np.arange(len(toks)) + 1)
+        ts1 = TokenSpanArray.create(toks, np.arange(len(toks)), np.arange(len(toks)) + 1)
         df1 = pd.DataFrame({"ts1": ts1})
         self.do_roundtrip(df1)
 
         # More token spans than tokens
-        ts2 = TokenSpanArray(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
+        ts2 = TokenSpanArray.create(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
         df2 = pd.DataFrame({"ts2": ts2})
         self.do_roundtrip(df2)
 
         # Less token spans than tokens, 2 splits no padding
-        ts3 = TokenSpanArray(toks, [0, 3], [3, 4])
+        ts3 = TokenSpanArray.create(toks, [0, 3], [3, 4])
         df3 = pd.DataFrame({"ts3": ts3})
         self.do_roundtrip(df3)
 
         # Less token spans than tokens, 1 split with padding
-        ts4 = TokenSpanArray(toks, [0, 2, 3], [2, 3, 4])
+        ts4 = TokenSpanArray.create(toks, [0, 2, 3], [2, 3, 4])
         df4 = pd.DataFrame({"ts4": ts4})
         self.do_roundtrip(df4)
 
@@ -522,12 +522,13 @@ class TestPandasConstructors(base.BaseConstructorsTests):
         pass
 
     def test_construct_empty_dataframe(self, dtype):
-        try:
-            with pytest.raises(TypeError, match="Expected SpanArray as tokens"):
-                super().test_construct_empty_dataframe(dtype)
-        except AttributeError:
-            # Test added in Pandas 1.1.0, ignore for earlier versions
-            pass
+        super().test_construct_empty_dataframe(dtype)
+        # try:
+        #     with pytest.raises(TypeError, match="Expected SpanArray as tokens"):
+        #         super().test_construct_empty_dataframe(dtype)
+        # except AttributeError:
+        #     # Test added in Pandas 1.1.0, ignore for earlier versions
+        #     pass
 
 
 class TestPandasGetitem(base.BaseGetitemTests):
@@ -626,17 +627,11 @@ class TestPandasMethods(base.BaseMethodsTests):
             pytest.skip("TypeError: equals() not defined for arguments of type <class 'NoneType'>")
 
     def test_factorize_empty(self, data):
-        with pytest.raises(TypeError, match="Expected SpanArray"):
-            super().test_factorize_empty(data)
+        super().test_factorize_empty(data)
 
     @pytest.mark.parametrize("repeats", [0, 1, 2, [1, 2, 3]])
     def test_repeat(self, data, repeats, as_series, use_numpy):
-        if repeats == 0:
-            # Leads to empty array, unsupported???
-            with pytest.raises(TypeError, match="Expected SpanArray"):
-                super().test_repeat(data, repeats, as_series, use_numpy)
-        else:
-            super().test_repeat(data, repeats, as_series, use_numpy)
+        super().test_repeat(data, repeats, as_series, use_numpy)
 
 
 class TestPandasCasting(base.BaseCastingTests):

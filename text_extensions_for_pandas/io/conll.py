@@ -411,10 +411,10 @@ def _doc_to_df(doc: List[_SentenceData],
 
         # Don't put spaces before punctuation in the reconstituted string.
         no_space_before_mask = (
-            np.zeros(len(tokens), dtype=np.bool) if space_before_punct
+            np.zeros(len(tokens), dtype=bool) if space_before_punct
             else _SPACE_BEFORE_MATCH_FN(tokens))
         no_space_after_mask = (
-            np.zeros(len(tokens), dtype=np.bool) if space_before_punct
+            np.zeros(len(tokens), dtype=bool) if space_before_punct
             else _SPACE_AFTER_MATCH_FN(tokens))
         no_space_before_mask[0] = True  # No space before first token
         no_space_after_mask[-1] = True  # No space after last token
@@ -455,10 +455,10 @@ def _doc_to_df(doc: List[_SentenceData],
     begins = np.concatenate(begins_list)
     ends = np.concatenate(ends_list)
     doc_text = "\n".join(sentences_list)
-    char_spans = SpanArray(doc_text, begins, ends)
-    sentence_spans = TokenSpanArray(char_spans,
-                                    np.concatenate(sentence_begins_list),
-                                    np.concatenate(sentence_ends_list))
+    char_spans = SpanArray.create(doc_text, begins, ends)
+    sentence_spans = TokenSpanArray.create(char_spans,
+                                           np.concatenate(sentence_begins_list),
+                                           np.concatenate(sentence_ends_list))
 
     ret = pd.DataFrame({"span": char_spans})
     for k, v in meta_lists.items():
@@ -580,7 +580,7 @@ def iob_to_spans(
     all_entities.sort_values("begin", inplace=True)
 
     # Convert [begin, end) pairs to spans
-    entity_spans_array = TokenSpanArray(
+    entity_spans_array = TokenSpanArray.create(
         token_features[span_col_name].values,
         all_entities["begin"].values,
         all_entities["end"].values,
@@ -608,7 +608,7 @@ def spans_to_iob(
 
     :param token_spans: An object that can be converted to a `TokenSpanArray` via
         `TokenSpanArray.make_array()`. Should contain `TokenSpan`s aligned with the
-        target tokenization.
+        target tokenization. All spans must be from the same docuemnt.
         Usually you create this array by calling `TokenSpanArray.align_to_tokens()`.
     :param span_ent_types: List of entity type strings corresponding to each of the
         elements of `token_spans`, or `None` to indicate null entity tags.
@@ -635,8 +635,18 @@ def spans_to_iob(
             "ent_type": pd.Series(dtype="string")
         })
 
+    # All code that follows assumes at least one input span. All spans should
+    # be from the same document; otherwise there isn't a meaningful IOB
+    # representation of the entities.
+    if not token_spans.is_single_tokenization:
+        raise ValueError(f"All input spans must be from the same tokenization of "
+                         f"the same document "
+                         f"(spans are {token_spans})")
+
+    tokens = token_spans.tokens[0]
+
     # Initialize an IOB series with all 'O' entities
-    iob_data = np.zeros_like(token_spans.tokens.begin, dtype=np.int64)
+    iob_data = np.zeros_like(tokens.begin, dtype=np.int64)
     iob_tags = pd.Categorical.from_codes(codes=iob_data, dtype=iob2_dtype)
 
     # Assign the begin tags
@@ -651,7 +661,7 @@ def spans_to_iob(
         iob_tags[begin:end] = "I"
 
     # Use a similar process to generate entity type tags
-    ent_types = np.full(len(token_spans.tokens), None, dtype=object)
+    ent_types = np.full(len(tokens), None, dtype=object)
     for ent_type, begin, end in zip(span_ent_types,
                                     token_spans.begin_token,
                                     token_spans.end_token):

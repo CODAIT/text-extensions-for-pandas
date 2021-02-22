@@ -81,7 +81,8 @@ def make_dataframe(records):
 
 def build_original_text(text_col, begins):
     # Attempt to build the original text by padding tokens with spaces
-    # NOTE: this will not be exactly original text because no newlines or other token separators
+    # NOTE: this will not be exactly original text because no newlines or other token
+    # separators
     text = ""
     for token, begin in zip(text_col, sorted(begins)):
         if len(text) < begin:
@@ -122,4 +123,4 @@ def make_char_span(location_col, text_col, original_text):
             text_col = pa.concat_arrays(text_col.iterchunks())
         original_text = build_original_text(text_col, begins)
 
-    return SpanArray(original_text, begins, ends)
+    return SpanArray.create(original_text, begins, ends)

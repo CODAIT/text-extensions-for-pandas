@@ -142,7 +142,7 @@ class JoinTest(TestBase):
         """
         # noinspection PyTypeChecker
         token_span_array = self._make_join_arg().array  # type: TokenSpanArray
-        span_array = SpanArray(_TEXT, token_span_array.begin, token_span_array.end)
+        span_array = SpanArray.create(_TEXT, token_span_array.begin, token_span_array.end)
         return pd.Series(span_array)
 
     @staticmethod
@@ -152,12 +152,12 @@ class JoinTest(TestBase):
         zero spans but *does* contain token and text information.
         """
         return pd.Series(
-            TokenSpanArray(_TOKENS_ARRAY, [], [])
+            TokenSpanArray.create(_TOKENS_ARRAY, [], [])
         )
 
     @staticmethod
     def _make_empty_series_span_array() -> pd.Series:
-        return pd.Series(SpanArray(_TEXT, [], []))
+        return pd.Series(SpanArray.create(_TEXT, [], []))
 
     def test_overlaps_join_left_spans_longer(self):
         result = overlap_join(self._make_join_arg(), _CAPS_WORD["match"])

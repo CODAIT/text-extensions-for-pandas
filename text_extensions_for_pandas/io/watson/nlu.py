@@ -397,7 +397,8 @@ def _make_entity_dataframes(entities: List,
         pdf_mentions = table_mentions.to_pandas()
         pdf_mentions["span"] = char_span
 
-        # Align index of parent entities DataFrame with flattened DataFrame and ffill values
+        # Align index of parent entities DataFrame with flattened DataFrame and ffill
+        # values
         mention_offsets = mention_arrays[0].offsets.to_numpy()
         pdf_parent = pdf.set_index(mention_offsets[:-1])
         pdf_parent = pdf_parent.reindex(pdf_mentions.index, method="ffill")
@@ -407,7 +408,8 @@ def _make_entity_dataframes(entities: List,
         pdf_mentions["type"] = pdf_parent["type"]
 
         # Remove "mentions" from column names
-        pdf_mentions.rename(columns={c: c.split("mentions.")[-1] for c in pdf_mentions.columns},
+        pdf_mentions.rename(columns={c: c.split("mentions.")[-1]
+                                     for c in pdf_mentions.columns},
                             inplace=True)
     else:
         pdf = table.to_pandas()
@@ -420,9 +422,9 @@ def parse_response(response: Dict[str, Any],
                    original_text: str = None,
                    apply_standard_schema: bool = False) -> Dict[str, pd.DataFrame]:
     """
-    Parse a Watson NLU response as a decoded JSON string, e.g. dictionary containing requested
-    features and convert into a dict of Pandas DataFrames. The following features in the response
-    will be converted:
+    Parse a Watson NLU response as a decoded JSON string, e.g. dictionary containing
+    requested features and convert into a dict of Pandas DataFrames. The following
+    features in the response will be converted:
         * entities
         * entity_mentions (elements of the "mentions" field of `response["entities"]`)
         * keywords
@@ -430,11 +432,12 @@ def parse_response(response: Dict[str, Any],
         * semantic_roles
         * syntax
 
-    For information on getting started with Watson Natural Language Understanding on IBM Cloud, see
+    For information on getting started with Watson Natural Language Understanding on
+    IBM Cloud, see
     https://cloud.ibm.com/docs/natural-language-understanding?topic=natural-language-understanding-getting-started.
     A Python SDK for authentication and making requests to the service is provided at
-    https://github.com/watson-developer-cloud/python-sdk.  Details on the supported features and
-    available options when making the request can be found at
+    https://github.com/watson-developer-cloud/python-sdk.  Details on the supported
+    features and available options when making the request can be found at
     https://cloud.ibm.com/apidocs/natural-language-understanding?code=python#analyze-text.
 
     .. note:: Additional feature data in response will not be processed
@@ -568,4 +571,4 @@ def make_span_from_entities(char_span: SpanArray,
         else:
             i += 1
 
-    return TokenSpanArray(char_span, begins, ends)
+    return TokenSpanArray.create(char_span, begins, ends)

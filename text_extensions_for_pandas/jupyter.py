@@ -24,6 +24,7 @@ The ``jupyter`` module contains functions to support the use of Text Extensions 
 #
 #
 #
+import textwrap
 
 import pandas as pd
 import numpy as np
@@ -70,24 +71,17 @@ def run_with_progress_bar(num_items: int, fn: Callable, item_type: str = "doc") 
     return result
 
 
-def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
-                      show_offsets: bool) -> str:
-    """
-    HTML pretty-printing of a series of spans for Jupyter notebooks.
-
-    Args:
-        column: Span column (either character or token spans)
-        show_offsets: True to generate a table of span offsets in addition
-         to the marked-up text
-    """
-
-    # Generate a dataframe of atomic types to pretty-print the spans
-    spans_html = column.as_frame().to_html()
+def _pretty_print_text(column: Union["SpanArray", "TokenSpanArray"]) -> List[str]:
+    # Subroutine of pretty_print_html() below.
+    # Should only be called for single-document span arrays.
+    if not column.is_single_document:
+        raise ValueError("Array contains spans from multiple documents. Can only "
+                         "render one document at a time.")
 
     # Build up a mask of which characters in the target text are within
     # at least one span.
-    text = column.target_text
-    mask = np.zeros(shape=(len(text)), dtype=np.bool)
+    text = column.document_text
+    mask = np.zeros(shape=(len(text)), dtype=bool)
     # TODO: Vectorize
     for e in column:
         mask[e.begin:e.end] = True
@@ -122,34 +116,59 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
             text_pieces.append("<span>&#36;</span>")
         else:
             text_pieces.append(text[i])
+    return text_pieces
+
+
+def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
+                      show_offsets: bool) -> str:
+    """
+    HTML pretty-printing of a series of spans for Jupyter notebooks.
+
+    Args:
+        column: Span column (either character or token spans).
+        show_offsets: True to generate a table of span offsets in addition
+         to the marked-up text
+    """
+    # Local import to prevent circular dependencies
+    from text_extensions_for_pandas.array.span import SpanArray
+    from text_extensions_for_pandas.array.token_span import TokenSpanArray
+    if not isinstance(column, (SpanArray, TokenSpanArray)):
+        raise TypeError(f"Expected SpanArray or TokenSpanArray, but received "
+                        f"{column} of type {type(column)}")
+
+    doc_divs = [
+        f"""
+                <div style="float:center; padding:10px">
+                    <p style="font-family:monospace">
+                        {"".join(_pretty_print_text(column_slice))}
+                    </p>
+                </div>
+        """
+        for column_slice in column.split_by_document()
+    ]
 
     # TODO: Use CSS here instead of embedding formatting into the
     #  generated HTML
+    _NEWLINE = "\n"
     if show_offsets:
-        return f"""
-        <div id="spanArray">
-            <div id="spans" 
-             style="background-color:#F0F0F0; border: 1px solid #E0E0E0; float:left; padding:10px;">
-                {spans_html}
-            </div>
-            <div id="text"
-             style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 60%;">
-                <div style="float:center; padding:10px">
-                    <p style="font-family:monospace">
-                        {"".join(text_pieces)}
-                    </p>
-                </div>
-            </div>
-        </div>
-        """
-    else: # if not show_offsets
-        return f"""
-        <div id="text"
-         style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 100%;">
-            <div style="float:center; padding:10px">
-                <p style="font-family:monospace">
-                    {"".join(text_pieces)}
-                </p>
-            </div>
-        </div>
-        """
+        # Generate a dataframe of atomic types to pretty-print the spans
+        spans_html = column.as_frame().to_html()
+        return textwrap.dedent(f"""
+<div id="spanArray">
+    <div id="spans" 
+     style="background-color:#F0F0F0; border: 1px solid #E0E0E0; float:left; padding:10px;">
+        {spans_html}
+    </div>
+    <div id="text"
+     style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 60%;">
+{_NEWLINE.join(doc_divs)}
+    </div>
+</div>
+        """)
+    else:  # if not show_offsets
+        return textwrap.dedent(f"""
+<div id="text"
+ style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 100%;">
+{_NEWLINE.join(doc_divs)}
+</div>
+        """)
