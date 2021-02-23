@@ -422,9 +422,8 @@ class CoNLLTest(unittest.TestCase):
                 2    bus        0  [14, 21): 'walking'     5  False"""
             ),
         )
-        # Span column should have been converted to object dtype
-        # See issue #73.
-        self.assertEqual(str(combined_df["spans"].dtype), "object")
+        # Span column should NOT be of object dtype. See issue #73.
+        self.assertEqual(str(combined_df["spans"].dtype), "SpanDtype")
 
     def test_compute_accuracy(self):
         doc_dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt",

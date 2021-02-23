@@ -909,12 +909,7 @@ def _prep_for_stacking(fold_name: str, doc_num: int, df: pd.DataFrame) -> pd.Dat
         "doc_num": doc_num,
     }
     for colname in df.columns:
-        if isinstance(df[colname].dtype, SpanDtype):
-            # Convert to objects to allow mixing spans from different documents.
-            # TODO: Remove this conversion once issue 73 is complete
-            df_values[colname] = df[colname].astype(object)
-        else:
-            df_values[colname] = df[colname]
+        df_values[colname] = df[colname]
     return pd.DataFrame(df_values)
 
 
@@ -922,12 +917,6 @@ def combine_folds(fold_to_docs: Dict[str, List[pd.DataFrame]]):
     """
     Merge together multiple parts of a corpus (i.e. train, test, validation)
     into a single DataFrame of all tokens in the corpus.
-
-    **NOTE: Since `SpanArray` and `TokenSpanArray` currently only support spans
-    over one document at a time, this function converts columns of those types to
-    columns of type `Object` with `Span`/`TokenSpan` objects. See
-    [issue 73](https://github.com/CODAIT/text-extensions-for-pandas/issues/73)
-    for more information.**
 
     :param fold_to_docs: Mapping from fold name ("train", "test", etc.) to
      list of per-document DataFrames as produced by :func:`util.conll_to_bert`.
