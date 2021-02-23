@@ -794,6 +794,48 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         return np.array([t.document_text for t in self.tokens], dtype=object)
 
     @memoized_property
+    def document_text(self) -> Union[str, None]:
+        """
+        :return: if all spans in this array cover the same document, text of that
+         document. Unlike :meth:`target_text`, this property can have value even for a
+         zero-length array. Returns None if the Spans in this SpanArray cover more
+         than one document.
+        """
+        doc_tokens = self.document_tokens
+        if doc_tokens is None:
+            return None
+        else:
+            return doc_tokens.document_text
+
+    @memoized_property
+    def document_tokens(self) -> Union[SpanArray, None]:
+        """
+        :return: if all spans in this array cover the same tokenization of a single
+         document, tokens of that document. Unlike :meth:`tokens`, this property
+         can have a value even for a zero-length array. Returns None if the Spans in
+         this SpanArray cover more than one tokenization and/or more than one
+         document.
+        """
+        if not self.is_single_document:
+            return None
+        elif self._token_table.num_things == 0:
+            # Empty array with no target text metadata at all
+            return None
+        elif self._token_table.num_things == 1:
+            # Only one tokenization, so it must be over the document text.
+            return next(self._token_table.things)
+        elif len(self._token_ids) > 0:
+            # Token table has extra elements, but we have an index into that table.
+            return self._token_table.id_to_thing(self._token_ids[0])
+        else:
+            # Multiple elements in TokenTable and no spans. Usually this happens
+            # due to filtering and slicing operations.
+            # We consider the first element of the table to be the tokenized
+            # document text in this case.
+            return next(self._token_table.things)
+
+
+    @memoized_property
     def nulls_mask(self) -> np.ndarray:
         """
         :return: A boolean mask indicating which rows are nulls
@@ -999,7 +1041,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         # Superclass has its own list.
         return super()._cached_property_names() + [
             "nulls_mask", "have_nulls", "begin", "end", "target_text", "tokens",
-            "covered_text"
+            "covered_text", "document_tokens"
             ]
 
     def __arrow_array__(self, type=None):

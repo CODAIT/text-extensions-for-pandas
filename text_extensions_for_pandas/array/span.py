@@ -895,11 +895,11 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         """
         return self._string_table.ids_to_things(self._text_ids)
 
-    @property
+    @memoized_property
     def document_text(self) -> Union[str, None]:
         """
         :return: if all spans in this array cover the same document, text of that
-         document. Unless :meth:`target_text`, this property has a value even for a
+         document. Unlike :meth:`target_text`, this property has a value even for a
          zero-length array. Returns None if the Spans in this SpanArray cover more
          than one document.
         """
@@ -1149,7 +1149,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
          and invalidated when the set of spans change.
         """
         return ["_hash", "is_single_document", "target_text",
-                "normalized_covered_text"]
+                "normalized_covered_text", "document_text"]
 
     def _clear_cached_properties(self) -> None:
         """
