@@ -228,9 +228,8 @@ def merge_model_results(results: Dict[str, Dict[Tuple[str, int], pd.DataFrame]])
             else:
                 df = df.merge(joined_results, how="outer", 
                               on=["span", "ent_type", "gold"])           
-        # TokenSpanArrays from different documents can't currently be stacked,
-        # so convert to TokenSpan objects.
-        df["span"] = df["span"].astype(object)
+
+        df["span"] = df["span"]
         df = df.fillna(False)
         vectors = df[df.columns[3:]].values
         counts = np.count_nonzero(vectors, axis=1)
