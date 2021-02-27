@@ -32,14 +32,12 @@ from pandas.api.types import is_bool_dtype
 from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
 from pandas.core.indexers import check_array_indexer
 
-from text_extensions_for_pandas import util
 from text_extensions_for_pandas.array.span import (
     Span,
     SpanArray,
     SpanDtype,
     SpanOpMixin,
 )
-from text_extensions_for_pandas.array.thing_table import ThingTable
 # Internal imports
 from text_extensions_for_pandas.array.token_table import TokenTable
 from text_extensions_for_pandas.util import to_int_array
@@ -85,7 +83,7 @@ class TokenSpanOpMixin(SpanOpMixin):
                 isinstance(other, (TokenSpan, TokenSpanArray)):
             # TokenSpanArray + TokenSpan* = TokenSpanArray
             _check_same_tokens(self, other)
-            return TokenSpanArray.create(
+            return TokenSpanArray(
                 self.tokens,
                 np.minimum(self.begin_token, other.begin_token),
                 np.maximum(self.end_token, other.end_token))
@@ -219,7 +217,7 @@ class TokenSpan(Span, TokenSpanOpMixin):
         return self._end_token
 
 
-_EMPTY_SPAN_ARRAY_SINGLETON = SpanArray.create("", [], [])
+_EMPTY_SPAN_ARRAY_SINGLETON = SpanArray("", [], [])
 
 _NULL_TOKEN_SPAN_SINGLETON = TokenSpan(_EMPTY_SPAN_ARRAY_SINGLETON,
                                        Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE)
@@ -267,10 +265,11 @@ class TokenSpanDtype(SpanDtype):
         return arrow_to_token_span(extension_array)
 
 
+_NOT_A_DOCUMENT_TEXT = "This string is not the text of a document."
 _EMPTY_INT_ARRAY = np.zeros(0, dtype=int)
 
 # Singleton instance of the SpanArray value that corresponds to NA for tokens
-# NULL_TOKENS_VALUE = SpanArray.create("", [], [])
+# NULL_TOKENS_VALUE = SpanArray("", [], [])
 
 
 class TokenSpanArray(SpanArray, TokenSpanOpMixin):
@@ -296,22 +295,22 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
     * `self._end_tokens`: Numpy array of end offsets (1 + last token in span).
     """
 
-    @classmethod
-    def create(cls, tokens: Union[SpanArray, Sequence[SpanArray]],
-               begin_tokens: Union[pd.Series, np.ndarray, Sequence[int]] = None,
-               end_tokens: Union[pd.Series, np.ndarray, Sequence[int]] = None):
-        """
-        Factory method for creating instances of this class.
+    def __init__(self, tokens: Union[SpanArray, Sequence[SpanArray]],
+                 begin_tokens: Union[pd.Series, np.ndarray, Sequence[int]] = None,
+                 end_tokens: Union[pd.Series, np.ndarray, Sequence[int]] = None):
 
+        """
         :param tokens: Character-level span information about the underlying
         tokens. Can be a single set of tokens, covering all spans, or a separate
         `SpanArray` pointer for every span.
 
         :param begin_tokens: Array of begin offsets measured in tokens
         :param end_tokens: Array of end offsets measured in tokens
-
-        :return: A new `TokenSpanArray` object
         """
+        # Superclass constructor expects values for things that the subclass doesn't
+        # use.
+        super().__init__(_NOT_A_DOCUMENT_TEXT, _EMPTY_INT_ARRAY, _EMPTY_INT_ARRAY)
+
         if not isinstance(begin_tokens, (pd.Series, np.ndarray, list)):
             raise TypeError(f"begin_tokens is of unsupported type {type(begin_tokens)}. "
                             f"Supported types are Series, ndarray and List[int].")
@@ -322,40 +321,40 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         if isinstance(tokens, SpanArray):
             if not tokens.is_single_document:
                 raise ValueError(f"Token spans come from more than one document.")
-            token_table = TokenTable.create_single(tokens)  # type: ThingTable
-            token_ids = np.zeros_like(begin_tokens)  # type: np.ndarray
-        elif isinstance(tokens, (collections.abc.Sequence, np.ndarray)):
+            # Can't just pass a SpanArray to np.full() or np.array(), because Numpy will
+            # interpret it as an array-like of Span values.
+            tokens_array = np.empty(len(begin_tokens), dtype=object)
+            for i in range(len(begin_tokens)):
+                tokens_array[i] = tokens
+            tokens = tokens_array
+        elif isinstance(tokens, collections.abc.Sequence):
             if len(tokens) != len(begin_tokens):
                 raise ValueError(f"Received {len(tokens)} arrays of tokens and "
                                  f"{len(begin_tokens)} begin offsets. "
                                  f"Lengths should be equal.")
-
-            token_table, token_ids = TokenTable.merge_things(tokens)
+            # Can't just pass a SpanArray to np.array(), because Numpy will interpret it
+            # as an array-like of Span values.
+            tokens_array = np.empty(len(begin_tokens), dtype=object)
+            for i in range(len(begin_tokens)):
+                tokens_array[i] = tokens[i]
+            tokens = tokens_array
+        elif isinstance(tokens, np.ndarray):
+            if len(tokens) != len(begin_tokens):
+                raise ValueError(f"Received {len(tokens)} arrays of tokens and "
+                                 f"{len(begin_tokens)} begin offsets. "
+                                 f"Lengths should be equal.")
+            if (len(tokens) > 0
+                    and tokens[0] is not None
+                    and not isinstance(tokens[0], SpanArray)):
+                raise TypeError(f"Tokens object for row 0 is of unexpected type "
+                                f"{type(tokens[0])}. Type should be SpanArray.")
         else:
             raise TypeError(f"Expected SpanArray or list of SpanArray as tokens "
                             f"but got {type(tokens)}")
 
-        return cls._construct(token_table, token_ids, to_int_array(begin_tokens),
-                              to_int_array(end_tokens))
-
-    @classmethod
-    def _construct(cls, token_table, token_ids, begin_tokens, end_tokens) \
-            -> "TokenSpanArray":
-        """
-        Internal method to populate all the mandatory fields of a TokenSpanArray
-        directly. Broken out as a separate method mostly to ensure that, if we
-        add a new field, that field is populated in every factory method.
-        """
-        token_ids = util.to_int_array(token_ids)
-        if len(token_ids.shape) != 1:
-            raise ValueError(f"Invalid shape {token_ids.shape} for token IDs")
-
-        ret = cls()
-        ret._token_table = token_table
-        ret._token_ids = token_ids
-        ret._begin_tokens = to_int_array(begin_tokens)
-        ret._end_tokens = to_int_array(end_tokens)
-        return ret
+        self._tokens = tokens
+        self._begin_tokens = to_int_array(begin_tokens)
+        self._end_tokens = to_int_array(end_tokens)
 
     @staticmethod
     def from_char_offsets(tokens: Any) -> "TokenSpanArray":
@@ -371,21 +370,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         """
         begin_tokens = np.arange(len(tokens))
         tokens_array = SpanArray.make_array(tokens)
-        return TokenSpanArray.create(tokens_array, begin_tokens, begin_tokens + 1)
-
-    def __init__(self):
-        """
-        Constructor for internal use. Creates an empty array with a target text of `None`.
-
-        Most user code should use the factory method :func:`create_array` to
-        instantiate this class.
-        """
-        super().__init__()
-        self._token_table = None  # type: Union[ThingTable, None]
-        self._token_ids = _EMPTY_INT_ARRAY  # type: np.ndarray
-        self._begin_tokens = _EMPTY_INT_ARRAY  # Type: np.ndarray
-        self._end_tokens = _EMPTY_INT_ARRAY  # Type: np.ndarray
-        self._token_objs = None  # type: Union[np.ndarray, None]
+        return TokenSpanArray(tokens_array, begin_tokens, begin_tokens + 1)
 
     ##########################################
     # Overrides of superclass methods go here.
@@ -417,8 +402,9 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
+        table, _ = TokenTable.merge_things(self.tokens)
         return (self._begin_tokens.nbytes + self._end_tokens.nbytes +
-                self._token_table.nbytes())
+                table.nbytes())
 
     def __len__(self) -> int:
         return len(self._begin_tokens)
@@ -436,7 +422,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         else:
             # item not an int --> assume it's a numpy-compatible index
             item = check_array_indexer(self, item)
-            return TokenSpanArray.create(
+            return TokenSpanArray(
                 self.tokens[item], self.begin_token[item], self.end_token[item]
             )
 
@@ -445,6 +431,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
+
         key = check_array_indexer(self, key)
         if isinstance(value, ABCSeries) and isinstance(value.dtype, SpanDtype):
             value = value.values
@@ -454,14 +441,22 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
             self._end_tokens[key] = TokenSpan.NULL_OFFSET_VALUE
         elif isinstance(value, TokenSpan):
             # Single input span --> one or more target positions
-            self._token_ids[key] = self._token_table.maybe_add_thing(value.tokens)
             self._begin_tokens[key] = value.begin_token
             self._end_tokens[key] = value.end_token
+
+            # We'd like to do self._tokens[key] = value.tokens, but NumPy interprets
+            # value.tokens as an array and gets very confused if you try that.
+            mask = np.full(len(self._tokens), False, dtype=bool)
+            mask[key] = True
+            for i in range(len(self._tokens)):
+                if mask[i]:
+                    self._tokens[i] = value.tokens
+
         elif ((isinstance(key, slice) or
               (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype)))
               and isinstance(value, TokenSpanArray)):
             # x spans -> x target positions
-            self._token_ids[key] = self._token_table.maybe_add_things(value.tokens)
+            self._tokens[key] = value.tokens
             self._begin_tokens[key] = value.begin_token
             self._end_tokens[key] = value.end_token
         elif (isinstance(key, np.ndarray) and len(value) > 0 and len(value) == len(key)
@@ -489,25 +484,11 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
 
         :return: Returns a boolean mask indicating which rows match `other`.
         """
-        def same_tokens_as_single_span(s: TokenSpan):
-            s_id = self._token_table.thing_to_id(s.tokens)
-            if s_id == ThingTable.NOT_AN_ID:
-                return False
-            elif np.any(s_id != self._token_ids):
-                return False
-            else:
-                return True
-
         if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
-        if isinstance(other, TokenSpan) and same_tokens_as_single_span(other):
-            mask = np.full(len(self), True, dtype=bool)
-            mask[self.begin_token != other.begin_token] = False
-            mask[self.end_token != other.end_token] = False
-            return mask
         elif (isinstance(other, TokenSpanArray) and len(self) == len(other)
-              and np.all(self.tokens == other.tokens)):
+              and self.same_tokens(other)):
             return np.logical_and(
                 self.begin_token == other.begin_token, self.end_token == other.end_token
             )
@@ -557,14 +538,11 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
                 raise TypeError(f"Tried to concatenate {type(c)} to TokenSpanArray")
             arrays_to_concat.append(c)
 
+        tokens = np.concatenate([a.tokens for a in arrays_to_concat])
         begin_tokens = np.concatenate([a.begin_token for a in arrays_to_concat])
         end_tokens = np.concatenate([a.end_token for a in arrays_to_concat])
-        token_table, token_ids_lists = TokenTable.merge_tables_and_ids(
-            [a._token_table for a in arrays_to_concat],
-            [a._token_ids for a in arrays_to_concat]
-        )
-        token_ids = np.concatenate(token_ids_lists)
-        return cls._construct(token_table, token_ids, begin_tokens, end_tokens)
+
+        return cls(tokens, begin_tokens, end_tokens)
 
     @classmethod
     def _from_factorized(cls, values, original):
@@ -575,10 +553,15 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         # Because we don't currently override the factorize() class method, the
         # "values" input to _from_factorized is a ndarray of TokenSpan objects.
         # TODO: Faster implementation of factorize/_from_factorized
-        token_table, token_ids = TokenTable.merge_things([v.tokens for v in values])
+        # Can't pass SpanArrays to np.array() because SpanArrays are array-like.
         begin_tokens = np.array([v.begin_token for v in values], dtype=np.int32)
         end_tokens = np.array([v.end_token for v in values], dtype=np.int32)
-        return cls._construct(token_table, token_ids, begin_tokens, end_tokens)
+        tokens = np.empty(len(begin_tokens), dtype=object)
+        i = 0
+        for v in values:
+            tokens[i] = v.tokens
+            i += 1
+        return cls(tokens, begin_tokens, end_tokens)
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
@@ -588,13 +571,11 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         """
         if isinstance(scalars, TokenSpan):
             scalars = [scalars]
-        if isinstance(scalars, TokenSpanArray):
-            tokens = scalars.tokens
 
         # noinspection PyTypeChecker
-        tokens = np.full(len(scalars), None, object)
-        begin_tokens = np.full(len(scalars), TokenSpan.NULL_OFFSET_VALUE, np.int32)
-        end_tokens = np.full(len(scalars), TokenSpan.NULL_OFFSET_VALUE, np.int32)
+        tokens = np.empty(len(scalars), object)
+        begin_tokens = np.empty(len(scalars), np.int32)
+        end_tokens = np.empty(len(scalars), np.int32)
 
         i = 0
         for s in scalars:
@@ -612,7 +593,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
             begin_tokens[i] = s.begin_token
             end_tokens[i] = s.end_token
             i += 1
-        return TokenSpanArray.create(tokens, begin_tokens, end_tokens)
+        return TokenSpanArray(tokens, begin_tokens, end_tokens)
 
     def isna(self) -> np.array:
         """
@@ -626,7 +607,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        ret = TokenSpanArray.create(
+        ret = TokenSpanArray(
             self.tokens, self.begin_token.copy(), self.end_token.copy()
         )
         # TODO: Copy cached properties
@@ -654,11 +635,11 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
 
         # Pandas' internal implementation of take() does most of the heavy
         # lifting.
-        token_ids = pd.api.extensions.take(
-            self._token_ids,
+        tokens = pd.api.extensions.take(
+            self.tokens,
             indices,
             allow_fill=allow_fill,
-            fill_value=self._token_table.maybe_add_thing(fill_value.tokens),
+            fill_value=fill_value.tokens,
         )
         begin_tokens = pd.api.extensions.take(
             self.begin_token,
@@ -673,9 +654,8 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
             fill_value=fill_value.end_token,
         )
 
-        return TokenSpanArray._construct(
-            self._token_table,  # Note: Shallow copy
-            token_ids,
+        return TokenSpanArray(
+            tokens,
             begin_tokens,
             end_tokens
         )
@@ -772,17 +752,17 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
             on="span_index", suffixes=("_begin", "_end"),
             sort=True)
 
-        return TokenSpanArray.create(tokens,
-                                     begins_and_ends["token_index_begin"],
-                                     begins_and_ends["token_index_end"] + 1)
+        return TokenSpanArray(tokens,
+                              begins_and_ends["token_index_begin"],
+                              begins_and_ends["token_index_end"] + 1)
 
-    @memoized_property
+    @property
     def tokens(self) -> np.ndarray:
         """
         :return: The tokens over which each TokenSpan in this array are defined as
          an ndarray of object.
         """
-        return self._token_table.ids_to_things(self._token_ids)
+        return self._tokens
 
     @memoized_property
     def target_text(self) -> np.ndarray:
@@ -797,9 +777,8 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
     def document_text(self) -> Union[str, None]:
         """
         :return: if all spans in this array cover the same document, text of that
-         document. Unlike :meth:`target_text`, this property can have value even for a
-         zero-length array. Returns None if the Spans in this SpanArray cover more
-         than one document.
+         document. Returns None if the array is empty or if the Spans in this array
+          cover more than one document.
         """
         doc_tokens = self.document_tokens
         if doc_tokens is None:
@@ -811,29 +790,17 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
     def document_tokens(self) -> Union[SpanArray, None]:
         """
         :return: if all spans in this array cover the same tokenization of a single
-         document, tokens of that document. Unlike :meth:`tokens`, this property
-         can have a value even for a zero-length array. Returns None if the Spans in
-         this SpanArray cover more than one tokenization and/or more than one
+         document, tokens of that document.
+         Returns None if there are no Spans in this array or if the Spans in
+         this array cover more than one tokenization and/or more than one
          document.
         """
-        if not self.is_single_document:
+        if len(self.tokens) == 0:
             return None
-        elif self._token_table.num_things == 0:
-            # Empty array with no target text metadata at all
+        elif not self.is_single_document:
             return None
-        elif self._token_table.num_things == 1:
-            # Only one tokenization, so it must be over the document text.
-            return next(self._token_table.things)
-        elif len(self._token_ids) > 0:
-            # Token table has extra elements, but we have an index into that table.
-            return self._token_table.id_to_thing(self._token_ids[0])
         else:
-            # Multiple elements in TokenTable and no spans. Usually this happens
-            # due to filtering and slicing operations.
-            # We consider the first element of the table to be the tokenized
-            # document text in this case.
-            return next(self._token_table.things)
-
+            return self.tokens[0]
 
     @memoized_property
     def nulls_mask(self) -> np.ndarray:
@@ -906,7 +873,6 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         Override parent class's version of this function to also clear out data cached
         in the subclass.
         """
-        self._token_objs = None
         super().increment_version()
 
     @memoized_property
@@ -965,18 +931,22 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
             Two spans with target text of None are considered to have the same
             target text.
         """
-        if isinstance(other, TokenSpan):
-            other_token_id = self._token_table.thing_to_id(other.tokens)
-            return self._token_ids == other_token_id
-        elif isinstance(other, TokenSpanArray):
-            merged_table, remapped_token_ids = TokenTable.merge_tables_and_ids(
-                [self._token_table, other._token_table],
-                [self._token_ids, other._token_ids]
-            )
-            return remapped_token_ids[0] == remapped_token_ids[1]
-        else:
+        if not isinstance(other, (TokenSpan, TokenSpanArray)):
             raise TypeError(f"same_tokens not defined for input type "
                             f"{type(other)}")
+
+        if self.is_single_tokenization:
+            # Fast path for common case of one set of tokens
+            other_tokens = (other.tokens if isinstance(other, TokenSpan)
+                            else other.document_tokens)
+            return self.document_tokens.equals(other_tokens)
+
+        # Slow path: Compare each element.
+        if isinstance(other, TokenSpan):
+            return np.array([t.equals(other.tokens) for t in self.tokens], dtype=bool)
+        else:  # isinstance(other, TokenSpanArray)
+            return np.array([self.tokens[i].equals(other.tokens[i])
+                             for i in range(len(self.tokens))], dtype=bool)
 
     @memoized_property
     def is_single_document(self) -> bool:
@@ -987,8 +957,6 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         if len(self) == 0:
             # If there are zero spans, we consider there to be one document with the
             # document text being whatever is the document text for our tokens.
-            return True
-        elif self._token_table.num_things == 1:
             return True
         else:
             # More than one tokenization and at least one span. Check whether
@@ -1006,12 +974,13 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         # behavior.
         # TODO: Consider a more in-depth comparison to capture mixtures of different
         #  tokenizations of the same document.
-        slices = []
-        for tokens_id in self._token_table.ids:
-            mask = self._token_ids == tokens_id
+        token_table, token_ids = TokenTable.merge_things(self.tokens)
+        result = []
+        for tokens_id in token_table.ids:
+            mask = token_ids == tokens_id
             if np.any(mask):
-                slices.append(self[mask])
-        return slices
+                result.append(self[mask])
+        return result
 
     @memoized_property
     def is_single_tokenization(self) -> bool:
@@ -1023,12 +992,12 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
             # If there are zero spans, we consider there to be one document with the
             # document text being whatever is the first element of the StringTable.
             return True
-        elif self._token_table.num_things == 1:
-            return True
         else:
-            # More than one set of tokens and at least one span. Check whether
-            # every span has the same tokenization.
-            return not np.any(self._token_ids[0] != self._token_ids)
+            first_t = self.tokens[0]
+            for t in self.tokens:
+                if not t.equals(first_t):
+                    return False
+            return True
 
     ##########################################
     # Keep private and protected methods here.
@@ -1040,7 +1009,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         """
         # Superclass has its own list.
         return super()._cached_property_names() + [
-            "nulls_mask", "have_nulls", "begin", "end", "target_text", "tokens",
+            "nulls_mask", "have_nulls", "begin", "end", "target_text",
             "covered_text", "document_tokens"
             ]
 

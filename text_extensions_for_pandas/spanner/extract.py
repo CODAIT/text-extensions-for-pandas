@@ -153,7 +153,7 @@ def extract_dict(tokens: Union[SpanArray, pd.Series],
     begins = np.concatenate(begins_list)
     ends = np.concatenate(ends_list)
     result = pd.DataFrame({output_col_name:
-                           TokenSpanArray.create(tokens.values, begins, ends)})
+                           TokenSpanArray(tokens.values, begins, ends)})
     # Results are sorted by number of tokens; sort by location instead.
     result["__begin"] = result[output_col_name].values.begin
     return result.sort_values("__begin")[[output_col_name]]
@@ -200,7 +200,7 @@ def extract_regex_tok(
         window_begin_toks = np.arange(0, num_tokens - cur_len + 1)
         window_end_toks = window_begin_toks + cur_len
 
-        window_tok_spans = TokenSpanArray.create(tokens, window_begin_toks,
+        window_tok_spans = TokenSpanArray(tokens, window_begin_toks,
                                                  window_end_toks)
         matches_list.append(pd.Series(
             window_tok_spans[matches_regex_f(window_tok_spans.covered_text)]

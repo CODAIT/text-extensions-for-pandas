@@ -571,4 +571,4 @@ def make_span_from_entities(char_span: SpanArray,
         else:
             i += 1
 
-    return TokenSpanArray.create(char_span, begins, ends)
+    return TokenSpanArray(char_span, begins, ends)

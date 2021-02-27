@@ -403,8 +403,8 @@ class CoNLLTest(unittest.TestCase):
             "Everywhere is walking distance if you have the time.",
         ]
         arrays = [
-            SpanArray.create(texts[0], [7, 20], [12, 23]),
-            SpanArray.create(texts[1], [14], [21]),
+            SpanArray(texts[0], [7, 20], [12, 23]),
+            SpanArray(texts[1], [14], [21]),
         ]
         folds = {
             "train": [pd.DataFrame({"spans": arrays[0], "foos": [1, 2], "bars": True})],

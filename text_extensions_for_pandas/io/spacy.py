@@ -48,7 +48,7 @@ def make_tokens(target_text: str, tokenizer) -> pd.Series:
     spacy_doc = tokenizer(target_text)
     tok_begins = np.array([t.idx for t in spacy_doc])
     tok_ends = np.array([t.idx + len(t) for t in spacy_doc])
-    return pd.Series(SpanArray.create(target_text, tok_begins, tok_ends))
+    return pd.Series(SpanArray(target_text, tok_begins, tok_ends))
 
 
 def make_tokens_and_features(
@@ -75,7 +75,7 @@ def make_tokens_and_features(
     # Represent the character spans of the tokens
     tok_begins = np.array([t.idx for t in spacy_doc])
     tok_ends = np.array([t.idx + len(t) for t in spacy_doc])
-    tokens_array = SpanArray.create(target_text, tok_begins, tok_ends)
+    tokens_array = SpanArray(target_text, tok_begins, tok_ends)
     tokens_series = pd.Series(tokens_array)
     # Also build single-token token-based spans to make it easier to build
     # larger token-based spans.
@@ -134,7 +134,7 @@ def _make_sentences_series(spacy_doc, tokens: SpanArray):
     for sent in spacy_doc.sents:
         begin_tokens[sent.start : sent.end] = sent.start
         end_tokens[sent.start : sent.end] = sent.end
-    return pd.Series(TokenSpanArray.create(tokens, begin_tokens, end_tokens))
+    return pd.Series(TokenSpanArray(tokens, begin_tokens, end_tokens))
 
 
 def token_features_to_tree(

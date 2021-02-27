@@ -181,7 +181,7 @@ class ArrayTestBase(TestBase):
         :return: An example SpanArray containing the tokens of the string
           "This is a test.", not including the period at the end.
         """
-        return SpanArray.create(
+        return SpanArray(
             "This is a test.", np.array([0, 5, 8, 10]), np.array([4, 7, 9, 14])
         )
 
@@ -192,10 +192,10 @@ class CharSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(arr.covered_text, ["This", "is", "a", "test"])
 
         with self.assertRaises(TypeError):
-            SpanArray.create("", "Not a valid begins list", [42])
+            SpanArray("", "Not a valid begins list", [42])
 
     def test_dtype(self):
-        arr = SpanArray.create("", np.array([0], ), np.array([0]))
+        arr = SpanArray("", np.array([0], ), np.array([0]))
         self.assertTrue(isinstance(arr.dtype, SpanDtype))
 
     def test_len(self):
@@ -226,7 +226,7 @@ class CharSpanArrayTest(ArrayTestBase):
         self.assertTrue(arr2.equals(arr))
 
         # Different target text ==> not equal
-        arr3 = SpanArray.create("This is a different string.", arr2.begin, arr2.end)
+        arr3 = SpanArray("This is a different string.", arr2.begin, arr2.end)
         self.assertFalse(arr.equals(arr3))
         self.assertFalse(arr3.equals(arr2))
 
@@ -287,12 +287,12 @@ class CharSpanArrayTest(ArrayTestBase):
         )
 
     def test_less_than(self):
-        arr1 = SpanArray.create(
+        arr1 = SpanArray(
             "This is a test.", np.array([0, 5, 8, 10]), np.array([4, 7, 9, 14])
         )
         s1 = Span(arr1[0].target_text, 0, 1)
         s2 = Span("This is a test.", 11, 14)
-        arr2 = SpanArray.create(arr1[0].target_text, [0, 3, 10, 7], [0, 4, 12, 9])
+        arr2 = SpanArray(arr1[0].target_text, [0, 3, 10, 7], [0, 4, 12, 9])
 
         self._assertArrayEquals(s1 < arr1, [False, True, True, True])
         self._assertArrayEquals(s2 > arr1, [True, True, True, False])
@@ -309,7 +309,7 @@ class CharSpanArrayTest(ArrayTestBase):
             arr._reduce("min")
 
     def test_as_tuples(self):
-        arr = SpanArray.create(
+        arr = SpanArray(
             "This is a test.", np.array([0, 5, 8, 10]), np.array([4, 7, 9, 14])
         )
         self._assertArrayEquals(arr.as_tuples(), [[0, 4], [5, 7], [8, 9], [10, 14]])

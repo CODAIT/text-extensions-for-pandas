@@ -102,7 +102,7 @@ def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
     ends = offset_df["end"].fillna(method="ffill").astype("int32")
     begins = offset_df["begin"].mask(special_tokens_mask, other=ends).astype("int32")
 
-    spans = SpanArray.create(target_text, begins, ends)
+    spans = SpanArray(target_text, begins, ends)
 
     token_features = pd.DataFrame(
         {

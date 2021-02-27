@@ -54,7 +54,7 @@ class TokenSpanTest(ArrayTestBase):
         s1 = TokenSpan(toks, 0, 2)
         self.assertEqual(repr(s1), "[0, 7): 'This is'")
 
-        toks2 = SpanArray.create(
+        toks2 = SpanArray(
             "This is a really really really really really really really really "
             "really long string.",
             np.array([0, 5, 8, 10, 17, 24, 31, 38, 45, 52, 59, 66, 73, 78, 84]),
@@ -148,7 +148,7 @@ class TokenSpanTest(ArrayTestBase):
 class TokenSpanArrayTest(ArrayTestBase):
     def _make_spans(self):
         toks = self._make_spans_of_tokens()
-        return TokenSpanArray.create(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
+        return TokenSpanArray(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
 
     def test_create(self):
         arr = self._make_spans()
@@ -158,7 +158,7 @@ class TokenSpanArrayTest(ArrayTestBase):
         )
 
         with self.assertRaises(TypeError):
-            TokenSpanArray.create(self._make_spans_of_tokens(),
+            TokenSpanArray(self._make_spans_of_tokens(),
                                   "Not a valid begins list", [42])
 
     def test_dtype(self):
@@ -198,7 +198,7 @@ class TokenSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(arr == arr, [True] * 7)
         self._assertArrayEquals(arr == arr2, [True] * 7)
         self._assertArrayEquals(arr[0:3] == arr[3:6], [False, False, False])
-        arr3 = SpanArray.create(arr.target_text, arr.begin, arr.end)
+        arr3 = SpanArray(arr.target_text, arr.begin, arr.end)
         self._assertArrayEquals(arr == arr3, [True] * 7)
         self._assertArrayEquals(arr3 == arr, [True] * 7)
 
@@ -258,10 +258,10 @@ class TokenSpanArrayTest(ArrayTestBase):
 
     def test_less_than(self):
         tokens = self._make_spans_of_tokens()
-        arr1 = TokenSpanArray.create(tokens, [0, 2], [4, 3])
+        arr1 = TokenSpanArray(tokens, [0, 2], [4, 3])
         s1 = TokenSpan(tokens, 0, 1)
         s2 = TokenSpan(tokens, 3, 4)
-        arr2 = TokenSpanArray.create(tokens, [0, 3], [0, 4])
+        arr2 = TokenSpanArray(tokens, [0, 3], [0, 4])
 
         self._assertArrayEquals(s1 < arr1, [False, True])
         self._assertArrayEquals(s2 > arr1, [False, True])
@@ -379,22 +379,22 @@ class TokenSpanArrayIOTests(ArrayTestBase):
         toks = self._make_spans_of_tokens()
 
         # Equal token spans to tokens
-        ts1 = TokenSpanArray.create(toks, np.arange(len(toks)), np.arange(len(toks)) + 1)
+        ts1 = TokenSpanArray(toks, np.arange(len(toks)), np.arange(len(toks)) + 1)
         df1 = pd.DataFrame({"ts1": ts1})
         self.do_roundtrip(df1)
 
         # More token spans than tokens
-        ts2 = TokenSpanArray.create(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
+        ts2 = TokenSpanArray(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
         df2 = pd.DataFrame({"ts2": ts2})
         self.do_roundtrip(df2)
 
         # Less token spans than tokens, 2 splits no padding
-        ts3 = TokenSpanArray.create(toks, [0, 3], [3, 4])
+        ts3 = TokenSpanArray(toks, [0, 3], [3, 4])
         df3 = pd.DataFrame({"ts3": ts3})
         self.do_roundtrip(df3)
 
         # Less token spans than tokens, 1 split with padding
-        ts4 = TokenSpanArray.create(toks, [0, 2, 3], [2, 3, 4])
+        ts4 = TokenSpanArray(toks, [0, 2, 3], [2, 3, 4])
         df4 = pd.DataFrame({"ts4": ts4})
         self.do_roundtrip(df4)
 

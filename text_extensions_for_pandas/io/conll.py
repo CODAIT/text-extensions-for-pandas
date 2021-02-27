@@ -455,8 +455,8 @@ def _doc_to_df(doc: List[_SentenceData],
     begins = np.concatenate(begins_list)
     ends = np.concatenate(ends_list)
     doc_text = "\n".join(sentences_list)
-    char_spans = SpanArray.create(doc_text, begins, ends)
-    sentence_spans = TokenSpanArray.create(char_spans,
+    char_spans = SpanArray(doc_text, begins, ends)
+    sentence_spans = TokenSpanArray(char_spans,
                                            np.concatenate(sentence_begins_list),
                                            np.concatenate(sentence_ends_list))
 
@@ -580,7 +580,7 @@ def iob_to_spans(
     all_entities.sort_values("begin", inplace=True)
 
     # Convert [begin, end) pairs to spans
-    entity_spans_array = TokenSpanArray.create(
+    entity_spans_array = TokenSpanArray(
         token_features[span_col_name].values,
         all_entities["begin"].values,
         all_entities["end"].values,

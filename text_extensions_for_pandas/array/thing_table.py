@@ -104,7 +104,8 @@ class ThingTable(ABC):
 
     @classmethod
     def merge_tables_and_ids(cls, tables: Sequence["ThingTable"],
-                             int_ids: Sequence[np.ndarray]):
+                             int_ids: Sequence[np.ndarray]) \
+            -> Tuple["ThingTable", np.ndarray]:
         """
         Factory method for combining together multiple references to different
         ThingTables into references to a new, combined ThingTable of the same type.
