@@ -121,8 +121,8 @@ class TokenSpanTest(ArrayTestBase):
         s1 = TokenSpan(toks, 0, 3)
         s2 = TokenSpan(toks, 2, 3)
         s3 = TokenSpan(toks, 3, 4)
-        char_s1 = Span(s1.document_text, s1.begin, s1.end)
-        char_s2 = Span(s2.document_text, s2.begin, s2.end)
+        char_s1 = Span(s1.target_text, s1.begin, s1.end)
+        char_s2 = Span(s2.target_text, s2.begin, s2.end)
 
         self.assertEqual(s1 + s2, s1)
         self.assertEqual(char_s1 + s2, char_s1)

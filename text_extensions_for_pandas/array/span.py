@@ -206,10 +206,6 @@ class Span(SpanOpMixin):
     def target_text(self):
         return self._text
 
-    @property
-    def document_text(self):
-        return self.target_text
-
     @memoized_property
     def covered_text(self):
         """
@@ -431,10 +427,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
             # noinspection PyProtectedMember
             return dtype.construct_array_type()._from_sequence(self, copy=False)
         else:
-            na_value = Span(
-                self.document_text, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE
-            )
-            data = self.to_numpy(dtype=dtype, copy=copy, na_value=na_value)
+            data = self.to_numpy(dtype=dtype, copy=copy, na_value=_NULL_SPAN_SINGLETON)
         return data
 
     @property
@@ -479,10 +472,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
                 return False
             else:
                 # For other sequences, check for everything being Span or None
-                for elem in seq:
-                    if elem is not None and not isinstance(elem, Span):
-                        return False
-                return True
+                return all(elem is None or isinstance(elem, Span) for elem in seq)
 
         key = check_array_indexer(self, key)
         if isinstance(value, ABCSeries) and isinstance(value.dtype, SpanDtype):
@@ -853,13 +843,14 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
     def document_text(self) -> Union[str, None]:
         """
         :return: if all spans in this array cover the same document, text of that
-         document. Returns None if the array is emptoy or if teh Spans in this
+         document.
+         Raises a `ValueError` if the array is empty or if the Spans in this
           array cover more than one document.
         """
         if len(self._text_ids) == 0:
-            return None
+            raise ValueError("An empty array has no document text")
         if not self.is_single_document:
-            return None
+            raise ValueError("Spans in array cover more than one document")
         else:
             # Look up first text directly so we don't materialize the target_text
             # property when it's not needed.
@@ -868,13 +859,12 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
     @memoized_property
     def is_single_document(self) -> bool:
         """
-        :return: True if every span in this array is over the same target text
-         or if there are zero spans in this array.
+        :return: True if there is at least one span in the and every span is over the
+         same target text.
         """
         if len(self) == 0:
-            # If there are zero spans, we consider there to be one document with the
-            # document text being whatever is the first element of the StringTable.
-            return True
+            # If there are zero spans, then there are zero documents.
+            return False
         elif self._string_table.num_things == 1:
             return True
         else:

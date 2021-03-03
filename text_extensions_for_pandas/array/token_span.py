@@ -149,7 +149,14 @@ class TokenSpan(Span, TokenSpanOpMixin):
                 if begin_token == end_token
                 else tokens.end[end_token - 1]
             )
-        super().__init__(tokens.document_text, begin_char_off, end_char_off)
+        if len(tokens) == 0:
+            doc_text = None
+        elif not tokens.is_single_document:
+            raise ValueError("Tokens must be from exactly one document.")
+        else:
+            doc_text = tokens.document_text
+
+        super().__init__(doc_text, begin_char_off, end_char_off)
         self._tokens = tokens
         self._begin_token = begin_token
         self._end_token = end_token
@@ -771,34 +778,36 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
          the regions of these documents that the spans cover.
         """
         # Note that this property overrides the eponymous property in SpanArray
-        return np.array([t.document_text for t in self.tokens], dtype=object)
+        texts = [
+            None if self.nulls_mask[i]
+            else self.tokens[i].document_text
+            for i in range(len(self))
+        ]
+        return np.array(texts, dtype=object)
 
     @memoized_property
     def document_text(self) -> Union[str, None]:
         """
         :return: if all spans in this array cover the same document, text of that
-         document. Returns None if the array is empty or if the Spans in this array
-          cover more than one document.
+         document.
+         Raises a `ValueError` if the array is empty or if the Spans in this
+          array cover more than one document.
         """
-        doc_tokens = self.document_tokens
-        if doc_tokens is None:
-            return None
-        else:
-            return doc_tokens.document_text
+        # Checks for zero-length array and multiple docs are in document_tokens()
+        return self.document_tokens.document_text
 
     @memoized_property
     def document_tokens(self) -> Union[SpanArray, None]:
         """
         :return: if all spans in this array cover the same tokenization of a single
          document, tokens of that document.
-         Returns None if there are no Spans in this array or if the Spans in
-         this array cover more than one tokenization and/or more than one
-         document.
+         Raises a `ValueError` if the array is empty or if the Spans in this
+         array cover more than one document.
         """
         if len(self.tokens) == 0:
-            return None
+            raise ValueError("An empty array has no document tokens")
         elif not self.is_single_document:
-            return None
+            raise ValueError("Spans in array cover more than one document")
         else:
             return self.tokens[0]
 
@@ -881,16 +890,12 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         Returns an array of the substrings of `target_text` corresponding to
         the spans in this array.
         """
-        # TODO: Vectorized version of this
-        # Need dtype=np.object so we can return nulls
-        result = np.empty(len(self), dtype=object)
-        for i in range(len(self)):
-            if self._begin_tokens[i] == TokenSpan.NULL_OFFSET_VALUE:
-                # Null value at this index
-                result[i] = None
-            else:
-                result[i] = self.target_text[i][self.begin[i]:self.end[i]]
-        return result
+        texts = [
+            None if self.nulls_mask[i]
+            else self.target_text[i][self.begin[i]:self.end[i]]
+            for i in range(len(self))
+        ]
+        return np.array(texts, dtype=object)
 
     def as_frame(self) -> pd.DataFrame:
         """
