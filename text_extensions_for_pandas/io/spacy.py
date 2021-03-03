@@ -79,7 +79,7 @@ def make_tokens_and_features(
     tokens_series = pd.Series(tokens_array)
     # Also build single-token token-based spans to make it easier to build
     # larger token-based spans.
-    token_spans = TokenSpanArray.from_char_offsets(tokens_series.values)
+    token_spans = TokenSpanArray.from_char_offsets(tokens_series.array)
     # spaCy identifies tokens by semi-arbitrary integer "indexes" (in practice,
     # the offset of the first character in the token). Translate from these
     # to a dense range of integer IDs that will correspond to the index of our
@@ -129,8 +129,8 @@ def _make_sentences_series(spacy_doc, tokens: SpanArray):
     """
     num_toks = len(spacy_doc)
     # Generate the [begin, end) intervals that make up a series of spans
-    begin_tokens = np.full(shape=num_toks, fill_value=-1, dtype=np.int)
-    end_tokens = np.full(shape=num_toks, fill_value=-1, dtype=np.int)
+    begin_tokens = np.full(shape=num_toks, fill_value=-1, dtype=np.int32)
+    end_tokens = np.full(shape=num_toks, fill_value=-1, dtype=np.int32)
     for sent in spacy_doc.sents:
         begin_tokens[sent.start : sent.end] = sent.start
         end_tokens[sent.start : sent.end] = sent.end

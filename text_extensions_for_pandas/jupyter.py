@@ -24,6 +24,7 @@ The ``jupyter`` module contains functions to support the use of Text Extensions 
 #
 #
 #
+import textwrap
 
 import pandas as pd
 import numpy as np
@@ -70,24 +71,46 @@ def run_with_progress_bar(num_items: int, fn: Callable, item_type: str = "doc") 
     return result
 
 
-def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
-                      show_offsets: bool) -> str:
-    """
-    HTML pretty-printing of a series of spans for Jupyter notebooks.
+#########################################################################################
+# HTML style constants
+# Eventually these should be replaced by a proper stylesheet.
 
-    Args:
-        column: Span column (either character or token spans)
-        show_offsets: True to generate a table of span offsets in addition
-         to the marked-up text
-    """
+# Background for boxes containing span info and annotated doc
+_BG_COLOR = "color: var(--jp-layout-color2)"
 
-    # Generate a dataframe of atomic types to pretty-print the spans
-    spans_html = column.as_frame().to_html()
+# Border of boxes containing span info and annotated doc
+_BORDER_STYLE = "border: 1px solid var(--jp-border-color0)"
+
+# Background for highlighted span locations
+#
+# We ought to use the following combination:
+# _HL_COLOR = ("background-color:var(--jp-info-color2); "
+#              "color:var(--jp-content-font-color2)")
+# ...but currently the stylesheets for JupyterLab dark mode don't display text on
+# accent colors very well. So instead we mix orange-yellow into the current theme's
+# background color.
+_HL_COLOR = (
+    "background-color:rgba(255, 215, 0, 0.5)"
+)
+
+# Font of rendered document text
+_DOC_FONT = "font-family:var(--jp-code-font-family); font-size:var(--jp-code-font-size)"
+
+# END HTML style constants
+#########################################################################################
+
+
+def _pretty_print_text(column: Union["SpanArray", "TokenSpanArray"]) -> List[str]:
+    # Subroutine of pretty_print_html() below.
+    # Should only be called for single-document span arrays.
+    if not column.is_single_document:
+        raise ValueError("Array contains spans from multiple documents. Can only "
+                         "render one document at a time.")
 
     # Build up a mask of which characters in the target text are within
     # at least one span.
-    text = column.target_text
-    mask = np.zeros(shape=(len(text)), dtype=np.bool)
+    text = column.document_text
+    mask = np.zeros(shape=(len(text)), dtype=bool)
     # TODO: Vectorize
     for e in column:
         mask[e.begin:e.end] = True
@@ -98,7 +121,7 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
         if mask[i] and (i == 0 or not mask[i - 1]):
             # Starting a highlighted region
             text_pieces.append(
-                """<span style="background-color:yellow">""")
+                f"""<span style="{_HL_COLOR}">""")
         elif not (mask[i]) and i > 0 and mask[i - 1]:
             # End of a bold region
             text_pieces.append("</span>")
@@ -122,34 +145,61 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
             text_pieces.append("<span>&#36;</span>")
         else:
             text_pieces.append(text[i])
+    return text_pieces
 
-    # TODO: Use CSS here instead of embedding formatting into the
-    #  generated HTML
-    if show_offsets:
-        return f"""
-        <div id="spanArray">
-            <div id="spans" 
-             style="background-color:#F0F0F0; border: 1px solid #E0E0E0; float:left; padding:10px;">
-                {spans_html}
-            </div>
-            <div id="text"
-             style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 60%;">
+
+def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
+                      show_offsets: bool) -> str:
+    """
+    HTML pretty-printing of a series of spans for Jupyter notebooks.
+
+    Args:
+        column: Span column (either character or token spans).
+        show_offsets: True to generate a table of span offsets in addition
+         to the marked-up text
+    """
+    # Local import to prevent circular dependencies
+    from text_extensions_for_pandas.array.span import SpanArray
+    from text_extensions_for_pandas.array.token_span import TokenSpanArray
+    if not isinstance(column, (SpanArray, TokenSpanArray)):
+        raise TypeError(f"Expected SpanArray or TokenSpanArray, but received "
+                        f"{column} of type {type(column)}")
+
+
+
+    doc_divs = [
+        f"""
                 <div style="float:center; padding:10px">
-                    <p style="font-family:monospace">
-                        {"".join(text_pieces)}
+                    <p style="{_DOC_FONT}">
+                        {"".join(_pretty_print_text(column_slice))}
                     </p>
                 </div>
-            </div>
-        </div>
         """
-    else: # if not show_offsets
-        return f"""
-        <div id="text"
-         style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 100%;">
-            <div style="float:center; padding:10px">
-                <p style="font-family:monospace">
-                    {"".join(text_pieces)}
-                </p>
-            </div>
-        </div>
-        """
+        for column_slice in column.split_by_document()
+    ]
+
+    # TODO: Add a proper CSS stylesheet instead of embedding formatting into the
+    #  generated HTML
+    _NEWLINE = "\n"
+    if show_offsets:
+        # Generate a dataframe of atomic types to pretty-print the spans
+        spans_html = column.as_frame().to_html()
+        return textwrap.dedent(f"""
+<div id="spanArray">
+    <div id="spans" 
+     style="{_BG_COLOR}; {_BORDER_STYLE}; float:left; padding:10px;">
+        {spans_html}
+    </div>
+    <div id="text"
+     style="float:right; {_BORDER_STYLE}; width: 60%;">
+{_NEWLINE.join(doc_divs)}
+    </div>
+</div>
+        """)
+    else:  # if not show_offsets
+        return textwrap.dedent(f"""
+<div id="text"
+ style="float:right; {_BG_COLOR}; {_BORDER_STYLE}; width: 100%;">
+{_NEWLINE.join(doc_divs)}
+</div>
+        """)

@@ -13,17 +13,20 @@
 #  limitations under the License.
 #
 
-import pandas as pd
 import os
 import tempfile
 import unittest
 
-from pandas.tests.extension import base
 # noinspection PyPackageRequirements
 import pytest
+from pandas.tests.extension import base
+
+# import pytest fixtures
+# noinspection PyUnresolvedReferences
+from pandas.tests.extension.conftest import all_data, as_array, as_frame, as_series, \
+    box_in_series, data_repeated, fillna_method, groupby_apply_op, use_numpy
 
 from text_extensions_for_pandas.array.span import *
-
 from text_extensions_for_pandas.util import TestBase
 
 
@@ -212,6 +215,7 @@ class CharSpanArrayTest(ArrayTestBase):
         with self.assertRaises(ValueError):
             arr[0] = "Invalid argument for __setitem__()"
 
+    # noinspection PyTypeChecker
     def test_equals(self):
         arr = self._make_spans_of_tokens()
         self._assertArrayEquals(arr[0:4] == arr[1], [False, True, False, False])
@@ -219,20 +223,36 @@ class CharSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(arr == arr2, [True] * 4)
 
         self.assertTrue(arr.equals(arr2))
-        arr2._text = "This is a different string."
-        arr2.increment_version()
-        self.assertFalse(arr.equals(arr2))
-        arr2._text = arr.target_text
-        arr2.increment_version()
-        self.assertTrue(arr.equals(arr2))
         self.assertTrue(arr2.equals(arr))
-        arr[2] = arr[1]
-        self.assertFalse(arr.equals(arr2))
-        self.assertFalse(arr2.equals(arr))
-        arr[2] = arr2[2]
+
+        # Different target text ==> not equal
+        arr3 = SpanArray("This is a different string.", arr2.begin, arr2.end)
+        self.assertFalse(arr.equals(arr3))
+        self.assertFalse(arr3.equals(arr2))
+
+        # Increment version without changing ==> still equal
+        arr2.increment_version()
         self.assertTrue(arr.equals(arr2))
         self.assertTrue(arr2.equals(arr))
 
+        # Change begin and increment version ==> no longer equal
+        arr.begin[2] += 1
+        arr.increment_version()
+        self._assertArrayEquals(arr == arr2, [True, True, False, True])
+        self.assertFalse(arr.equals(arr2))
+
+        # Change individual cells ==> equality cache invalidated
+        arr[1] = arr[2]
+        self._assertArrayEquals(arr == arr2, [True, False, False, True])
+        self.assertFalse(arr.equals(arr2))
+        self.assertFalse(arr2.equals(arr))
+        arr[2] = arr2[2]
+        self._assertArrayEquals(arr == arr2, [True, False, True, True])
+        arr[1] = arr2[1]
+        self.assertTrue(arr.equals(arr2))
+        self.assertTrue(arr2.equals(arr))
+
+    # noinspection PyTypeChecker
     def test_not_equals(self):
         arr = self._make_spans_of_tokens()
         self._assertArrayEquals(arr[0:4] != arr[1], [True, False, True, True])
@@ -242,7 +262,7 @@ class CharSpanArrayTest(ArrayTestBase):
     def test_nulls(self):
         arr = self._make_spans_of_tokens()
         arr[2] = Span(
-            arr.target_text, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE
+            arr[0].target_text, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE
         )
         self.assertIsNone(arr.covered_text[2])
         self._assertArrayEquals(arr.covered_text, ["This", "is", None, "test"])
@@ -251,7 +271,7 @@ class CharSpanArrayTest(ArrayTestBase):
     def test_copy(self):
         arr = self._make_spans_of_tokens()
         arr2 = arr.copy()
-        arr[0] = Span(arr.target_text, 8, 9)
+        arr[0] = Span(arr[0].target_text, 8, 9)
         self._assertArrayEquals(arr2.covered_text, ["This", "is", "a", "test"])
         self._assertArrayEquals(arr.covered_text, ["a", "is", "a", "test"])
 
@@ -270,19 +290,20 @@ class CharSpanArrayTest(ArrayTestBase):
         arr1 = SpanArray(
             "This is a test.", np.array([0, 5, 8, 10]), np.array([4, 7, 9, 14])
         )
-        s1 = Span(arr1.target_text, 0, 1)
-        s2 = Span(arr1.target_text, 11, 14)
-        arr2 = SpanArray(arr1.target_text, [0, 3, 10, 7], [0, 4, 12, 9])
+        s1 = Span(arr1[0].target_text, 0, 1)
+        s2 = Span("This is a test.", 11, 14)
+        arr2 = SpanArray(arr1[0].target_text, [0, 3, 10, 7], [0, 4, 12, 9])
 
         self._assertArrayEquals(s1 < arr1, [False, True, True, True])
         self._assertArrayEquals(s2 > arr1, [True, True, True, False])
         self._assertArrayEquals(arr1 < s1, [False, False, False, False])
+        # noinspection PyTypeChecker
         self._assertArrayEquals(arr1 < arr2, [False, False, True, False])
 
     def test_reduce(self):
         arr = self._make_spans_of_tokens()
-        self.assertEqual(arr._reduce("sum"), Span(arr.target_text, 0, 14))
-        self.assertEqual(arr._reduce("first"), Span(arr.target_text, 0, 4))
+        self.assertEqual(arr._reduce("sum"), Span(arr[0].target_text, 0, 14))
+        self.assertEqual(arr._reduce("first"), Span(arr[0].target_text, 0, 4))
         # Remind ourselves to modify this test after implementing min and max
         with self.assertRaises(TypeError):
             arr._reduce("min")
@@ -434,6 +455,7 @@ class CharSpanArrayTest(ArrayTestBase):
 
 class CharSpanArrayIOTests(ArrayTestBase):
 
+    @pytest.mark.skip("Temporarily disabled until Feather support reimplemented")
     def test_feather(self):
         arr = self._make_spans_of_tokens()
         df = pd.DataFrame({'Span': arr})
@@ -476,6 +498,7 @@ def data_missing(dtype):
     return pd.array(spans, dtype=dtype)
 
 
+# noinspection PyTypeChecker
 @pytest.fixture
 def data_for_sorting(dtype):
     spans = [span for span, _ in zip(_gen_spans(), range(3))]
@@ -486,6 +509,7 @@ def data_for_sorting(dtype):
     return pd.array(reordered, dtype=dtype)
 
 
+# noinspection PyTypeChecker
 @pytest.fixture
 def data_missing_for_sorting(dtype):
     spans = [span for span, _ in zip(_gen_spans(), range(3))]
@@ -522,7 +546,8 @@ def data_for_grouping(dtype):
     return pd.array([b, b, na, na, a, a, b, c], dtype=dtype)
 
 
-# Can't import due to dependencies, taken from pandas.conftest import all_compare_operators
+# Can't import due to dependencies, taken from pandas.conftest
+# import all_compare_operators
 @pytest.fixture(params=["__eq__", "__ne__", "__lt__", "__gt__", "__le__", "__ge__"])
 def all_compare_operators(request):
     return request.param
@@ -537,9 +562,7 @@ def all_numeric_reductions(request):
 def sort_by_key(request):
     return request.param
 
-# import pytest fixtures
-from pandas.tests.extension.conftest import all_data, as_array, as_frame, as_series, \
-    box_in_series, data_repeated, fillna_method, groupby_apply_op, use_numpy
+
 
 
 class TestPandasDtype(base.BaseDtypeTests):
@@ -629,7 +652,8 @@ class TestPandasMethods(base.BaseMethodsTests):
 
     @pytest.mark.skip(reason="unsupported operation")
     def test_where_series(self, data, na_value, as_frame):
-        # TODO setitem error: NotImplementedError: Setting multiple rows at once not implemented
+        # TODO setitem error: NotImplementedError: Setting multiple rows at once not
+        #  implemented
         pass
 
     def test_searchsorted(self, data_for_sorting, as_series):
@@ -638,7 +662,8 @@ class TestPandasMethods(base.BaseMethodsTests):
             pytest.skip("errors with Series")
         super().test_searchsorted(data_for_sorting, as_series)
 
-    @pytest.mark.skip("AttributeError: 'SpanArray' object has no attribute 'value_counts'")
+    @pytest.mark.skip("AttributeError: 'SpanArray' object has no attribute "
+                      "'value_counts'")
     def test_value_counts_with_normalize(self, data):
         pass
 
@@ -650,7 +675,8 @@ class TestPandasMethods(base.BaseMethodsTests):
     def test_equals(self, data, na_value, as_series, box):
         from pandas.core.dtypes.generic import ABCPandasArray
         if isinstance(box, ABCPandasArray):
-            pytest.skip("TypeError: equals() not defined for arguments of type <class 'NoneType'>")
+            pytest.skip("TypeError: equals() not defined for arguments of type "
+                        "<class 'NoneType'>")
 
 
 class TestPandasCasting(base.BaseCastingTests):

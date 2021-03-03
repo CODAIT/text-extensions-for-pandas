@@ -32,35 +32,30 @@ _TEST_TEXT = "Item's for < $100 & change"
 _TEST_TOKS = make_tokens_and_features(_TEST_TEXT, _SPACY_LANGUAGE_MODEL)
 
 
-class UtilTest(TestBase):
+class JupyterTest(TestBase):
     def test_pretty_print_html(self):
         self.maxDiff = None
         html = pretty_print_html(_TEST_TOKS["span"].values, True)
-        suffix = html[-809:]
+        suffix = html[-800:]
         # print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
             """\
-</tr>
-    <tr>
-      <th>7</th>
-      <td>20</td>
-      <td>26</td>
-      <td>change</td>
-    </tr>
-  </tbody>
+</tbody>
 </table>
-            </div>
-            <div id="text"
-             style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 60%;">
+    </div>
+    <div id="text"
+     style="float:right; border: 1px solid var(--jp-border-color0); width: 60%;">
+
                 <div style="float:center; padding:10px">
-                    <p style="font-family:monospace">
-                        <span style="background-color:yellow">Item&#39;s</span> <span style="background-color:yellow">for</span> <span style="background-color:yellow">&lt;</span> <span style="background-color:yellow"><span>&#36;</span>100</span> <span style="background-color:yellow">&amp;</span> <span style="background-color:yellow">change
+                    <p style="font-family:var(--jp-code-font-family); font-size:var(--jp-code-font-size)">
+                        <span style="background-color:rgba(255, 215, 0, 0.5)">Item&#39;s</span> <span style="background-color:rgba(255, 215, 0, 0.5)">for</span> <span style="background-color:rgba(255, 215, 0, 0.5)">&lt;</span> <span style="background-color:rgba(255, 215, 0, 0.5)"><span>&#36;</span>100</span> <span style="background-color:rgba(255, 215, 0, 0.5)">&amp;</span> <span style="background-color:rgba(255, 215, 0, 0.5)">change
                     </p>
                 </div>
-            </div>
-        </div>
-        """)
+
+    </div>
+</div>
+""")
 
         html = pretty_print_html(_TEST_TOKS["span"].values, False)
         suffix = html[-809:]
@@ -69,12 +64,14 @@ class UtilTest(TestBase):
             suffix,
             """\
 
-        <div id="text"
-         style="float:right; background-color:#F5F5F5; border: 1px solid #E0E0E0; width: 100%;">
-            <div style="float:center; padding:10px">
-                <p style="font-family:monospace">
-                    <span style="background-color:yellow">Item&#39;s</span> <span style="background-color:yellow">for</span> <span style="background-color:yellow">&lt;</span> <span style="background-color:yellow"><span>&#36;</span>100</span> <span style="background-color:yellow">&amp;</span> <span style="background-color:yellow">change
-                </p>
-            </div>
-        </div>
-        """)
+<div id="text"
+ style="float:right; color: var(--jp-layout-color2); border: 1px solid var(--jp-border-color0); width: 100%;">
+
+                <div style="float:center; padding:10px">
+                    <p style="font-family:var(--jp-code-font-family); font-size:var(--jp-code-font-size)">
+                        <span style="background-color:rgba(255, 215, 0, 0.5)">Item&#39;s</span> <span style="background-color:rgba(255, 215, 0, 0.5)">for</span> <span style="background-color:rgba(255, 215, 0, 0.5)">&lt;</span> <span style="background-color:rgba(255, 215, 0, 0.5)"><span>&#36;</span>100</span> <span style="background-color:rgba(255, 215, 0, 0.5)">&amp;</span> <span style="background-color:rgba(255, 215, 0, 0.5)">change
+                    </p>
+                </div>
+
+</div>
+""")

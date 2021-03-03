@@ -76,7 +76,7 @@ class CoNLLTest(unittest.TestCase):
                                        ["ent"], [True])
         self.assertEqual(len(dfs), 2)
         self.assertEqual(
-            dfs[0]["span"].values.target_text,
+            dfs[0]["span"].values.document_text,
             textwrap.dedent(
                 """\
                 Who is General Failure (and why is he reading my hard disk)?
@@ -84,7 +84,7 @@ class CoNLLTest(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            dfs[1]["span"].values.target_text,
+            dfs[1]["span"].values.document_text,
             "-DOCSTART-\nI'd kill for a Nobel Peace Prize.",
         )
         # print(f"***{repr(dfs[0])}***")  # Uncomment to regenerate gold standard
@@ -250,7 +250,7 @@ class CoNLLTest(unittest.TestCase):
         )
         self.assertEqual(len(output_dfs), 2)
         self.assertEqual(
-            output_dfs[0]["span"].values.target_text,
+            output_dfs[0]["span"].values.document_text,
             textwrap.dedent(
                 """\
                 Who is General Failure (and why is he reading my hard disk)?
@@ -258,7 +258,7 @@ class CoNLLTest(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            output_dfs[1]["span"].values.target_text,
+            output_dfs[1]["span"].values.document_text,
             "-DOCSTART-\nI'd kill for a Nobel Peace Prize.",
         )
         # print(f"***{repr(output_dfs[0])}***")  # Uncomment to regenerate gold standard
@@ -422,9 +422,8 @@ class CoNLLTest(unittest.TestCase):
                 2    bus        0  [14, 21): 'walking'     5  False"""
             ),
         )
-        # Span column should have been converted to object dtype
-        # See issue #73.
-        self.assertEqual(str(combined_df["spans"].dtype), "object")
+        # Span column should NOT be of object dtype. See issue #73.
+        self.assertEqual(str(combined_df["spans"].dtype), "SpanDtype")
 
     def test_compute_accuracy(self):
         doc_dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt",

@@ -411,10 +411,10 @@ def _doc_to_df(doc: List[_SentenceData],
 
         # Don't put spaces before punctuation in the reconstituted string.
         no_space_before_mask = (
-            np.zeros(len(tokens), dtype=np.bool) if space_before_punct
+            np.zeros(len(tokens), dtype=bool) if space_before_punct
             else _SPACE_BEFORE_MATCH_FN(tokens))
         no_space_after_mask = (
-            np.zeros(len(tokens), dtype=np.bool) if space_before_punct
+            np.zeros(len(tokens), dtype=bool) if space_before_punct
             else _SPACE_AFTER_MATCH_FN(tokens))
         no_space_before_mask[0] = True  # No space before first token
         no_space_after_mask[-1] = True  # No space after last token
@@ -457,8 +457,8 @@ def _doc_to_df(doc: List[_SentenceData],
     doc_text = "\n".join(sentences_list)
     char_spans = SpanArray(doc_text, begins, ends)
     sentence_spans = TokenSpanArray(char_spans,
-                                    np.concatenate(sentence_begins_list),
-                                    np.concatenate(sentence_ends_list))
+                                           np.concatenate(sentence_begins_list),
+                                           np.concatenate(sentence_ends_list))
 
     ret = pd.DataFrame({"span": char_spans})
     for k, v in meta_lists.items():
@@ -608,7 +608,7 @@ def spans_to_iob(
 
     :param token_spans: An object that can be converted to a `TokenSpanArray` via
         `TokenSpanArray.make_array()`. Should contain `TokenSpan`s aligned with the
-        target tokenization.
+        target tokenization. All spans must be from the same docuemnt.
         Usually you create this array by calling `TokenSpanArray.align_to_tokens()`.
     :param span_ent_types: List of entity type strings corresponding to each of the
         elements of `token_spans`, or `None` to indicate null entity tags.
@@ -635,8 +635,18 @@ def spans_to_iob(
             "ent_type": pd.Series(dtype="string")
         })
 
+    # All code that follows assumes at least one input span. All spans should
+    # be from the same document; otherwise there isn't a meaningful IOB
+    # representation of the entities.
+    if not token_spans.is_single_tokenization:
+        raise ValueError(f"All input spans must be from the same tokenization of "
+                         f"the same document "
+                         f"(spans are {token_spans})")
+
+    tokens = token_spans.tokens[0]
+
     # Initialize an IOB series with all 'O' entities
-    iob_data = np.zeros_like(token_spans.tokens.begin, dtype=np.int64)
+    iob_data = np.zeros_like(tokens.begin, dtype=np.int64)
     iob_tags = pd.Categorical.from_codes(codes=iob_data, dtype=iob2_dtype)
 
     # Assign the begin tags
@@ -651,7 +661,7 @@ def spans_to_iob(
         iob_tags[begin:end] = "I"
 
     # Use a similar process to generate entity type tags
-    ent_types = np.full(len(token_spans.tokens), None, dtype=object)
+    ent_types = np.full(len(tokens), None, dtype=object)
     for ent_type, begin, end in zip(span_ent_types,
                                     token_spans.begin_token,
                                     token_spans.end_token):
@@ -899,12 +909,7 @@ def _prep_for_stacking(fold_name: str, doc_num: int, df: pd.DataFrame) -> pd.Dat
         "doc_num": doc_num,
     }
     for colname in df.columns:
-        if isinstance(df[colname].dtype, SpanDtype):
-            # Convert to objects to allow mixing spans from different documents.
-            # TODO: Remove this conversion once issue 73 is complete
-            df_values[colname] = df[colname].astype(object)
-        else:
-            df_values[colname] = df[colname]
+        df_values[colname] = df[colname]
     return pd.DataFrame(df_values)
 
 
@@ -912,12 +917,6 @@ def combine_folds(fold_to_docs: Dict[str, List[pd.DataFrame]]):
     """
     Merge together multiple parts of a corpus (i.e. train, test, validation)
     into a single DataFrame of all tokens in the corpus.
-
-    **NOTE: Since `SpanArray` and `TokenSpanArray` currently only support spans
-    over one document at a time, this function converts columns of those types to
-    columns of type `Object` with `Span`/`TokenSpan` objects. See
-    [issue 73](https://github.com/CODAIT/text-extensions-for-pandas/issues/73)
-    for more information.**
 
     :param fold_to_docs: Mapping from fold name ("train", "test", etc.) to
      list of per-document DataFrames as produced by :func:`util.conll_to_bert`.
