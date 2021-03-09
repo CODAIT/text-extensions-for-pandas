@@ -20,13 +20,11 @@
 This module contains I/O functions related to the SpaCy NLP library.
 """
 
+import re
+import string
+
 import numpy as np
 import pandas as pd
-
-# To avoid creating an unnecessary dependency on SpaCy for non-SpaCy
-# applications, we do NOT `import spacy` at the top level of this file,
-# and we do NOT include type hints for SpaCy types in the function
-# signatures below.
 
 from text_extensions_for_pandas.array.span import (
     SpanArray,
@@ -37,14 +35,52 @@ from text_extensions_for_pandas.array.token_span import (
     TokenSpanDtype,
 )
 
+# To avoid creating an unnecessary dependency on SpaCy for non-SpaCy
+# applications, we do NOT `import spacy` at the top level of this file,
+# and we do NOT include type hints for SpaCy types in the function
+# signatures below.
 
-def make_tokens(target_text: str, tokenizer) -> pd.Series:
+_SIMPLE_TOKENIZER = None
+
+
+def simple_tokenizer() -> "spacy.tokenizer.Tokenizer":
+    """
+    Returns: a singleton of a SpaCy tokenizer that splits text on all whitespace
+    and all punctuation characters.
+
+    This type of tokenization is recommended for dictionary and regular expression
+    matching.
+    """
+    global _SIMPLE_TOKENIZER
+    if _SIMPLE_TOKENIZER is None:
+        # noinspection PyPackageRequirements
+        import spacy
+
+        punct_chars = re.escape(string.punctuation)
+        prefix_re = re.compile(f"^[{punct_chars}]")
+        suffix_re = re.compile(f"[{punct_chars}]$")
+        infix_re = re.compile(f"[{punct_chars}]")
+
+        empty_vocab = spacy.vocab.Vocab()
+
+        _SIMPLE_TOKENIZER = spacy.tokenizer.Tokenizer(empty_vocab,
+                                                      prefix_search=prefix_re.search,
+                                                      suffix_search=suffix_re.search,
+                                                      infix_finditer=infix_re.finditer)
+    return _SIMPLE_TOKENIZER
+
+
+def make_tokens(target_text: str, tokenizer: "spacy.tokenizer.Tokenizer" = None) \
+    -> pd.Series:
     """
     :param target_text: Text to tokenize
-    :param tokenizer: Preconfigured `spacy.tokenizer.Tokenizer` object
+    :param tokenizer: Preconfigured `spacy.tokenizer.Tokenizer` object, or None
+     to use the tokenizer returned by :func:`simple_tokenizer()`
     :return: The tokens (and underlying text) as a Pandas Series wrapped around
         a `SpanArray` value.
     """
+    if tokenizer is None:
+        tokenizer = simple_tokenizer()
     spacy_doc = tokenizer(target_text)
     tok_begins = np.array([t.idx for t in spacy_doc])
     tok_ends = np.array([t.idx + len(t) for t in spacy_doc])
@@ -132,8 +168,8 @@ def _make_sentences_series(spacy_doc, tokens: SpanArray):
     begin_tokens = np.full(shape=num_toks, fill_value=-1, dtype=np.int)
     end_tokens = np.full(shape=num_toks, fill_value=-1, dtype=np.int)
     for sent in spacy_doc.sents:
-        begin_tokens[sent.start : sent.end] = sent.start
-        end_tokens[sent.start : sent.end] = sent.end
+        begin_tokens[sent.start: sent.end] = sent.start
+        end_tokens[sent.start: sent.end] = sent.end
     return pd.Series(TokenSpanArray(tokens, begin_tokens, end_tokens))
 
 

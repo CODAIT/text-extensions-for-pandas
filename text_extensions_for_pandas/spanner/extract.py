@@ -33,6 +33,7 @@ from text_extensions_for_pandas.array.span import (
 from text_extensions_for_pandas.array.token_span import (
     TokenSpanArray
 )
+from text_extensions_for_pandas.io.spacy import simple_tokenizer
 
 # Set to True to use sparse storage for tokens 2-n of n-token dictionary
 # entries. First token is always stored dense, of course.
@@ -42,7 +43,7 @@ from text_extensions_for_pandas.array.token_span import (
 _SPARSE_DICT_ENTRIES = False
 
 
-def load_dict(file_name: str, tokenizer: "spacy.tokenizer.Tokenizer"):
+def load_dict(file_name: str, tokenizer: "spacy.tokenizer.Tokenizer" = None):
     """
     Load a SystemT-format dictionary file. File format is one entry per line.
 
@@ -52,17 +53,42 @@ def load_dict(file_name: str, tokenizer: "spacy.tokenizer.Tokenizer"):
 
     :param tokenizer: Preconfigured tokenizer object for tokenizing
     dictionary entries.  **Must be the same configuration as the tokenizer
-    used on the target text!**
+    used on the target text!**  If None, this method will use SpaCy's default
+    English tokenizer.
 
-    :return: a `pd.DataFrame` with the normalized entries.
+    :return: a `pd.DataFrame` with the normalized, tokenized dictionary entries.
     """
     with open(file_name, "r") as f:
         lines = [
-            line.strip() for line in f.readlines() if len(line) > 0 and line[0] != "#"
+            line.strip() for line in f.readlines()
+            if len(line.strip()) > 0 and line[0] != "#"
         ]
 
+    return create_dict(lines, tokenizer)
+
+
+def create_dict(entries: Iterable[str],
+                tokenizer: "spacy.tokenizer.Tokenizer" = None) -> pd.DataFrame:
+    """
+    Create a dictionary from a list of entries, where each entry is expressed as a
+    single string.
+
+    Tokenizes and normalizes the dictionary entries.
+
+    :param entries: Iterable of strings, one string per dictionary entry.
+
+    :param tokenizer: Preconfigured tokenizer object for tokenizing
+    dictionary entries.  **Must always tokenizer the same way as the tokenizer
+    used on the target text!**  If None, this method will use tokenizer returned by
+    :func:`text_extensions_for_pandas.io.spacy.simple_tokenizer()`.
+
+    :return: a `pd.DataFrame` with the normalized, tokenized dictionary entries.
+    """
+    if tokenizer is None:
+        tokenizer = simple_tokenizer()
+
     # Tokenize with SpaCy. Produces a SpaCy document object per line.
-    tokenized_entries = [tokenizer(line.lower()) for line in lines]
+    tokenized_entries = [tokenizer(entry.lower()) for entry in entries]
 
     # Determine the number of tokens in the longest dictionary entry.
     max_num_toks = max([len(e) for e in tokenized_entries])
@@ -107,7 +133,7 @@ def extract_dict(tokens: Union[SpanArray, pd.Series],
     # Wrap the important parts of the tokens series in a temporary dataframe.
     toks_tmp = pd.DataFrame({
         "token_id": tokens.index,
-        "normalized_text": tokens.values.normalized_covered_text
+        "normalized_text": tokens.array.normalized_covered_text
     })
 
     # Start by matching the first token.
@@ -159,11 +185,11 @@ def extract_dict(tokens: Union[SpanArray, pd.Series],
 
 
 def extract_regex_tok(
-        tokens: Union[SpanArray, pd.Series],
-        compiled_regex: regex.Regex,
-        min_len=1,
-        max_len=1,
-        output_col_name: str = "match"):
+    tokens: Union[SpanArray, pd.Series],
+    compiled_regex: regex.Regex,
+    min_len=1,
+    max_len=1,
+    output_col_name: str = "match"):
     """
     Identify all (possibly overlapping) matches of a regular expression
     that start and end on token boundaries.
@@ -188,7 +214,7 @@ def extract_regex_tok(
 
     num_tokens = len(tokens)
     matches_regex_f = np.vectorize(lambda s: compiled_regex.fullmatch(s)
-                                   is not None)
+                                             is not None)
 
     # The built-in regex functionality of Pandas/Python does not have
     # an optimized single-pass RegexTok, so generate all the places
