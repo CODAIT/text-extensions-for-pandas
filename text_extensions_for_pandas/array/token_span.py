@@ -20,31 +20,44 @@
 #
 # Pandas extensions to support columns of spans with token offsets.
 #
+import collections.abc
 import textwrap
 from typing import *
 
 import numpy as np
 import pandas as pd
+from memoized_property import memoized_property
+# noinspection PyProtectedMember
+from pandas.api.types import is_bool_dtype
 from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
 from pandas.core.indexers import check_array_indexer
-from pandas.api.types import is_bool_dtype
-from memoized_property import memoized_property
 
-# Internal imports
 from text_extensions_for_pandas.array.span import (
     Span,
     SpanArray,
     SpanDtype,
-    SpanOpMixin
+    SpanOpMixin,
 )
+# Internal imports
+from text_extensions_for_pandas.array.token_table import TokenTable
 from text_extensions_for_pandas.util import to_int_array
 
 
-def _check_same_tokens(array1, array2):
-    if not array1.tokens.equals(array2.tokens):
+def _check_same_tokens(obj1, obj2):
+    if isinstance(obj1, TokenSpan) and isinstance(obj2, TokenSpan):
+        return obj1.tokens.equals(obj2.tokens)
+    if not (isinstance(obj1, TokenSpanArray) or isinstance(obj2, TokenSpanArray)):
+        raise TypeError(f"Expected some combination of TokenSpan and TokenSpanArray, "
+                        f"but received {type(obj1)} and {type(obj2)}")
+
+    same_tokens_mask = (
+        obj1.same_tokens(obj2) if isinstance(obj1, TokenSpanArray)
+        else obj2.same_tokens(obj1))
+    if not np.all(same_tokens_mask):
         raise ValueError(
             f"TokenSpanArrays are over different sets of tokens "
-            f"(got {array1.tokens} and {array2.tokens})"
+            f"(got {obj1.tokens} and {obj2.tokens})\n"
+            f"Comparison result: {same_tokens_mask}"
         )
 
 
@@ -70,9 +83,10 @@ class TokenSpanOpMixin(SpanOpMixin):
                 isinstance(other, (TokenSpan, TokenSpanArray)):
             # TokenSpanArray + TokenSpan* = TokenSpanArray
             _check_same_tokens(self, other)
-            return TokenSpanArray(self.tokens,
-                                  np.minimum(self.begin_token, other.begin_token),
-                                  np.maximum(self.end_token, other.end_token))
+            return TokenSpanArray(
+                self.tokens,
+                np.minimum(self.begin_token, other.begin_token),
+                np.maximum(self.end_token, other.end_token))
         else:
             return super().__add__(other)
 
@@ -89,15 +103,17 @@ class TokenSpan(Span, TokenSpanOpMixin):
     "not a span" in the sense that NaN is "not a number".
     """
 
-    def __init__(self, tokens: SpanArray, begin_token: int, end_token: int):
+    def __init__(self, tokens: Any, begin_token: int, end_token: int):
         """
         :param tokens: Tokenization information about the document, including
-        the target text.
+        the target text. Must be a type that :func:`SpanArray.make_array()`
+        can convert to a `SpanArray`.
 
         :param begin_token: Begin offset (inclusive) within the tokenized text,
 
         :param end_token: End offset; exclusive, one past the last token
         """
+        tokens = SpanArray.make_array(tokens)
         if TokenSpan.NULL_OFFSET_VALUE != begin_token and begin_token < 0:
             raise ValueError(
                 f"Begin token offset must be NULL_OFFSET_VALUE or "
@@ -133,7 +149,14 @@ class TokenSpan(Span, TokenSpanOpMixin):
                 if begin_token == end_token
                 else tokens.end[end_token - 1]
             )
-        super().__init__(tokens.target_text, begin_char_off, end_char_off)
+        if len(tokens) == 0:
+            doc_text = None
+        elif not tokens.is_single_document:
+            raise ValueError("Tokens must be from exactly one document.")
+        else:
+            doc_text = tokens.document_text
+
+        super().__init__(doc_text, begin_char_off, end_char_off)
         self._tokens = tokens
         self._begin_token = begin_token
         self._end_token = end_token
@@ -201,6 +224,12 @@ class TokenSpan(Span, TokenSpanOpMixin):
         return self._end_token
 
 
+_EMPTY_SPAN_ARRAY_SINGLETON = SpanArray("", [], [])
+
+_NULL_TOKEN_SPAN_SINGLETON = TokenSpan(_EMPTY_SPAN_ARRAY_SINGLETON,
+                                       Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE)
+
+
 @pd.api.extensions.register_extension_dtype
 class TokenSpanDtype(SpanDtype):
     """
@@ -224,8 +253,7 @@ class TokenSpanDtype(SpanDtype):
         See docstring in `ExtensionDType` class in `pandas/core/dtypes/base.py`
         for information about this method.
         """
-        empty_span_array = SpanArray(None, [], [])
-        return TokenSpan(empty_span_array, Span.NULL_OFFSET_VALUE, Span.NULL_OFFSET_VALUE)
+        return _NULL_TOKEN_SPAN_SINGLETON
 
     @classmethod
     def construct_array_type(cls):
@@ -242,6 +270,13 @@ class TokenSpanDtype(SpanDtype):
         """
         from text_extensions_for_pandas.array.arrow_conversion import arrow_to_token_span
         return arrow_to_token_span(extension_array)
+
+
+_NOT_A_DOCUMENT_TEXT = "This string is not the text of a document."
+_EMPTY_INT_ARRAY = np.zeros(0, dtype=int)
+
+# Singleton instance of the SpanArray value that corresponds to NA for tokens
+# NULL_TOKENS_VALUE = SpanArray("", [], [])
 
 
 class TokenSpanArray(SpanArray, TokenSpanOpMixin):
@@ -267,35 +302,22 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
     * `self._end_tokens`: Numpy array of end offsets (1 + last token in span).
     """
 
-    @staticmethod
-    def from_char_offsets(tokens: SpanArray) -> "TokenSpanArray":
-        """
-        Convenience factory method for wrapping the character-level spans of a
-        series of tokens into single-token token-based spans.
+    def __init__(self, tokens: Union[SpanArray, Sequence[SpanArray]],
+                 begin_tokens: Union[pd.Series, np.ndarray, Sequence[int]] = None,
+                 end_tokens: Union[pd.Series, np.ndarray, Sequence[int]] = None):
 
-        :param tokens: character-based offsets of the tokens
-
-        :return: A TokenSpanArray containing single-token spans for each of the
-        tokens in `tokens`.
-        """
-        begin_tokens = np.arange(len(tokens))
-        return TokenSpanArray(tokens, begin_tokens, begin_tokens + 1)
-
-    def __init__(
-        self,
-        tokens: SpanArray,
-        begin_tokens: Union[pd.Series, np.ndarray, Sequence[int]] = None,
-        end_tokens: Union[pd.Series, np.ndarray, Sequence[int]] = None,
-    ):
         """
         :param tokens: Character-level span information about the underlying
-        tokens.
+        tokens. Can be a single set of tokens, covering all spans, or a separate
+        `SpanArray` pointer for every span.
 
         :param begin_tokens: Array of begin offsets measured in tokens
         :param end_tokens: Array of end offsets measured in tokens
         """
-        if not isinstance(tokens, SpanArray):
-            raise TypeError(f"Expected SpanArray as tokens but got {type(tokens)}")
+        # Superclass constructor expects values for things that the subclass doesn't
+        # use.
+        super().__init__(_NOT_A_DOCUMENT_TEXT, _EMPTY_INT_ARRAY, _EMPTY_INT_ARRAY)
+
         if not isinstance(begin_tokens, (pd.Series, np.ndarray, list)):
             raise TypeError(f"begin_tokens is of unsupported type {type(begin_tokens)}. "
                             f"Supported types are Series, ndarray and List[int].")
@@ -303,13 +325,59 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
             raise TypeError(f"end_tokens is of unsupported type {type(end_tokens)}. "
                             f"Supported types are Series, ndarray and List[int].")
 
-        super().__init__(tokens.target_text, tokens.begin, tokens.end)
+        if isinstance(tokens, SpanArray):
+            if not tokens.is_single_document:
+                raise ValueError(f"Token spans come from more than one document.")
+            # Can't just pass a SpanArray to np.full() or np.array(), because Numpy will
+            # interpret it as an array-like of Span values.
+            tokens_array = np.empty(len(begin_tokens), dtype=object)
+            for i in range(len(begin_tokens)):
+                tokens_array[i] = tokens
+            tokens = tokens_array
+        elif isinstance(tokens, collections.abc.Sequence):
+            if len(tokens) != len(begin_tokens):
+                raise ValueError(f"Received {len(tokens)} arrays of tokens and "
+                                 f"{len(begin_tokens)} begin offsets. "
+                                 f"Lengths should be equal.")
+            # Can't just pass a SpanArray to np.array(), because Numpy will interpret it
+            # as an array-like of Span values.
+            tokens_array = np.empty(len(begin_tokens), dtype=object)
+            for i in range(len(begin_tokens)):
+                tokens_array[i] = tokens[i]
+            tokens = tokens_array
+        elif isinstance(tokens, np.ndarray):
+            if len(tokens) != len(begin_tokens):
+                raise ValueError(f"Received {len(tokens)} arrays of tokens and "
+                                 f"{len(begin_tokens)} begin offsets. "
+                                 f"Lengths should be equal.")
+            if (len(tokens) > 0
+                    and tokens[0] is not None
+                    and not isinstance(tokens[0], SpanArray)):
+                raise TypeError(f"Tokens object for row 0 is of unexpected type "
+                                f"{type(tokens[0])}. Type should be SpanArray.")
+        else:
+            raise TypeError(f"Expected SpanArray or list of SpanArray as tokens "
+                            f"but got {type(tokens)}")
 
-        begin_tokens = to_int_array(begin_tokens)
-        end_tokens = to_int_array(end_tokens)
+        self._tokens = tokens
+        self._begin_tokens = to_int_array(begin_tokens)
+        self._end_tokens = to_int_array(end_tokens)
 
-        self._begin_tokens = begin_tokens  # Type: np.ndarray
-        self._end_tokens = end_tokens  # Type: np.ndarray
+    @staticmethod
+    def from_char_offsets(tokens: Any) -> "TokenSpanArray":
+        """
+        Convenience factory method for wrapping the character-level spans of a
+        series of tokens into single-token token-based spans.
+
+        :param tokens: character-based offsets of the tokens, as any type that
+         :func:`SpanArray.make_array()` understands.
+
+        :return: A TokenSpanArray containing single-token spans for each of the
+        tokens in `tokens`.
+        """
+        begin_tokens = np.arange(len(tokens))
+        tokens_array = SpanArray.make_array(tokens)
+        return TokenSpanArray(tokens_array, begin_tokens, begin_tokens + 1)
 
     ##########################################
     # Overrides of superclass methods go here.
@@ -328,12 +396,11 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         if isinstance(dtype, SpanDtype):
             data = self.copy() if copy else self
         elif isinstance(dtype, pd.StringDtype):
+            # noinspection PyProtectedMember
             return dtype.construct_array_type()._from_sequence(self, copy=False)
         else:
-            na_value = TokenSpan(
-                self.tokens, TokenSpan.NULL_OFFSET_VALUE, TokenSpan.NULL_OFFSET_VALUE
-            )
-            data = self.to_numpy(dtype=dtype, copy=copy, na_value=na_value)
+            data = self.to_numpy(dtype=dtype, copy=copy,
+                                 na_value=_NULL_TOKEN_SPAN_SINGLETON)
         return data
 
     @property
@@ -342,7 +409,9 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        return self._begin_tokens.nbytes + self._end_tokens.nbytes + super().nbytes
+        table, _ = TokenTable.merge_things(self.tokens)
+        return (self._begin_tokens.nbytes + self._end_tokens.nbytes +
+                table.nbytes())
 
     def __len__(self) -> int:
         return len(self._begin_tokens)
@@ -354,13 +423,14 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         """
         if isinstance(item, int):
             return TokenSpan(
-                self.tokens, int(self._begin_tokens[item]), int(self._end_tokens[item])
+                self.tokens[item], int(self._begin_tokens[item]),
+                int(self._end_tokens[item])
             )
         else:
             # item not an int --> assume it's a numpy-compatible index
             item = check_array_indexer(self, item)
             return TokenSpanArray(
-                self.tokens, self.begin_token[item], self.end_token[item]
+                self.tokens[item], self.begin_token[item], self.end_token[item]
             )
 
     def __setitem__(self, key: Union[int, np.ndarray, list, slice], value: Any) -> None:
@@ -368,6 +438,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
+
         key = check_array_indexer(self, key)
         if isinstance(value, ABCSeries) and isinstance(value.dtype, SpanDtype):
             value = value.values
@@ -375,15 +446,30 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         if value is None or isinstance(value, Sequence) and len(value) == 0:
             self._begin_tokens[key] = TokenSpan.NULL_OFFSET_VALUE
             self._end_tokens[key] = TokenSpan.NULL_OFFSET_VALUE
-        elif isinstance(value, TokenSpan) or \
-                ((isinstance(key, slice) or
-                  (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype))) and
-                 isinstance(value, SpanArray)):
+        elif isinstance(value, TokenSpan):
+            # Single input span --> one or more target positions
             self._begin_tokens[key] = value.begin_token
             self._end_tokens[key] = value.end_token
-        elif isinstance(key, np.ndarray) and len(value) > 0 and len(value) == len(key) and \
+
+            # We'd like to do self._tokens[key] = value.tokens, but NumPy interprets
+            # value.tokens as an array and gets very confused if you try that.
+            mask = np.full(len(self._tokens), False, dtype=bool)
+            mask[key] = True
+            for i in range(len(self._tokens)):
+                if mask[i]:
+                    self._tokens[i] = value.tokens
+
+        elif ((isinstance(key, slice) or
+              (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype)))
+              and isinstance(value, TokenSpanArray)):
+            # x spans -> x target positions
+            self._tokens[key] = value.tokens
+            self._begin_tokens[key] = value.begin_token
+            self._end_tokens[key] = value.end_token
+        elif (isinstance(key, np.ndarray) and len(value) > 0 and len(value) == len(key)
+                and
                 ((isinstance(value, Sequence) and isinstance(value[0], TokenSpan)) or
-                 isinstance(value, TokenSpanArray)):
+                 isinstance(value, TokenSpanArray))):
             for k, v in zip(key, value):
                 self._begin_tokens[k] = v.begin_token
                 self._end_tokens[k] = v.end_token
@@ -408,17 +494,8 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
-        if isinstance(other, TokenSpan) and self.tokens.equals(other.tokens):
-            mask = np.full(len(self), True, dtype=np.bool)
-            mask[self.begin_token != other.begin_token] = False
-            mask[self.end_token != other.end_token] = False
-            return mask
-        elif isinstance(other, TokenSpanArray) and self.tokens.equals(other.tokens):
-            if len(self) != len(other):
-                raise ValueError(
-                    "Can't compare arrays of differing lengths "
-                    "{} and {}".format(len(self), len(other))
-                )
+        elif (isinstance(other, TokenSpanArray) and len(self) == len(other)
+              and self.same_tokens(other)):
             return np.logical_and(
                 self.begin_token == other.begin_token, self.end_token == other.end_token
             )
@@ -444,6 +521,14 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
             return TokenSpan.NULL_OFFSET_VALUE in self._begin_tokens
         return super().__contains__(item)
 
+    def __le__(self, other):
+        # TODO: Figure out what the semantics of this operation should be.
+        raise NotImplementedError()
+
+    def __ge__(self, other):
+        # TODO: Figure out what the semantics of this operation should be.
+        raise NotImplementedError()
+
     @classmethod
     def _concat_same_type(
         cls, to_concat: Sequence[pd.api.extensions.ExtensionArray]
@@ -454,16 +539,17 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         """
         if len(to_concat) == 0:
             raise ValueError("Can't concatenate zero TokenSpanArrays")
-        # Require exact object equality of the tokens for now.
-        tokens = to_concat[0].tokens
+        arrays_to_concat = []  # type: List[TokenSpanArray]
         for c in to_concat:
-            if not c.tokens.equals(tokens):
-                raise ValueError(
-                    "Can only concatenate spans that are over " "the same set of tokens"
-                )
-        begin_tokens = np.concatenate([a.begin_token for a in to_concat])
-        end_tokens = np.concatenate([a.end_token for a in to_concat])
-        return TokenSpanArray(tokens, begin_tokens, end_tokens)
+            if not isinstance(c, TokenSpanArray):
+                raise TypeError(f"Tried to concatenate {type(c)} to TokenSpanArray")
+            arrays_to_concat.append(c)
+
+        tokens = np.concatenate([a.tokens for a in arrays_to_concat])
+        begin_tokens = np.concatenate([a.begin_token for a in arrays_to_concat])
+        end_tokens = np.concatenate([a.end_token for a in arrays_to_concat])
+
+        return cls(tokens, begin_tokens, end_tokens)
 
     @classmethod
     def _from_factorized(cls, values, original):
@@ -474,9 +560,15 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         # Because we don't currently override the factorize() class method, the
         # "values" input to _from_factorized is a ndarray of TokenSpan objects.
         # TODO: Faster implementation of factorize/_from_factorized
-        begin_tokens = np.array([v.begin_token for v in values], dtype=np.int)
-        end_tokens = np.array([v.end_token for v in values], dtype=np.int)
-        return TokenSpanArray(original.tokens, begin_tokens, end_tokens)
+        # Can't pass SpanArrays to np.array() because SpanArrays are array-like.
+        begin_tokens = np.array([v.begin_token for v in values], dtype=np.int32)
+        end_tokens = np.array([v.end_token for v in values], dtype=np.int32)
+        tokens = np.empty(len(begin_tokens), dtype=object)
+        i = 0
+        for v in values:
+            tokens[i] = v.tokens
+            i += 1
+        return cls(tokens, begin_tokens, end_tokens)
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
@@ -484,33 +576,27 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        tokens = None
         if isinstance(scalars, TokenSpan):
             scalars = [scalars]
-        if isinstance(scalars, TokenSpanArray):
-            tokens = scalars.tokens
-        begin_tokens = np.full(len(scalars), TokenSpan.NULL_OFFSET_VALUE, np.int)
-        end_tokens = np.full(len(scalars), TokenSpan.NULL_OFFSET_VALUE, np.int)
+
+        # noinspection PyTypeChecker
+        tokens = np.empty(len(scalars), object)
+        begin_tokens = np.empty(len(scalars), np.int32)
+        end_tokens = np.empty(len(scalars), np.int32)
+
         i = 0
         for s in scalars:
             if not isinstance(s, TokenSpan):
                 # TODO: Temporary fix for np.nan values, pandas-dev GH#38980
                 if np.isnan(s):
-                    s = TokenSpanDtype().na_value
+                    s = _NULL_TOKEN_SPAN_SINGLETON
                 else:
                     raise ValueError(
                         f"Can only convert a sequence of TokenSpan "
                         f"objects to a TokenSpanArray. Found an "
                         f"object of type {type(s)}"
                     )
-            if tokens is None and not (s.begin == TokenSpan.NULL_OFFSET_VALUE and s.tokens.target_text is None):
-                tokens = s.tokens
-            if not (s.begin == TokenSpan.NULL_OFFSET_VALUE and s.tokens.target_text is None) and not s.tokens.equals(tokens):
-                raise ValueError(
-                    f"Mixing different token sets is not currently "
-                    f"supported. Received two token sets:\n"
-                    f"{tokens}\nand\n{s.tokens}"
-                )
+            tokens[i] = s.tokens
             begin_tokens[i] = s.begin_token
             end_tokens[i] = s.end_token
             i += 1
@@ -545,11 +631,9 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         # `indices` indicate missing values. These values are set to
         # `fill_value`.
         if fill_value is None or \
-            (np.isscalar(fill_value) and np.math.isnan(fill_value)):
+                (np.isscalar(fill_value) and np.isnan(fill_value)):
             # Replace with a "nan span"
-            fill_value = TokenSpan(
-                self.tokens, TokenSpan.NULL_OFFSET_VALUE, TokenSpan.NULL_OFFSET_VALUE
-            )
+            fill_value = _NULL_TOKEN_SPAN_SINGLETON
         elif not isinstance(fill_value, TokenSpan):
             raise ValueError(
                 "Fill value must be Null, nan, or a TokenSpan "
@@ -558,80 +642,30 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
 
         # Pandas' internal implementation of take() does most of the heavy
         # lifting.
-        begins = pd.api.extensions.take(
+        tokens = pd.api.extensions.take(
+            self.tokens,
+            indices,
+            allow_fill=allow_fill,
+            fill_value=fill_value.tokens,
+        )
+        begin_tokens = pd.api.extensions.take(
             self.begin_token,
             indices,
             allow_fill=allow_fill,
             fill_value=fill_value.begin_token,
         )
-        ends = pd.api.extensions.take(
+        end_tokens = pd.api.extensions.take(
             self.end_token,
             indices,
             allow_fill=allow_fill,
             fill_value=fill_value.end_token,
         )
-        return TokenSpanArray(self.tokens, begins, ends)
 
-    def __lt__(self, other) -> np.ndarray:
-        """
-        Pandas/Numpy-style array/series comparison function.
-
-        :param other: Second operand of a Pandas "<" comparison with the series
-        that wraps this TokenSpanArray.
-
-        :return: Returns a boolean mask indicating which rows are less than
-         `other`. span1 < span2 if span1.end <= span2.begin.
-        """
-        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
-            # Rely on pandas to unbox and dispatch to us.
-            return NotImplemented
-        if isinstance(other, (TokenSpanArray, TokenSpan)):
-            # Use token offsets when available.
-            return self.end_token <= other.begin_token
-        elif isinstance(other, (SpanArray, Span)):
-            return self.end <= other.begin
-        else:
-            raise ValueError(
-                "'<' relationship not defined for {} and {} "
-                "of types {} and {}"
-                "".format(self, other, type(self), type(other))
-            )
-
-    def __gt__(self, other) -> np.ndarray:
-        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
-            # Rely on pandas to unbox and dispatch to us.
-            return NotImplemented
-        if isinstance(other, (TokenSpanArray, TokenSpan)):
-            return other.__lt__(self)
-        else:
-            raise ValueError("'>' relationship not defined for {} and {} "
-                             "of types {} and {}"
-                             "".format(self, other, type(self), type(other)))
-
-    def __le__(self, other):
-        # TODO: Figure out what the semantics of this operation should be.
-        raise NotImplementedError()
-
-    def __ge__(self, other):
-        # TODO: Figure out what the semantics of this operation should be.
-        raise NotImplementedError()
-
-    def _reduce(self, name, skipna=True, **kwargs):
-        """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
-        for information about this method.
-        """
-        if name == "sum":
-            # Sum ==> combine, i.e. return the smallest span that contains all
-            #         spans in the series
-            return TokenSpan(
-                self.tokens, np.min(self.begin_token), np.max(self.end_token)
-            )
-        else:
-            raise TypeError(
-                f"'{name}' aggregation not supported on a series "
-                f"backed by a TokenSpanArray"
-            )
+        return TokenSpanArray(
+            tokens,
+            begin_tokens,
+            end_tokens
+        )
 
     ####################################################
     # Methods that don't override the superclass go here
@@ -651,8 +685,10 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
             return o
         elif isinstance(o, pd.Series):
             return cls.make_array(o.values)
-        elif isinstance(o, Iterable):
+        elif isinstance(o, Sequence):
             return cls._from_sequence(o)
+        elif isinstance(o, Iterable):
+            return cls._from_sequence([e for e in o])
 
     @classmethod
     def align_to_tokens(cls, tokens: Any, spans: Any):
@@ -662,13 +698,19 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
 
         :param tokens: The tokens to align to, as any type that
          `SpanArray.make_array()` accepts.
-        :param spans: The spans to align.
+        :param spans: The spans to align. These spans must all target the same text
+         as `tokens`.
         :return: An array of `TokenSpan`s aligned to the tokens of `tokens`.
          Raises `ValueError` if any of the spans in `spans` doesn't start and
          end on a token boundary.
         """
         tokens = SpanArray.make_array(tokens)
         spans = SpanArray.make_array(spans)
+
+        if not tokens.is_single_document:
+            raise ValueError(f"Tokens cover more than one document (tokens are {tokens})")
+        if not spans.is_single_document:
+            raise ValueError(f"Spans cover more than one document (spans are {spans})")
 
         # Create and join temporary dataframes
         tokens_df = pd.DataFrame({
@@ -722,16 +764,52 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
                               begins_and_ends["token_index_end"] + 1)
 
     @property
-    def tokens(self) -> SpanArray:
-        return SpanArray(self._text, self._begins, self._ends)
+    def tokens(self) -> np.ndarray:
+        """
+        :return: The tokens over which each TokenSpan in this array are defined as
+         an ndarray of object.
+        """
+        return self._tokens
 
-    @property
-    def target_text(self) -> str:
+    @memoized_property
+    def target_text(self) -> np.ndarray:
         """
-        :return: the common "document" text that the spans in this array
-        reference.
+        :return: "document" texts that the spans in this array reference, as opposed to
+         the regions of these documents that the spans cover.
         """
-        return self._text
+        # Note that this property overrides the eponymous property in SpanArray
+        texts = [
+            None if self.nulls_mask[i]
+            else self.tokens[i].document_text
+            for i in range(len(self))
+        ]
+        return np.array(texts, dtype=object)
+
+    @memoized_property
+    def document_text(self) -> Union[str, None]:
+        """
+        :return: if all spans in this array cover the same document, text of that
+         document.
+         Raises a `ValueError` if the array is empty or if the Spans in this
+          array cover more than one document.
+        """
+        # Checks for zero-length array and multiple docs are in document_tokens()
+        return self.document_tokens.document_text
+
+    @memoized_property
+    def document_tokens(self) -> Union[SpanArray, None]:
+        """
+        :return: if all spans in this array cover the same tokenization of a single
+         document, tokens of that document.
+         Raises a `ValueError` if the array is empty or if the Spans in this
+         array cover more than one document.
+        """
+        if len(self.tokens) == 0:
+            raise ValueError("An empty array has no document tokens")
+        elif not self.is_single_document:
+            raise ValueError("Spans in array cover more than one document")
+        else:
+            return self.tokens[0]
 
     @memoized_property
     def nulls_mask(self) -> np.ndarray:
@@ -741,20 +819,18 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         return self._begin_tokens == TokenSpan.NULL_OFFSET_VALUE
 
     @memoized_property
-    def have_nulls(self) -> bool:
-        """
-        :return: True if this column contains one or more nulls
-        """
-        return np.any(self.nulls_mask)
-
-    @memoized_property
     def begin(self) -> np.ndarray:
         """
         :return: the *character* offsets of the span begins.
         """
-        result = self._begins[self.begin_token]
-        # Correct for null values
-        result[self.nulls_mask] = TokenSpan.NULL_OFFSET_VALUE
+        result = np.empty_like(self.begin_token, dtype=np.int32)
+        for i in range(len(self)):
+            begin_token_ix = self.begin_token[i]
+            if begin_token_ix == TokenSpan.NULL_OFFSET_VALUE:
+                result[i] = Span.NULL_OFFSET_VALUE
+            else:
+                result[i] = self.tokens[i].begin[begin_token_ix]
+
         return result
 
     @memoized_property
@@ -763,13 +839,18 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         :return: the *character* offsets of the span ends.
         """
         # Start out with the end of the last token in each span.
-        result = self._ends[self.end_token - 1]
-        # Replace end offset with begin offset wherever the length in tokens
-        # is zero.
-        mask = self.end_token == self.begin_token
-        result[mask] = self.begin[mask]
-        # Correct for null values
-        result[self.nulls_mask] = TokenSpan.NULL_OFFSET_VALUE
+        result = np.empty_like(self.begin_token, dtype=np.int32)
+        for i in range(len(self)):
+            begin_token_ix = self.begin_token[i]
+            end_token_ix = self.end_token[i]
+            if begin_token_ix == TokenSpan.NULL_OFFSET_VALUE:
+                result[i] = Span.NULL_OFFSET_VALUE
+            elif begin_token_ix == end_token_ix:
+                # Zero-length span
+                result[i] = self.begin[i]
+            else:
+                result[i] = self.tokens[i].end[end_token_ix - 1]
+
         return result
 
     @property
@@ -796,23 +877,25 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
             (self.begin.reshape((-1, 1)), self.end.reshape((-1, 1))), axis=1
         )
 
-    @property
+    def increment_version(self):
+        """
+        Override parent class's version of this function to also clear out data cached
+        in the subclass.
+        """
+        super().increment_version()
+
+    @memoized_property
     def covered_text(self) -> np.ndarray:
         """
         Returns an array of the substrings of `target_text` corresponding to
         the spans in this array.
         """
-        # TODO: Vectorized version of this
-        text = self.target_text
-        # Need dtype=np.object so we can return nulls
-        result = np.zeros(len(self), dtype=np.object)
-        for i in range(len(self)):
-            if self._begin_tokens[i] == TokenSpan.NULL_OFFSET_VALUE:
-                # Null value at this index
-                result[i] = None
-            else:
-                result[i] = text[self.begin[i] : self.end[i]]
-        return result
+        texts = [
+            None if self.nulls_mask[i]
+            else self.target_text[i][self.begin[i]:self.end[i]]
+            for i in range(len(self))
+        ]
+        return np.array(texts, dtype=object)
 
     def as_frame(self) -> pd.DataFrame:
         """
@@ -829,21 +912,111 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
             }
         )
 
+    def same_target_text(self, other: Union["SpanArray", Span]):
+        """
+        :param other: Either a single span or an array of spans of the same
+            length as this one
+        :return: Numpy array containing a boolean mask of all entries that
+            have the same target text.
+            Two spans with target text of None are considered to have the same
+            target text.
+        """
+        if isinstance(other, (Span, SpanArray)):
+            return self.target_text == other.target_text
+        else:
+            raise TypeError(f"same_target_text not defined for input type "
+                            f"{type(other)}")
+
+    def same_tokens(self, other: Union["TokenSpanArray", TokenSpan]):
+        """
+        :param other: Either a single span or an array of spans of the same
+            length as this one. Must be token-based.
+        :return: Numpy array containing a boolean mask of all entries that
+            are over the same tokenization of the same target text.
+            Two spans with target text of None are considered to have the same
+            target text.
+        """
+        if not isinstance(other, (TokenSpan, TokenSpanArray)):
+            raise TypeError(f"same_tokens not defined for input type "
+                            f"{type(other)}")
+
+        if self.is_single_tokenization:
+            # Fast path for common case of one set of tokens
+            other_tokens = (other.tokens if isinstance(other, TokenSpan)
+                            else other.document_tokens)
+            return self.document_tokens.equals(other_tokens)
+
+        # Slow path: Compare each element.
+        if isinstance(other, TokenSpan):
+            return np.array([t.equals(other.tokens) for t in self.tokens], dtype=bool)
+        else:  # isinstance(other, TokenSpanArray)
+            return np.array([self.tokens[i].equals(other.tokens[i])
+                             for i in range(len(self.tokens))], dtype=bool)
+
+    @memoized_property
+    def is_single_document(self) -> bool:
+        """
+        :return: True if every span in this array is over the same target text
+         or if there are zero spans in this array.
+        """
+        if len(self) == 0:
+            # If there are zero spans, we consider there to be one document with the
+            # document text being whatever is the document text for our tokens.
+            return True
+        else:
+            # More than one tokenization and at least one span. Check whether
+            # every span has the same text.
+            return not np.any(self.target_text[0] != self.target_text)
+
+    def split_by_document(self) -> List["SpanArray"]:
+        """
+        :return: A list of slices of this `SpanArray` that cover single documents.
+        """
+        if self.is_single_document:
+            return [self]
+
+        # For now, treat each tokenization as a different document to avoid O(n^2)
+        # behavior.
+        # TODO: Consider a more in-depth comparison to capture mixtures of different
+        #  tokenizations of the same document.
+        token_table, token_ids = TokenTable.merge_things(self.tokens)
+        result = []
+        for tokens_id in token_table.ids:
+            mask = token_ids == tokens_id
+            if np.any(mask):
+                result.append(self[mask])
+        return result
+
+    @memoized_property
+    def is_single_tokenization(self) -> bool:
+        """
+        :return: True if every span in this array is over the same tokenization
+         of the same target text or if there are zero spans in this array.
+        """
+        if len(self) == 0:
+            # If there are zero spans, we consider there to be one document with the
+            # document text being whatever is the first element of the StringTable.
+            return True
+        else:
+            first_t = self.tokens[0]
+            for t in self.tokens:
+                if not t.equals(first_t):
+                    return False
+            return True
+
     ##########################################
     # Keep private and protected methods here.
 
-    def _clear_cached_properties(self) -> None:
+    def _cached_property_names(self) -> List[str]:
         """
-        Remove cached values of memoized properties to reflect changes to the
-        data on which they are based.
+        :return: names of cached properties whose values are computed on demand
+         and invalidated when the set of spans change.
         """
-        # TODO: Figure out how to generate this list automatically
-        property_names = ["nulls_mask", "have_nulls", "begin", "end"]
-        for n in property_names:
-            attr_name = "_{0}".format(n)
-            if hasattr(self, attr_name):
-                delattr(self, attr_name)
-        self._hash = None
+        # Superclass has its own list.
+        return super()._cached_property_names() + [
+            "nulls_mask", "have_nulls", "begin", "end", "target_text",
+            "covered_text", "document_tokens"
+            ]
 
     def __arrow_array__(self, type=None):
         """

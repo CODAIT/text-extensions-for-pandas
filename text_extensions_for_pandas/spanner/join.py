@@ -169,13 +169,13 @@ def overlap_join(
     # some extra values due to blocking.
     block_result = pd.DataFrame(
         {
-            first_name: first_series.loc[key_pairs["first"]].values,
-            second_name: second_series.loc[key_pairs["second"]].values,
+            first_name: first_series.loc[key_pairs["first"]].array,
+            second_name: second_series.loc[key_pairs["second"]].array,
         }
     )
 
     # Filter out extra values from blocking
-    mask = block_result[first_name].values.overlaps(block_result[second_name].values)
+    mask = block_result[first_name].array.overlaps(block_result[second_name].array)
     return block_result[mask].reset_index(drop=True)
 
 
