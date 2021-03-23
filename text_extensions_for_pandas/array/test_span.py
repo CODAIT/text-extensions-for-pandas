@@ -455,7 +455,6 @@ class CharSpanArrayTest(ArrayTestBase):
 
 class CharSpanArrayIOTests(ArrayTestBase):
 
-    @pytest.mark.skip("Temporarily disabled until Feather support reimplemented")
     def test_feather(self):
         arr = self._make_spans_of_tokens()
         df = pd.DataFrame({'Span': arr})
