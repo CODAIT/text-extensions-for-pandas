@@ -158,6 +158,14 @@ def arrow_to_span(extension_array: pa.ExtensionArray) -> SpanArray:
             raise ValueError("Only pyarrow.Array with a single chunk is supported")
         extension_array = extension_array.chunk(0)
 
+    # NOTE: workaround for bug in parquet reading
+    if pa.types.is_struct(extension_array.type):
+        index_dtype = extension_array.field(ArrowSpanType.BEGINS_NAME).type
+        target_text_dict_dtype = extension_array.field(ArrowSpanType.TARGET_TEXT_DICT_NAME).type
+        extension_array = pa.ExtensionArray.from_storage(
+            ArrowSpanType(index_dtype, target_text_dict_dtype),
+            extension_array)
+
     assert pa.types.is_struct(extension_array.storage.type)
 
     # Get the target text dictionary array

@@ -16,9 +16,11 @@
 import os
 import tempfile
 import unittest
+from distutils.version import LooseVersion
 
 # noinspection PyPackageRequirements
 import pytest
+import pyarrow as pa
 from pandas.tests.extension import base
 
 # import pytest fixtures
@@ -460,9 +462,21 @@ class CharSpanArrayIOTests(ArrayTestBase):
         df = pd.DataFrame({'Span': arr})
 
         with tempfile.TemporaryDirectory() as dirpath:
-            filename = os.path.join(dirpath, 'char_span_array_test.feather')
+            filename = os.path.join(dirpath, 'span_array_test.feather')
             df.to_feather(filename)
             df_read = pd.read_feather(filename)
+            pd.testing.assert_frame_equal(df, df_read)
+
+    @pytest.mark.skipif(LooseVersion(pa.__version__) < LooseVersion("2.0.0"),
+                        reason="Nested Parquet data types only supported in Arrow >= 2.0.0")
+    def test_parquet(self):
+        arr = self._make_spans_of_tokens()
+        df = pd.DataFrame({'Span': arr})
+
+        with tempfile.TemporaryDirectory() as dirpath:
+            filename = os.path.join(dirpath, "span_array_test.parquet")
+            df.to_parquet(filename)
+            df_read = pd.read_parquet(filename)
             pd.testing.assert_frame_equal(df, df_read)
 
 
