@@ -168,12 +168,10 @@ def arrow_to_span(extension_array: pa.ExtensionArray) -> SpanArray:
 
     assert pa.types.is_struct(extension_array.storage.type)
 
-    # Get the target text dictionary array
+    # Create target text StringTable and text_ids from dictionary array
     target_text_dict_array = extension_array.storage.field(ArrowSpanType.TARGET_TEXT_DICT_NAME)
-    string_table = StringTable()
-    id_to_boxed_thing = [s.as_py() for s in target_text_dict_array.dictionary]
-    string_table._boxed_thing_to_id = {s: i for i, s in enumerate(id_to_boxed_thing)}
-    string_table._id_to_boxed_thing = id_to_boxed_thing
+    target_texts = [s.as_py() for s in target_text_dict_array.dictionary]
+    string_table, _ = StringTable.merge_things(target_texts)
     text_ids = target_text_dict_array.indices.to_numpy()
 
     # Get the begins/ends pyarrow arrays
