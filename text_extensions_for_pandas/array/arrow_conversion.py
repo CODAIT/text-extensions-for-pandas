@@ -133,9 +133,9 @@ def span_to_arrow(char_span: SpanArray) -> pa.ExtensionArray:
     ends_array = pa.array(char_span.end)
 
     # Create a dictionary array from StringTable used in this span
-    dictionary = pa.array(list(char_span._string_table.things))
+    dictionary = pa.array([char_span._string_table.unbox(s)
+                           for s in char_span._string_table.things])
     target_text_dict_array = pa.DictionaryArray.from_arrays(char_span._text_ids, dictionary)
-    # TODO: remove unused things and normalize text_ids?
 
     typ = ArrowSpanType(begins_array.type, target_text_dict_array.type)
     fields = list(typ.storage_type)
@@ -170,8 +170,8 @@ def arrow_to_span(extension_array: pa.ExtensionArray) -> SpanArray:
 
     # Create target text StringTable and text_ids from dictionary array
     target_text_dict_array = extension_array.storage.field(ArrowSpanType.TARGET_TEXT_DICT_NAME)
-    target_texts = [s.as_py() for s in target_text_dict_array.dictionary]
-    string_table, _ = StringTable.merge_things(target_texts)
+    table_texts = target_text_dict_array.dictionary.to_pylist()
+    string_table = StringTable.from_things(table_texts)
     text_ids = target_text_dict_array.indices.to_numpy()
 
     # Get the begins/ends pyarrow arrays

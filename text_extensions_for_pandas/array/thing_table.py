@@ -170,6 +170,19 @@ class ThingTable(ABC):
             str_ids[i] = new_table.maybe_add_thing(things[i])
         return new_table, str_ids
 
+    @classmethod
+    def from_things(cls, things: Union[Sequence[Any], np.ndarray]):
+        """
+        Factory method for creating a ThingTable from a sequence of unique things.
+
+        :param things: sequence of unique things to be added to the ThingTable.
+        :return: A ThingTable containing the elements of `things`.
+        """
+        new_table = cls()
+        for thing in things:
+            new_table.add_thing(thing)
+        return new_table
+
     def thing_to_id(self, thing: Any) -> int:
         """
         :param thing: A thing to look up in this table

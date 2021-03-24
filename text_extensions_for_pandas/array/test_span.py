@@ -467,6 +467,24 @@ class CharSpanArrayIOTests(ArrayTestBase):
             df_read = pd.read_feather(filename)
             pd.testing.assert_frame_equal(df, df_read)
 
+    def test_feather_multi_doc(self):
+        arr = self._make_spans_of_tokens()
+        df1 = pd.DataFrame({'Span': arr})
+
+        arr = SpanArray(
+            "Have at it.", np.array([0, 5, 8]), np.array([4, 7, 11])
+        )
+        df2 = pd.DataFrame({'Span': arr})
+
+        df = pd.concat([df1, df2], ignore_index=True)
+        self.assertFalse(df["Span"].array.is_single_document)
+
+        with tempfile.TemporaryDirectory() as dirpath:
+            filename = os.path.join(dirpath, 'span_array_multi_doc_test.feather')
+            df.to_feather(filename)
+            df_read = pd.read_feather(filename)
+            pd.testing.assert_frame_equal(df, df_read)
+
     @pytest.mark.skipif(LooseVersion(pa.__version__) < LooseVersion("2.0.0"),
                         reason="Nested Parquet data types only supported in Arrow >= 2.0.0")
     def test_parquet(self):
