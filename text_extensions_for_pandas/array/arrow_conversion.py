@@ -27,41 +27,40 @@ import pyarrow as pa
 from text_extensions_for_pandas.array.span import SpanArray
 from text_extensions_for_pandas.array.token_span import TokenSpanArray
 from text_extensions_for_pandas.array.tensor import TensorArray
+from text_extensions_for_pandas.array.string_table import StringTable
 
 
 class ArrowSpanType(pa.PyExtensionType):
     """
     PyArrow extension type definition for conversions to/from Span columns
     """
+    BEGINS_NAME = "span_begins"
+    ENDS_NAME = "span_ends"
+    TARGET_TEXT_DICT_NAME = "target_text"
 
-    TARGET_TEXT_KEY = b"target_text"  # metadata key/value gets serialized to bytes
-    BEGINS_NAME = "char_begins"
-    ENDS_NAME = "char_ends"
-
-    def __init__(self, index_dtype, target_text):
+    def __init__(self, index_dtype, target_text_dict_dtype):
         """
         Create an instance of a Span data type with given index type and
-        target text that will be stored in Field metadata.
+        target text dictionary type. The dictionary type will hold target text ids
+        that map to a dictionary of document target texts.
 
-        :param index_dtype:
-        :param target_text:
+        :param index_dtype: type for the begin, end index arrays
+        :param target_text_dict_dtype: type for the target text dictionary array
         """
         assert pa.types.is_integer(index_dtype)
 
-        # Store target text as field metadata
-        metadata = {self.TARGET_TEXT_KEY: target_text}
-
         fields = [
-            pa.field(self.BEGINS_NAME, index_dtype, metadata=metadata),
-            pa.field(self.ENDS_NAME, index_dtype)
+            pa.field(self.BEGINS_NAME, index_dtype),
+            pa.field(self.ENDS_NAME, index_dtype),
+            pa.field(self.TARGET_TEXT_DICT_NAME, target_text_dict_dtype)
         ]
 
         pa.PyExtensionType.__init__(self, pa.struct(fields))
 
     def __reduce__(self):
         index_dtype = self.storage_type[self.BEGINS_NAME].type
-        metadata = self.storage_type[self.BEGINS_NAME].metadata
-        return ArrowSpanType, (index_dtype, metadata)
+        target_text_dict_dtype = self.storage_type[self.TARGET_TEXT_DICT_NAME].type
+        return ArrowSpanType, (index_dtype, target_text_dict_dtype)
 
 
 class ArrowTokenSpanType(pa.PyExtensionType):
@@ -69,9 +68,9 @@ class ArrowTokenSpanType(pa.PyExtensionType):
     PyArrow extension type definition for conversions to/from TokenSpan columns
     """
 
-    TARGET_TEXT_KEY = ArrowSpanType.TARGET_TEXT_KEY
     BEGINS_NAME = "token_begins"
     ENDS_NAME = "token_ends"
+    TARGET_TEXT_DICT_NAME = "token_spans"
 
     def __init__(self, index_dtype, target_text, num_char_span_splits):
         """
@@ -133,10 +132,15 @@ def span_to_arrow(char_span: SpanArray) -> pa.ExtensionArray:
     begins_array = pa.array(char_span.begin)
     ends_array = pa.array(char_span.end)
 
-    typ = ArrowSpanType(begins_array.type, char_span.target_text)
+    # Create a dictionary array from StringTable used in this span
+    dictionary = pa.array([char_span._string_table.unbox(s)
+                           for s in char_span._string_table.things])
+    target_text_dict_array = pa.DictionaryArray.from_arrays(char_span._text_ids, dictionary)
+
+    typ = ArrowSpanType(begins_array.type, target_text_dict_array.type)
     fields = list(typ.storage_type)
 
-    storage = pa.StructArray.from_arrays([begins_array, ends_array], fields=fields)
+    storage = pa.StructArray.from_arrays([begins_array, ends_array, target_text_dict_array], fields=fields)
 
     return pa.ExtensionArray.from_storage(typ, storage)
 
@@ -154,13 +158,21 @@ def arrow_to_span(extension_array: pa.ExtensionArray) -> SpanArray:
             raise ValueError("Only pyarrow.Array with a single chunk is supported")
         extension_array = extension_array.chunk(0)
 
+    # NOTE: workaround for bug in parquet reading
+    if pa.types.is_struct(extension_array.type):
+        index_dtype = extension_array.field(ArrowSpanType.BEGINS_NAME).type
+        target_text_dict_dtype = extension_array.field(ArrowSpanType.TARGET_TEXT_DICT_NAME).type
+        extension_array = pa.ExtensionArray.from_storage(
+            ArrowSpanType(index_dtype, target_text_dict_dtype),
+            extension_array)
+
     assert pa.types.is_struct(extension_array.storage.type)
 
-    # Get target text from the begins field metadata and decode string
-    metadata = extension_array.storage.type[ArrowSpanType.BEGINS_NAME].metadata
-    target_text = metadata[ArrowSpanType.TARGET_TEXT_KEY]
-    if isinstance(target_text, bytes):
-        target_text = target_text.decode()
+    # Create target text StringTable and text_ids from dictionary array
+    target_text_dict_array = extension_array.storage.field(ArrowSpanType.TARGET_TEXT_DICT_NAME)
+    table_texts = target_text_dict_array.dictionary.to_pylist()
+    string_table = StringTable.from_things(table_texts)
+    text_ids = target_text_dict_array.indices.to_numpy()
 
     # Get the begins/ends pyarrow arrays
     begins_array = extension_array.storage.field(ArrowSpanType.BEGINS_NAME)
@@ -170,7 +182,7 @@ def arrow_to_span(extension_array: pa.ExtensionArray) -> SpanArray:
     begins = begins_array.to_numpy()
     ends = ends_array.to_numpy()
 
-    return SpanArray(target_text, begins, ends)
+    return SpanArray((string_table, text_ids), begins, ends)
 
 
 def token_span_to_arrow(token_span: TokenSpanArray) -> pa.ExtensionArray:
