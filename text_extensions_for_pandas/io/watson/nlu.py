@@ -521,7 +521,7 @@ def parse_response(response: Dict[str, Any],
 
     if "warnings" in response:
         # TODO: check structure of warnings and improve message
-        warnings.warn(response["warnings"])
+        warnings.warn(str(response["warnings"]))
 
     return dfs
 
