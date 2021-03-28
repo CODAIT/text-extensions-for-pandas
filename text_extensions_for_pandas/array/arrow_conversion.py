@@ -70,6 +70,40 @@ class ArrowTokenSpanType(pa.PyExtensionType):
 
     BEGINS_NAME = "token_begins"
     ENDS_NAME = "token_ends"
+
+    def __init__(self, index_dtype, token_dict_dtype):
+        """
+        Create an instance of a TokenSpan data type with given index type and
+        target text that will be stored in Field metadata.
+
+        :param index_dtype:
+        :param target_text:
+        """
+        assert pa.types.is_integer(index_dtype)
+
+        token_span_fields = [
+            pa.field(self.BEGINS_NAME, pa.dictionary(index_dtype, token_dict_dtype)),
+            pa.field(self.ENDS_NAME, index_dtype),
+        ]
+
+
+        fields = token_span_fields
+
+        pa.PyExtensionType.__init__(self, pa.struct(fields))
+
+    def __reduce__(self):
+        index_dtype = self.storage_type[self.ENDS_NAME].type
+        token_dict_dtype = self.storage_type[self.BEGINS_NAME].type.value_type
+        return ArrowTokenSpanType, (index_dtype, token_dict_dtype)
+
+
+class ArrowTokenSpanTypeBAK(pa.PyExtensionType):
+    """
+    PyArrow extension type definition for conversions to/from TokenSpan columns
+    """
+
+    BEGINS_NAME = "token_begins"
+    ENDS_NAME = "token_ends"
     TARGET_TEXT_DICT_NAME = "token_spans"
 
     def __init__(self, index_dtype, target_text, num_char_span_splits):
@@ -186,6 +220,34 @@ def arrow_to_span(extension_array: pa.ExtensionArray) -> SpanArray:
 
 
 def token_span_to_arrow(token_span: TokenSpanArray) -> pa.ExtensionArray:
+    """
+    Convert a TokenSpanArray to a pyarrow.ExtensionArray with a type
+    of ArrowTokenSpanType and struct as the storage type. The resulting
+    extension array can be serialized and transferred with standard
+    Arrow protocols.
+
+    :param token_span: A TokenSpanArray to be converted
+    :return: pyarrow.ExtensionArray containing TokenSpan data
+    """
+    # Create arrays for begins/ends
+    token_begins_array = pa.array(token_span.begin_token)
+    token_ends_array = pa.array(token_span.end_token)
+    #token_span_arrays = [token_begins_array, token_ends_array]
+
+    arrow_span_ext_array = span_to_arrow(token_span.tokens[0])
+    arrow_span_array = arrow_span_ext_array.storage
+
+    token_begins_dict_array = pa.DictionaryArray.from_arrays(token_begins_array, arrow_span_array)
+
+    typ = ArrowTokenSpanType(token_begins_array.type, arrow_span_array.type)
+    fields = list(typ.storage_type)
+
+    storage = pa.StructArray.from_arrays([token_begins_dict_array, token_ends_array], fields=fields)
+
+    return pa.ExtensionArray.from_storage(typ, storage)
+
+
+def token_span_to_arrow_BAK(token_span: TokenSpanArray) -> pa.ExtensionArray:
     """
     Convert a TokenSpanArray to a pyarrow.ExtensionArray with a type
     of ArrowTokenSpanType and struct as the storage type. The resulting
