@@ -11,6 +11,11 @@ Steps to release a new version:
    It is not necessary to test all combinations; just make sure that you test
    each Python version and each Pandas version at least once.
    
+   To install the latest Pandas on the 1.0.x branch, use the command:
+   ```
+   pip install --upgrade --force "pandas>=1.0,<1.1"
+   ```
+   
 1. Ensure Watson NLU service API tests are enabled and passing by setting 
    IBM_API_KEY and IBM_SERVICE_URL, then running unit tests with pytest.
 
