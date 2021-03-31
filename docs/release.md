@@ -7,6 +7,7 @@ Steps to release a new version:
    and Pandas. The current versions are:
    * Python: 3.6, 3.7, 3.8
    * Pandas: 1.0.x, 1.1.x, 1.2.x
+   
    It is not necessary to test all combinations; just make sure that you test
    each Python version and each Pandas version at least once.
    
