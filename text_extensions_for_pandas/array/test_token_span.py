@@ -518,7 +518,8 @@ def data_for_grouping(dtype):
     return pd.array([b, b, na, na, a, a, b, c], dtype=dtype)
 
 
-# Can't import due to dependencies, taken from pandas.conftest import all_compare_operators
+# Can't import due to dependencies, taken
+# from pandas.conftest import all_compare_operators
 @pytest.fixture(params=["__eq__", "__ne__", "__lt__", "__gt__", "__le__", "__ge__"])
 def all_compare_operators(request):
     return request.param
@@ -552,14 +553,10 @@ class TestPandasConstructors(base.BaseConstructorsTests):
     def test_series_constructor_no_data_with_index(self, dtype, na_value):
         pass
 
+    @pytest.mark.skipif(pd.__version__.startswith("1.0"),
+                        reason="Test added in Pandas 1.1.0")
     def test_construct_empty_dataframe(self, dtype):
         super().test_construct_empty_dataframe(dtype)
-        # try:
-        #     with pytest.raises(TypeError, match="Expected SpanArray as tokens"):
-        #         super().test_construct_empty_dataframe(dtype)
-        # except AttributeError:
-        #     # Test added in Pandas 1.1.0, ignore for earlier versions
-        #     pass
 
 
 class TestPandasGetitem(base.BaseGetitemTests):
