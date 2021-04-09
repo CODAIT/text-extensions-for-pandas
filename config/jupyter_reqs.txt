@@ -1,10 +1,15 @@
 # jupyter_reqs.txt
 # Pip requirements file to create a Jupyterlab environment for development of
 # this project.
-jupyterlab
-jupyterlab-git
+
+# We currently install JupyterLab from conda because the pip packages are 
+# broken for Anaconda environments with Python 3.6 and 3.8 on Mac, as of
+# April 2021.
+#jupyterlab
+#jupyterlab-git
 nodejs
-xeus-python
 ipywidgets
 matplotlib
+
+ray
 

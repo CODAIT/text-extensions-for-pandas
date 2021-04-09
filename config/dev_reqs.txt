@@ -7,7 +7,7 @@ pytest
 pyyaml
 transformers>=3.0.0
 # SpaCy models aren't stable across point releases
-spacy==2.3.2
+spacy==3.0.5
 sphinx
 sphinxcontrib-apidoc
 ipywidgets
