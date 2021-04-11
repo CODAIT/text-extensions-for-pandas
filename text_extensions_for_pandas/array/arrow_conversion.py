@@ -20,12 +20,13 @@
 #
 # Provide Arrow compatible classes for serializing to pyarrow.
 #
+from distutils.version import LooseVersion
 
 import numpy as np
 import pyarrow as pa
 
 from text_extensions_for_pandas.array.span import SpanArray
-from text_extensions_for_pandas.array.token_span import TokenSpanArray
+from text_extensions_for_pandas.array.token_span import TokenSpanArray, _EMPTY_SPAN_ARRAY_SINGLETON
 from text_extensions_for_pandas.array.tensor import TensorArray
 from text_extensions_for_pandas.array.string_table import StringTable
 
@@ -108,6 +109,9 @@ def span_to_arrow(char_span: SpanArray) -> pa.ExtensionArray:
     :param char_span: A SpanArray to be converted
     :return: pyarrow.ExtensionArray containing Span data
     """
+    if LooseVersion(pa.__version__) < LooseVersion("2.0.0"):
+        raise NotImplementedError("Arrow serialization for SpanArray is not supported with "
+                                  "PyArrow versions < 2.0.0")
     # Create array for begins, ends
     begins_array = pa.array(char_span.begin)
     ends_array = pa.array(char_span.end)
@@ -130,9 +134,14 @@ def arrow_to_span(extension_array: pa.ExtensionArray) -> SpanArray:
     Convert a pyarrow.ExtensionArray with type ArrowSpanType to
     a SpanArray.
 
+    ..NOTE: Only supported with PyArrow >= 2.0.0
+
     :param extension_array: pyarrow.ExtensionArray with type ArrowSpanType
     :return: SpanArray
     """
+    if LooseVersion(pa.__version__) < LooseVersion("2.0.0"):
+        raise NotImplementedError("Arrow serialization for SpanArray is not supported with "
+                                  "PyArrow versions < 2.0.0")
     if isinstance(extension_array, pa.ChunkedArray):
         if extension_array.num_chunks > 1:
             raise ValueError("Only pyarrow.Array with a single chunk is supported")
@@ -175,18 +184,28 @@ def token_span_to_arrow(token_span: TokenSpanArray) -> pa.ExtensionArray:
     :param token_span: A TokenSpanArray to be converted
     :return: pyarrow.ExtensionArray containing TokenSpan data
     """
+    if LooseVersion(pa.__version__) < LooseVersion("2.0.0"):
+        raise NotImplementedError("Arrow serialization for TokenSpanArray is not supported with "
+                                  "PyArrow versions < 2.0.0")
     # Create arrays for begins/ends
     token_begins_array = pa.array(token_span.begin_token)
     token_ends_array = pa.array(token_span.end_token)
 
+    # Filter out any empty SpanArrays
+    non_null_tokens = token_span.tokens[~token_span.isna()]
+    assert len(non_null_tokens) > 0
+
     # Get either single document as a list or use a list of all if multiple docs
-    assert len(token_span.tokens) > 0
-    if all([token is token_span.tokens[0] for token in token_span.tokens]):
-        tokens_arrays = [token_span.tokens[0]]
-        tokens_indices = pa.array([0] * len(token_span.tokens))
+    if all([token is non_null_tokens[0] for token in non_null_tokens]):
+        tokens_arrays = [non_null_tokens[0]]
+        tokens_indices = pa.array([0] * len(token_span.tokens), mask=token_span.isna())
     else:
-        tokens_arrays = token_span.tokens
-        tokens_indices = pa.array(range(len(tokens_arrays)))
+        raise NotImplementedError("TokenSpan Multi-doc serialization not yet implemented due to "
+                                  "ArrowNotImplementedError: Concat with dictionary unification NYI")
+        tokens_arrays = non_null_tokens
+        tokens_indices = np.zeros_like(token_span.tokens)
+        tokens_indices[~token_span.isna()] = range(len(tokens_arrays))
+        tokens_indices = pa.array(tokens_indices, mask=token_span.isna())
 
     # Convert each token SpanArray to Arrow and get as raw storage
     arrow_tokens_arrays = [span_to_arrow(sa).storage for sa in tokens_arrays]
@@ -217,6 +236,9 @@ def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
     :param extension_array: pyarrow.ExtensionArray with type ArrowTokenSpanType
     :return: TokenSpanArray
     """
+    if LooseVersion(pa.__version__) < LooseVersion("2.0.0"):
+        raise NotImplementedError("Arrow serialization for TokenSpanArray is not supported with "
+                                  "PyArrow versions < 2.0.0")
     if isinstance(extension_array, pa.ChunkedArray):
         if extension_array.num_chunks > 1:
             raise ValueError("Only pyarrow.Array with a single chunk is supported")
@@ -252,7 +274,8 @@ def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
         tokens_arrays.append(tokens_array)
 
     # Map the token indices to the actual token SpanArray for each element in the TokenSpanArray
-    tokens = [tokens_arrays[i.as_py()] for i in tokens_indices]
+    tokens = [_EMPTY_SPAN_ARRAY_SINGLETON if i is None else tokens_arrays[i]
+              for i in tokens_indices.to_pylist()]
 
     # Zero-copy convert arrays to numpy
     token_begins = token_begins_array.to_numpy()

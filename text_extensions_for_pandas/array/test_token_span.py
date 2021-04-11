@@ -14,6 +14,7 @@
 #
 
 import pandas as pd
+from distutils.version import LooseVersion
 import os
 import tempfile
 import unittest
@@ -21,6 +22,7 @@ import unittest
 import pytest
 
 from pandas.tests.extension import base
+import pyarrow as pa
 
 from text_extensions_for_pandas.array.test_span import ArrayTestBase
 from text_extensions_for_pandas.array.span import *
@@ -365,6 +367,8 @@ class TokenSpanArrayTest(ArrayTestBase):
         self.assertEqual(len(df), len(arr))
 
 
+@pytest.mark.skipif(LooseVersion(pa.__version__) < LooseVersion("2.0.0"),
+                    reason="Nested dictionaries only supported in Arrow >= 2.0.0")
 class TokenSpanArrayIOTests(ArrayTestBase):
 
     def do_roundtrip(self, df):
@@ -383,7 +387,7 @@ class TokenSpanArrayIOTests(ArrayTestBase):
         self.do_roundtrip(df1)
 
         # More token spans than tokens
-        """ts2 = TokenSpanArray(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
+        ts2 = TokenSpanArray(toks, [0, 1, 2, 3, 0, 2, 0], [1, 2, 3, 4, 2, 4, 4])
         df2 = pd.DataFrame({"ts2": ts2})
         self.do_roundtrip(df2)
 
@@ -404,7 +408,35 @@ class TokenSpanArrayIOTests(ArrayTestBase):
 
         # All columns together, TokenSpan arrays padded as needed
         df = pd.concat([df1, df2, df3, df4], axis=1)
-        self.do_roundtrip(df)"""
+        self.do_roundtrip(df)
+
+    @pytest.mark.skip(reason="ArrowNotImplementedError: Concat with dictionary unification NYI")
+    def test_feather_multi_doc(self):
+        toks = self._make_spans_of_tokens()
+        arr = TokenSpanArray(toks, np.arange(len(toks)), np.arange(len(toks)) + 1)
+        df1 = pd.DataFrame({'TokenSpan': arr})
+
+        toks = SpanArray(
+            "Have at it.", np.array([0, 5, 8]), np.array([4, 7, 11])
+        )
+        arr = TokenSpanArray(toks, np.arange(len(toks)), np.arange(len(toks)) + 1)
+        df2 = pd.DataFrame({'TokenSpan': arr})
+
+        df = pd.concat([df1, df2], ignore_index=True)
+        self.assertFalse(df["TokenSpan"].array.is_single_document)
+        self.do_roundtrip(df)
+
+    @pytest.mark.skip(reason="ArrowNotImplementedError: Writing DictionaryArray with nested dictionary type not yet supported")
+    def test_parquet(self):
+        toks = self._make_spans_of_tokens()
+        arr = TokenSpanArray(toks, np.arange(len(toks)), np.arange(len(toks)) + 1)
+        df = pd.DataFrame({'TokenSpan': arr})
+
+        with tempfile.TemporaryDirectory() as dirpath:
+            filename = os.path.join(dirpath, "token_span_array_test.parquet")
+            df.to_parquet(filename)
+            df_read = pd.read_parquet(filename)
+            pd.testing.assert_frame_equal(df, df_read)
 
 
 @pytest.fixture
@@ -486,7 +518,8 @@ def data_for_grouping(dtype):
     return pd.array([b, b, na, na, a, a, b, c], dtype=dtype)
 
 
-# Can't import due to dependencies, taken from pandas.conftest import all_compare_operators
+# Can't import due to dependencies, taken
+# from pandas.conftest import all_compare_operators
 @pytest.fixture(params=["__eq__", "__ne__", "__lt__", "__gt__", "__le__", "__ge__"])
 def all_compare_operators(request):
     return request.param
@@ -520,14 +553,10 @@ class TestPandasConstructors(base.BaseConstructorsTests):
     def test_series_constructor_no_data_with_index(self, dtype, na_value):
         pass
 
+    @pytest.mark.skipif(pd.__version__.startswith("1.0"),
+                        reason="Test added in Pandas 1.1.0")
     def test_construct_empty_dataframe(self, dtype):
         super().test_construct_empty_dataframe(dtype)
-        # try:
-        #     with pytest.raises(TypeError, match="Expected SpanArray as tokens"):
-        #         super().test_construct_empty_dataframe(dtype)
-        # except AttributeError:
-        #     # Test added in Pandas 1.1.0, ignore for earlier versions
-        #     pass
 
 
 class TestPandasGetitem(base.BaseGetitemTests):
