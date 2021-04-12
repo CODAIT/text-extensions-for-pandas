@@ -27,7 +27,7 @@ class ExtractTest(TestBase):
     def _make_tokenizer():
         from spacy.lang.en import English
         nlp = English()
-        return nlp.Defaults.create_tokenizer(nlp)
+        return nlp.tokenizer
 
     @staticmethod
     def _read_file(file_name):

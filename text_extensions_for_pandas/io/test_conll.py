@@ -50,7 +50,7 @@ class CoNLLTest(unittest.TestCase):
                 """\
                                           span ent_type
                 0           [61, 67): 'Alaska'      GPE
-                1      [73, 84): 'Santa Claus'   PERSON
+                1      [73, 84): 'Santa Claus'      ORG
                 2  [100, 113): 'Steven Wright'   PERSON"""
             ),
         )
