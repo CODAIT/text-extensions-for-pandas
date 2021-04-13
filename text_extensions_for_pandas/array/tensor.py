@@ -590,7 +590,35 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             raise NotImplementedError(f"'{name}' aggregate not implemented.")
 
     def __array__(self, dtype=None):
+        print("ARRAY")
         return np.asarray(self._tensor, dtype=dtype)
+
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        print("UFUNC")
+        import numbers
+        out = kwargs.get('out', ())
+        for x in inputs + out:
+            if not isinstance(x, (TensorArray, np.ndarray, numbers.Number)):
+                return NotImplemented
+
+        # Defer to the implementation of the ufunc on unwrapped values.
+        inputs = tuple(x._tensor if isinstance(x, TensorArray) else x
+                       for x in inputs)
+        if out:
+            kwargs['out'] = tuple(
+                x._tensor if isinstance(x, TensorArray) else x
+                for x in out)
+        result = getattr(ufunc, method)(*inputs, **kwargs)
+
+        if type(result) is tuple:
+            # multiple return values
+            return tuple(type(self)(x) for x in result)
+        elif method == 'at':
+            # no return value
+            return None
+        else:
+            # one return value
+            return type(self)(result)
 
     def __arrow_array__(self, type=None):
         from text_extensions_for_pandas.array.arrow_conversion import ArrowTensorArray
