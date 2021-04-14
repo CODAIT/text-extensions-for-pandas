@@ -86,4 +86,6 @@ These steps are from the general process described in https://conda-forge.org/do
 
 **C. Push changes to the forked repo and make a PR**
    11. Follow instructions and checklist in PR
-   12. Once approved it will be merged, and the package will be automatically made some time after
+   12. Wait for checks to pass
+   13. Merge PR to master branch, using Github interface is fine
+   14. Once merged, the conda package will be created automatically
