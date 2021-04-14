@@ -375,10 +375,7 @@ class TestTensor(unittest.TestCase):
 
         # Test as agg to TensorElement, defaults to axis=0
         result = s % 2 == 0
-        a = np.asarray(arr)
-        r = np.all(result.array, axis=1)
-        r = np.max(arr, axis=1)
-        #npt.assert_array_equal(result.all(), np.array([True, False]))
+        npt.assert_array_equal(result.all(), np.array([True, False]))
 
     def test_any(self):
         arr = TensorArray(np.arange(6).reshape(3, 2))
@@ -501,6 +498,28 @@ class TestTensor(unittest.TestCase):
 
         arr = TensorArray([True, False, True])
         self.assertEqual(arr.inferred_type, "boolean")
+
+    def test_numpy_ufunc(self):
+        data = np.arange(10).reshape(5, 2)
+        arr = TensorArray(data)
+
+        # ufunc with number
+        result = np.add(arr, 1)
+        expected = np.add(data, 1)
+        npt.assert_array_equal(result, expected)
+        self.assertTrue(isinstance(result, TensorArray))
+
+        # ufunc with ndarray
+        result = np.add(arr, data)
+        expected = np.add(data, data)
+        npt.assert_array_equal(result, expected)
+        self.assertTrue(isinstance(result, TensorArray))
+
+        # ufunc with another TensorArray
+        result = np.add(arr, arr)
+        expected = np.add(data, data)
+        npt.assert_array_equal(result, expected)
+        self.assertTrue(isinstance(result, TensorArray))
 
 
 class TensorArrayDataFrameTests(unittest.TestCase):
