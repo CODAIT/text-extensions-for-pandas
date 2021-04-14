@@ -11,6 +11,9 @@ import requests
 import time
 import torch
 import sklearn.random_projection
+import sklearn.pipeline
+import sklearn.linear_model
+import ray
 
 import text_extensions_for_pandas as tp
 
@@ -19,6 +22,30 @@ import importlib
 tp = importlib.reload(tp)
 
 from typing import *
+
+# Define a Ray actor to compute embeddings.
+@ray.remote
+class BertActor:
+    """
+    Ray actor wrapper for tp.io.bert.conll_to_bert()
+    """
+    def __init__(self, bert_model_name: str, token_class_dtype: Any,
+                 compute_embeddings: bool = True):
+        import transformers as trf
+        self._tokenizer = trf.BertTokenizerFast.from_pretrained(bert_model_name, 
+                                                                add_special_tokens=True,
+                                                               )
+        self._tokenizer.deprecation_warnings[
+            "sequence-length-is-longer-than-the-specified-maximum"] = True
+        self._bert = trf.BertModel.from_pretrained(bert_model_name)
+        self._token_class_dtype = token_class_dtype
+        self._compute_embeddings = compute_embeddings
+        
+    def process_doc(self, tokens_df):
+        return tp.io.bert.conll_to_bert(
+            tokens_df, self._tokenizer, self._bert, self._token_class_dtype,
+            compute_embeddings=self._compute_embeddings)
+
 
 
 def train_reduced_model(x_values: np.ndarray, y_values: np.ndarray, n_components: int,

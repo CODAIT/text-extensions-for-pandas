@@ -35,7 +35,7 @@ from text_extensions_for_pandas.spanner.join import (
 nlp = English()
 # Create a Tokenizer with the default settings for English
 # including punctuation rules and exceptions
-_tokenizer = nlp.Defaults.create_tokenizer(nlp)
+_tokenizer = nlp.tokenizer
 
 # Build up some example relations for the tests in this file
 _TEXT = """

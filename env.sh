@@ -12,7 +12,7 @@
 # Use environment variables if present.
 # (-z predicate means "unset or empty string")
 if [ -z "$PYTHON_VERSION" ]; then
-    PYTHON_VERSION="3.7"
+    PYTHON_VERSION="3.8"
 fi
 ENV_NAME="pd"
 
@@ -119,6 +119,14 @@ if [ -n "${ENV_NAME}" ]; then
     conda activate ${ENV_NAME}
 fi
 
+################################################################################
+# Install packages with conda
+
+# We currently install JupyterLab from conda because the pip packages are 
+# broken for Anaconda environments with Python 3.6 and 3.8 on Mac, as of
+# April 2021.
+conda install -y -c conda-forge jupyterlab
+conda install -y -c conda-forge/label/main nodejs
 
 ################################################################################
 # Install packages with pip
@@ -148,17 +156,15 @@ fi
 
 # spaCy language models for English
 python -m spacy download en_core_web_sm
+python -m spacy download en_core_web_trf
 
 
-# Finish installation of ipywidgets from the "conda-forge" section above
+# Finish installation of ipywidgets
 jupyter nbextension enable --py widgetsnbextension
 jupyter labextension install --no-build @jupyter-widgets/jupyterlab-manager
 
 # Also install the table of contents extension
 jupyter labextension install --no-build @jupyterlab/toc
-
-# Jupyter debugger extension (requires xeus-python, installed above)
-jupyter labextension install --no-build @jupyterlab/debugger
 
 # Build once after installing all the extensions, and skip minimization of the
 # JuptyerLab resources, since we'll be running from the local machine.
