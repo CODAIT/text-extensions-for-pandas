@@ -20,6 +20,11 @@ pip install text-extensions-for-pandas
 Then take a look at our [introductory Jupyter notebook](https://nbviewer.jupyter.org/github/CODAIT/text-extensions-for-pandas/blob/master/notebooks/Text_Extensions_for_Pandas_Overview.ipynb)
 and our [API documentation](https://text-extensions-for-pandas.readthedocs.io/en/latest/).
 
+Alternatively, packages are available to be installed from conda-forge for use in a conda environment with:
+
+```
+conda install --channel=conda-forge text_extensions_for_pandas
+```
 
 # Extension Types
 
