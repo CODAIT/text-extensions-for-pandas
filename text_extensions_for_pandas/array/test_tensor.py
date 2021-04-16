@@ -500,26 +500,32 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(arr.inferred_type, "boolean")
 
     def test_numpy_ufunc(self):
+
+        def verify_ufunc_result(result_, expected_):
+            self.assertTrue(isinstance(result_, TensorArray))
+            npt.assert_array_equal(result_, expected_)
+
         data = np.arange(10).reshape(5, 2)
         arr = TensorArray(data)
 
         # ufunc with number
         result = np.add(arr, 1)
         expected = np.add(data, 1)
-        npt.assert_array_equal(result, expected)
-        self.assertTrue(isinstance(result, TensorArray))
+        verify_ufunc_result(result, expected)
+        result = np.add(1, arr)
+        verify_ufunc_result(result, expected)
 
         # ufunc with ndarray
         result = np.add(arr, data)
         expected = np.add(data, data)
-        npt.assert_array_equal(result, expected)
-        self.assertTrue(isinstance(result, TensorArray))
+        verify_ufunc_result(result, expected)
+        result = np.add(data, arr)
+        verify_ufunc_result(result, expected)
 
         # ufunc with another TensorArray
         result = np.add(arr, arr)
         expected = np.add(data, data)
-        npt.assert_array_equal(result, expected)
-        self.assertTrue(isinstance(result, TensorArray))
+        verify_ufunc_result(result, expected)
 
 
 class TensorArrayDataFrameTests(unittest.TestCase):
