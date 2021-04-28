@@ -59,6 +59,12 @@ packages:
 * `transformers` (for transformer-based embeddings and BERT tokenization)
 * `ibm_watson` (for IBM Watson support)
 
+Alternatively, packages are available to be installed from conda-forge for use in a conda environment with:
+
+```
+conda install --channel=conda-forge text_extensions_for_pandas
+```
+
 ## Installation from Source
 
 If you'd like to try out the very latest version of our code, 
