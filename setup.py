@@ -24,7 +24,7 @@ with open('requirements.txt') as fh:
 
 setuptools.setup(
     name="text_extensions_for_pandas",
-    version="0.1b3",
+    version="0.1b4",
     author="IBM",
     author_email="frreiss@example.com",
     description="Natural language processing support for Pandas dataframes.",
@@ -40,5 +40,5 @@ setuptools.setup(
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering",
     ],
-    python_requires='>=3.7',
+    python_requires='>=3.6',
 )
