@@ -40,6 +40,7 @@ from text_extensions_for_pandas.array.token_span import (
 # Special token that CoNLL-2003 format uses to delineate the documents in
 # the collection.
 _CONLL_DOC_SEPARATOR = "-DOCSTART-"
+_EWT_DOC_SEPERATOR = "newdoc"
 
 # _PUNCT_REGEX = regex.compile(f"[{string.punctuation}]+")
 _PUNCT_OR_RIGHT_PAREN_REGEX = regex.compile(
@@ -57,6 +58,9 @@ _SPACE_BEFORE_MATCH_FN = np.vectorize(lambda s:
 _SPACE_AFTER_MATCH_FN = np.vectorize(lambda s:
                                      _LEFT_PAREN_REGEX.fullmatch(s)
                                      is not None)
+_DEFAULT_CONLL_U_FORMAT = ["lemma", "upostag", "xpostag", "features", "head", "deprel", "deps", "misc"]
+# Note, Index in sentence is explicit; starts one further long
+# for more information see https://universaldependencies.org/docs/format.html
 
 
 def _make_empty_meta_values(column_names: List[str], iob_columns: List[bool]) \
@@ -79,6 +83,7 @@ class _SentenceData:
 
     Not intended for use outside this file.
     """
+
     def __init__(self, column_names: List[str], iob_columns: List[bool]):
         self._column_names = column_names
         self._iob_columns = iob_columns
@@ -108,19 +113,7 @@ class _SentenceData:
     def line_nums(self):
         return self._line_nums
 
-    def add_line(self, line_num: int, line_elems: List[str]):
-        """
-        :param line_num: Location in file, for error reporting
-        :param line_elems: Fields of a line, pre-split
-        """
-        if len(line_elems) != 1 + len(self._column_names) :
-            raise ValueError(f"Unexpected number of elements {len(line_elems)} "
-                             f"at line {line_num}; expected "
-                             f"{1 + len(self._column_names)} elements.")
-        token = line_elems[0]
-        raw_tags = line_elems[1:]
-        self._tokens.append(token)
-        self._line_nums.append(line_num)
+    def _process_line_tags(self, raw_tags: List[str], line_num: int, line_elems: List[str], is_ewt: bool = False):
         for i in range(len(raw_tags)):
             raw_tag = raw_tags[i]
             name = self._column_names[i]
@@ -136,7 +129,7 @@ class _SentenceData:
                 elif raw_tag == "O":
                     tag = raw_tag
                     entity = None
-                elif raw_tag == "-X-":
+                elif (not is_ewt) and raw_tag == "-X-":
                     # Special metadata value for -DOCSTART- tags in the CoNLL corpus.
                     tag = "O"
                     entity = None
@@ -147,6 +140,39 @@ class _SentenceData:
                                      f"Fields of line are: {line_elems}")
                 self._token_metadata[f"{name}_iob"].append(tag)
                 self._token_metadata[f"{name}_type"].append(entity)
+
+    def add_line(self, line_num: int, line_elems: List[str]):
+        """
+        :param line_num: Location in file, for error reporting
+        :param line_elems: Fields of a line, pre-split
+        """
+        if len(line_elems) != 1 + len(self._column_names):
+            raise ValueError(f"Unexpected number of elements {len(line_elems)} "
+                             f"at line {line_num}; expected "
+                             f"{1 + len(self._column_names)} elements.")
+        token = line_elems[0]
+        raw_tags = line_elems[1:]
+        self._tokens.append(token)
+        self._line_nums.append(line_num)
+        self._process_line_tags(raw_tags,line_num,line_elems,is_ewt=False)
+
+    def add_line_ewt(self, line_num: int, line_elems: List[str]):
+        """
+        :param line_num: Location in file, for error reporting
+        :param line_elems: Fields of a line, pre-split
+        """
+        if len(line_elems) != 2 + len(self._column_names):
+            raise ValueError(f"Unexpected number of elements {len(line_elems)} "
+                             f"at line {line_num}; expected "
+                             f"{2 + len(self._column_names)} elements, "
+                             f"got {len(line_elems)} instead.")
+            # TODO: we might want to make this non-static cause Fred mentioned that EWT format is not always exactly followed
+        token = line_elems[1]
+        raw_tags = line_elems[2:]
+        self._tokens.append(token)
+        self._line_nums.append(line_num)
+        # because we do not combine
+        self._process_line_tags(raw_tags,line_num,line_elems,is_ewt=True)
 
 
 def _parse_conll_file(input_file: str,
@@ -208,6 +234,76 @@ def _parse_conll_file(input_file: str,
                 # added to the next document.
                 docs.append(sentences)
                 sentences = []
+
+    # Close out the last sentence and document, if needed
+    if current_sentence.num_tokens > 0:
+        sentences.append(current_sentence)
+    if len(sentences) > 0:
+        docs.append(sentences)
+    return docs
+
+
+def _parse_conll_u_file(input_file: str,
+                        column_names: List[str],
+                        iob_columns: List[bool]) \
+        -> List[List[_SentenceData]]:
+    """
+
+    Parses EWT file format to python objects
+
+    The format is especially tricky, so everything here is straight
+    non-vectorized Python code. If you want performance, write the
+    contents of your CoNLL files back out into a file format that
+    supports performance.
+
+    :param input_file: Location of the file to read
+    :param column_names: Names for the metadata columns that come after the
+     token text. These names will be used to generate the names of the dataframe
+     that this function returns.
+    :param iob_columns: Mask indicating which of the metadata columns after the
+     token text should be treated as being in IOB format. If a column is in IOB format,
+     the returned data structure will contain *two* columns, holding IOB tags and
+     entity type tags, respectively. For example, an input column "ent" will turn into
+     output columns "ent_iob" and "ent_type".
+
+    :returns: A list of lists of _SentenceData objects. The top list has one entry per
+     document. The next level lists have one entry per sentence.
+    """
+    with open(input_file, "r") as f:
+        lines = f.readlines()
+
+    # Build up a list of document metadata as Python objects
+    docs = []  # Type: List[List[Dict[str, List[str]]]]
+
+    current_sentence = _SentenceData(column_names, iob_columns)
+
+    # Information about the current document
+    sentences = []  # Type: SentenceData
+
+
+    for i in range(len(lines)):
+        line = lines[i].strip()
+        if 0 == len(line):
+            # Blank line is the sentence separator
+            if current_sentence.num_tokens > 0:
+                sentences.append(current_sentence)
+                current_sentence = _SentenceData(column_names, iob_columns)
+        elif line[0] == '#':
+            # TODO: this is metadata. We might want to store it.
+            line_elems = line.split(' ')
+            if line_elems[1] == _EWT_DOC_SEPERATOR and i > 0:
+                # End of document.  Wrap up this document and start a new one.
+                #
+                docs.append(sentences)
+                sentences = []
+        else:
+            # Not at the end of a sentence
+            line_elems = line.split("\t")
+            # Ignore multi-word tokens for now; just use word sequence; may want to change, but we'd need to
+            # interpret each sub-word's info
+
+            if '-' not in line_elems[0]:  # checks if has range
+                current_sentence.add_line_ewt(i, line_elems)
 
     # Close out the last sentence and document, if needed
     if current_sentence.num_tokens > 0:
@@ -342,11 +438,11 @@ def _iob_to_iob2(df: pd.DataFrame, column_names: List[str],
                 prev_tag = iobs[i - 1]
                 if tag == "I":
                     if (
-                        prev_tag == "O"  # Previous token not an entity
-                        or (prev_tag in ("I", "B")
-                            and entities[i] != entities[i - 1]
+                            prev_tag == "O"  # Previous token not an entity
+                            or (prev_tag in ("I", "B")
+                                and entities[i] != entities[i - 1]
                     )  # Previous token a different type of entity
-                        or (sentence_begins[i] != sentence_begins[i - 1]
+                            or (sentence_begins[i] != sentence_begins[i - 1]
                     )  # Start of new sentence
                     ):
                         iobs[i] = "B"
@@ -457,8 +553,8 @@ def _doc_to_df(doc: List[_SentenceData],
     doc_text = "\n".join(sentences_list)
     char_spans = SpanArray(doc_text, begins, ends)
     sentence_spans = TokenSpanArray(char_spans,
-                                           np.concatenate(sentence_begins_list),
-                                           np.concatenate(sentence_ends_list))
+                                    np.concatenate(sentence_begins_list),
+                                    np.concatenate(sentence_ends_list))
 
     ret = pd.DataFrame({"span": char_spans})
     for k, v in meta_lists.items():
@@ -512,10 +608,10 @@ def _output_doc_to_df(tokens: pd.DataFrame,
 # External API functions below this line
 
 def iob_to_spans(
-    token_features: pd.DataFrame,
-    iob_col_name: str = "ent_iob",
-    span_col_name: str = "span",
-    entity_type_col_name: str = "ent_type",
+        token_features: pd.DataFrame,
+        iob_col_name: str = "ent_iob",
+        span_col_name: str = "span",
+        entity_type_col_name: str = "ent_type",
 ):
     """
     Convert token tags in Inside–Outside–Beginning (IOB2) format to a series of
@@ -597,8 +693,8 @@ def iob_to_spans(
 
 
 def spans_to_iob(
-    token_spans: Union[TokenSpanArray, List[TokenSpan], pd.Series],
-    span_ent_types: Union[str, Iterable, np.ndarray, pd.Series] = None
+        token_spans: Union[TokenSpanArray, List[TokenSpan], pd.Series],
+        span_ent_types: Union[str, Iterable, np.ndarray, pd.Series] = None
 ) -> pd.DataFrame:
     """
     Convert a series of `TokenSpan`s of entities to token tags in
@@ -676,7 +772,7 @@ def spans_to_iob(
 def conll_2003_to_dataframes(input_file: str,
                              column_names: List[str],
                              iob_columns: List[bool],
-                             space_before_punct: bool = False)\
+                             space_before_punct: bool = False) \
         -> List[pd.DataFrame]:
     """
     Parse a file in CoNLL-2003 training/test format into a DataFrame.
@@ -718,6 +814,48 @@ def conll_2003_to_dataframes(input_file: str,
       the `ent_iob` column; `None` everywhere else.
     """
     parsed_docs = _parse_conll_file(input_file, column_names, iob_columns)
+    doc_dfs = [_doc_to_df(d, column_names, iob_columns, space_before_punct)
+               for d in parsed_docs]
+    return [_iob_to_iob2(d, column_names, iob_columns)
+            for d in doc_dfs]
+
+
+def conll_u_to_dataframes(input_file: str,
+                          column_names: List[str] = _DEFAULT_CONLL_U_FORMAT,
+                          iob_columns: List[bool] = None,
+                          space_before_punct: bool = False) \
+        -> List[pd.DataFrame]:
+    """
+    Parses a file from
+
+    :param input_file: Location of input file to read.
+    :param space_before_punct: If `True`, add whitespace before
+     punctuation characters when reconstructing the text of the document.
+    :param column_names: Names for the metadata columns that come after the
+     token text. These names will be used to generate the names of the dataframe
+     that this function returns. These default to the format defined at
+     https://universaldependencies.org/docs/format.html, but can be modified if needed
+    :param iob_columns: Mask indicating which of the metadata columns after the
+     token text should be treated as being in IOB format. If a column is in IOB format,
+     the returned dataframe will contain *two* columns, holding **IOB2** tags and
+     entity type tags, respectively. For example, an input column "ent" will turn into
+     output columns "ent_iob" and "ent_type". By default in CONLL_U or EWT formats this is all false.
+
+    :returns: A list containing, for each document in the input file,
+    a separate `pd.DataFrame` of four columns:
+    * `span`: Span of each token, with character offsets.
+      Backed by the concatenation of the tokens in the document into
+      a single string with one sentence per line.
+    * `ent_iob`: IOB2-format tags of tokens, corrected so that every
+      entity begins with a "B" tag.
+    * `ent_type`: Entity type names for tokens tagged "I" or "B" in
+      the `ent_iob` column; `None` everywhere else.
+    """
+    if iob_columns is None:
+        iob_columns = [False for i in range(len(column_names))]
+        # fill with falses if not specified
+
+    parsed_docs = _parse_conll_u_file(input_file, column_names, iob_columns)
     doc_dfs = [_doc_to_df(d, column_names, iob_columns, space_before_punct)
                for d in parsed_docs]
     return [_iob_to_iob2(d, column_names, iob_columns)
@@ -977,8 +1115,8 @@ def compute_accuracy_by_document(corpus_dfs: Dict[Tuple[str, int], pd.DataFrame]
     stats_by_doc["recall"] = stats_by_doc["num_true_positives"] / stats_by_doc[
         "num_entities"]
     stats_by_doc["F1"] = (
-        2.0 * (stats_by_doc["precision"] * stats_by_doc["recall"])
-        / (stats_by_doc["precision"] + stats_by_doc["recall"]))
+            2.0 * (stats_by_doc["precision"] * stats_by_doc["recall"])
+            / (stats_by_doc["precision"] + stats_by_doc["recall"]))
     return stats_by_doc
 
 

@@ -242,6 +242,71 @@ class CoNLLTest(unittest.TestCase):
             ),
         )
 
+
+    def test_conll_u_to_dataframes(self):
+        dfs = conll_u_to_dataframes("test_data/io/test_conll/conll_u_test1.txt")
+        # print(f"***{repr(dfs[0])}***")  # Uncomment to regenerate gold standard
+        self.assertEqual(
+            repr(dfs[3]),
+            # NOTE the escaped backslash in the string below. Be sure to put it back
+            # in when regenerating this string!
+            textwrap.dedent(
+                """\
+                                        span      lemma upostag xpostag  \\
+                0           [0, 6): 'Google'     Google   PROPN     NNP   
+                1             [7, 10): 'has'       have     AUX     VBZ   
+                2        [11, 18): 'finally'    finally     ADV      RB   
+                3            [19, 22): 'had'       have    VERB     VBN   
+                4             [23, 25): 'an'          a     DET      DT   
+                ..                       ...        ...     ...     ...   
+                161          [776, 777): 'a'          a     DET      DT   
+                162  [778, 787): 'punchline'  punchline    NOUN      NN   
+                163          [787, 788): ','          ,   PUNCT       ,   
+                164        [789, 792): 'too'        too     ADV      RB   
+                165          [792, 793): '.'          .   PUNCT       .   
+                
+                                                              features head  deprel      deps  \\
+                0                                          Number=Sing    4   nsubj   4:nsubj   
+                1    Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbF...    4     aux     4:aux   
+                2                                                    _    4  advmod  4:advmod   
+                3                             Tense=Past|VerbForm=Part    0    root    0:root   
+                4                            Definite=Ind|PronType=Art    7     det     7:det   
+                ..                                                 ...  ...     ...       ...   
+                161                          Definite=Ind|PronType=Art    9     det     9:det   
+                162                                        Number=Sing    7   nsubj   7:nsubj   
+                163                                                  _    7   punct   7:punct   
+                164                                                  _    7  advmod  7:advmod   
+                165                                                  _    1   punct   1:punct   
+                
+                              misc                                           sentence  \\
+                0                _  [0, 139): 'Google has finally had an analyst d...   
+                1                _  [0, 139): 'Google has finally had an analyst d...   
+                2                _  [0, 139): 'Google has finally had an analyst d...   
+                3                _  [0, 139): 'Google has finally had an analyst d...   
+                4                _  [0, 139): 'Google has finally had an analyst d...   
+                ..             ...                                                ...   
+                161              _  [743, 793): 'Read the entire article; there's ...   
+                162  SpaceAfter=No  [743, 793): 'Read the entire article; there's ...   
+                163              _  [743, 793): 'Read the entire article; there's ...   
+                164  SpaceAfter=No  [743, 793): 'Read the entire article; there's ...   
+                165              _  [743, 793): 'Read the entire article; there's ...   
+                
+                     line_num  
+                0         383  
+                1         384  
+                2         385  
+                3         386  
+                4         387  
+                ..        ...  
+                161       565  
+                162       566  
+                163       567  
+                164       568  
+                165       569  
+                
+                [166 rows x 11 columns]"""))
+
+
     def test_conll_2003_output_to_dataframes(self):
         doc_dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt",
                                            ["ent"], [True])
