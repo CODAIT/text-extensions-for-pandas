@@ -40,7 +40,7 @@ from text_extensions_for_pandas.array.token_span import (
 # Special token that CoNLL-2003 format uses to delineate the documents in
 # the collection.
 _CONLL_DOC_SEPARATOR = "-DOCSTART-"
-_EWT_DOC_SEPERATOR = "newdoc"
+_EWT_DOC_SEPERATOR = "# newdoc id"
 
 # _PUNCT_REGEX = regex.compile(f"[{string.punctuation}]+")
 _PUNCT_OR_RIGHT_PAREN_REGEX = regex.compile(
@@ -59,6 +59,8 @@ _SPACE_AFTER_MATCH_FN = np.vectorize(lambda s:
                                      _LEFT_PAREN_REGEX.fullmatch(s)
                                      is not None)
 _DEFAULT_CONLL_U_FORMAT = ["lemma", "upostag", "xpostag", "features", "head", "deprel", "deps", "misc"]
+
+
 # Note, Index in sentence is explicit; starts one further long
 # for more information see https://universaldependencies.org/docs/format.html
 
@@ -97,6 +99,11 @@ class _SentenceData:
         # Line numbers for each token from the file
         self._line_nums = []  # Type: List[int]
 
+        # metadata from conll_u file
+        self._sentence_id = None
+        self._paragraph_id = None
+        self._doc_id = None
+
     @property
     def num_tokens(self) -> int:
         return len(self._tokens)
@@ -112,6 +119,27 @@ class _SentenceData:
     @property
     def line_nums(self):
         return self._line_nums
+
+    @property
+    def doc_id(self):
+        return self._doc_id
+
+    @property
+    def paragraph_id(self):
+        return self._paragraph_id
+
+    @property
+    def sentence_id(self):
+        return self._sentence_id
+
+    @property
+    def has_conll_u_metadata(self):
+        return (self._sentence_id is not None) or (self._paragraph_id is not None) or (self._doc_id is not None)
+
+    def set_conll_u_metadata(self, doc_id: str = None, paragraph_id: str = None, sent_id: str = None):
+        self._doc_id = doc_id if doc_id is not None else self._doc_id
+        self._paragraph_id = paragraph_id if paragraph_id is not None else self._paragraph_id
+        self._sentence_id = sent_id if sent_id is not None else self._sentence_id
 
     def _process_line_tags(self, raw_tags: List[str], line_num: int, line_elems: List[str], is_ewt: bool = False):
         for i in range(len(raw_tags)):
@@ -154,7 +182,7 @@ class _SentenceData:
         raw_tags = line_elems[1:]
         self._tokens.append(token)
         self._line_nums.append(line_num)
-        self._process_line_tags(raw_tags,line_num,line_elems,is_ewt=False)
+        self._process_line_tags(raw_tags, line_num, line_elems, is_ewt=False)
 
     def add_line_ewt(self, line_num: int, line_elems: List[str]):
         """
@@ -172,7 +200,7 @@ class _SentenceData:
         self._tokens.append(token)
         self._line_nums.append(line_num)
         # because we do not combine
-        self._process_line_tags(raw_tags,line_num,line_elems,is_ewt=True)
+        self._process_line_tags(raw_tags, line_num, line_elems, is_ewt=True)
 
 
 def _parse_conll_file(input_file: str,
@@ -280,6 +308,10 @@ def _parse_conll_u_file(input_file: str,
     # Information about the current document
     sentences = []  # Type: SentenceData
 
+    # metadata specific to conll_u
+    doc_id = ''
+    paragraph_id = ''
+    sentence_id = ''
 
     for i in range(len(lines)):
         line = lines[i].strip()
@@ -288,14 +320,28 @@ def _parse_conll_u_file(input_file: str,
             if current_sentence.num_tokens > 0:
                 sentences.append(current_sentence)
                 current_sentence = _SentenceData(column_names, iob_columns)
+                current_sentence.set_conll_u_metadata(doc_id=doc_id,
+                                                      paragraph_id=paragraph_id)  # sentence id gets set later
         elif line[0] == '#':
             # TODO: this is metadata. We might want to store it.
-            line_elems = line.split(' ')
-            if line_elems[1] == _EWT_DOC_SEPERATOR and i > 0:
+            line_elems = line.split(' = ')
+            if line_elems[0] == _EWT_DOC_SEPERATOR and i > 0:
                 # End of document.  Wrap up this document and start a new one.
                 #
                 docs.append(sentences)
                 sentences = []
+                # reset doc, paragraph and sentence id's
+                doc_id = line_elems[1]
+                current_sentence.set_conll_u_metadata(doc_id=doc_id)
+                paragraph_id = ''
+                sentence_id = ''
+            elif line_elems[0] == "# newpar id":
+                paragraph_id = line_elems[1]
+                current_sentence.set_conll_u_metadata(paragraph_id=paragraph_id)
+            elif line_elems[0] == "# sent_id":
+                sentence_id = line_elems[1]
+                current_sentence.set_conll_u_metadata(sent_id=sentence_id)
+
         else:
             # Not at the end of a sentence
             line_elems = line.split("\t")
@@ -496,6 +542,11 @@ def _doc_to_df(doc: List[_SentenceData],
     # each token.
     meta_lists = _make_empty_meta_values(column_names, iob_columns)
 
+    # conll_u metadata information.
+    conll_u_ids_exsist = doc is not None and doc[0].has_conll_u_metadata # this should be the same for all sentences so we check the first
+    sentence_ids = []
+    paragraph_ids = []
+
     # Line numbers of the parsed file for each token in the doc
     doc_line_nums = []
 
@@ -548,6 +599,12 @@ def _doc_to_df(doc: List[_SentenceData],
 
         doc_line_nums.extend(sentence.line_nums)
 
+        # conll u logic
+        if conll_u_ids_exsist:
+            sentence_ids.extend([sentence.sentence_id for i in range(len(tokens))])
+            paragraph_ids.extend([sentence.paragraph_id for i in range(len(tokens))])
+
+
     begins = np.concatenate(begins_list)
     ends = np.concatenate(ends_list)
     doc_text = "\n".join(sentences_list)
@@ -561,6 +618,10 @@ def _doc_to_df(doc: List[_SentenceData],
         ret[k] = v
     ret["sentence"] = sentence_spans
     ret["line_num"] = pd.Series(doc_line_nums)
+    if conll_u_ids_exsist:
+        ret["sentence_id"] = pd.Series(sentence_ids)
+        ret["paragraph_id"] = pd.Series(paragraph_ids)
+        ret["doc_id"] = doc[0].doc_id;
     return ret
 
 
