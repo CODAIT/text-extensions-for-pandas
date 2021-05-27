@@ -273,7 +273,9 @@ def _parse_conll_file(input_file: str,
 
 def _parse_conll_u_file(input_file: str,
                         column_names: List[str],
-                        iob_columns: List[bool]) \
+                        iob_columns: List[bool],
+                        merge_subtokens: bool = False,
+                        merge_subtoken_seperator: str = '|') \
         -> List[List[_SentenceData]]:
     """
 
@@ -313,6 +315,10 @@ def _parse_conll_u_file(input_file: str,
     paragraph_id = ''
     sentence_id = ''
 
+    # if we merge subtokens we need additional logic
+    in_subtok = False  # set this flag when inside of subtoken
+    subtok_end = None  # only valid when in subtok
+
     for i in range(len(lines)):
         line = lines[i].strip()
         if 0 == len(line):
@@ -342,14 +348,35 @@ def _parse_conll_u_file(input_file: str,
                 sentence_id = line_elems[1]
                 current_sentence.set_conll_u_metadata(sent_id=sentence_id)
 
-        else:
-            # Not at the end of a sentence
+        elif not in_subtok:
+            # Not at the end of a sentence, or in a subtok
             line_elems = line.split("\t")
             # Ignore multi-word tokens for now; just use word sequence; may want to change, but we'd need to
             # interpret each sub-word's info
 
             if '-' not in line_elems[0]:  # checks if has range
                 current_sentence.add_line_ewt(i, line_elems)
+            elif merge_subtokens:
+                in_subtok = True
+                # find start and end of range
+                start, end = line_elems[0].split('-')
+                subtok_end = int(end) - int(start) + i + 1  # the end (inclusive) of subtoken, by global index
+                comb_elem_list = [[] for i in range( len(line_elems))]
+
+                for subtoken in lines[i + 1:subtok_end+1]:
+                    subtok_elems = subtoken.split("\t")
+                    for field in range(2, len(line_elems)):
+                        if subtok_elems[field] != '_':
+                            comb_elem_list[field].append(subtok_elems[field])
+                combined_elems = line_elems[0:2]  # first line is the same
+                for elem_list in comb_elem_list[2:]:
+                    combined_elems.append(merge_subtoken_seperator.join(elem_list))
+
+                current_sentence.add_line_ewt(i, combined_elems)
+
+        if in_subtok and i >= subtok_end:
+            in_subtok = False
+            subtok_end = None
 
     # Close out the last sentence and document, if needed
     if current_sentence.num_tokens > 0:
@@ -543,7 +570,8 @@ def _doc_to_df(doc: List[_SentenceData],
     meta_lists = _make_empty_meta_values(column_names, iob_columns)
 
     # conll_u metadata information.
-    conll_u_ids_exsist = doc is not None and doc[0].has_conll_u_metadata # this should be the same for all sentences so we check the first
+    conll_u_ids_exsist = doc is not None and doc[
+        0].has_conll_u_metadata  # this should be the same for all sentences so we check the first
     sentence_ids = []
     paragraph_ids = []
 
@@ -603,7 +631,6 @@ def _doc_to_df(doc: List[_SentenceData],
         if conll_u_ids_exsist:
             sentence_ids.extend([sentence.sentence_id for i in range(len(tokens))])
             paragraph_ids.extend([sentence.paragraph_id for i in range(len(tokens))])
-
 
     begins = np.concatenate(begins_list)
     ends = np.concatenate(ends_list)
@@ -884,7 +911,9 @@ def conll_2003_to_dataframes(input_file: str,
 def conll_u_to_dataframes(input_file: str,
                           column_names: List[str] = _DEFAULT_CONLL_U_FORMAT,
                           iob_columns: List[bool] = None,
-                          space_before_punct: bool = False) \
+                          space_before_punct: bool = False,
+                          merge_subtokens: bool = False,
+                          merge_subtoken_seperator: str = '|') \
         -> List[pd.DataFrame]:
     """
     Parses a file from
@@ -901,6 +930,11 @@ def conll_u_to_dataframes(input_file: str,
      the returned dataframe will contain *two* columns, holding **IOB2** tags and
      entity type tags, respectively. For example, an input column "ent" will turn into
      output columns "ent_iob" and "ent_type". By default in CONLL_U or EWT formats this is all false.
+    :param merge_subtokens: dictates how to handle tokens that are smaller than one word. By default, we keep
+     the subtokens as two seperate entities, but if this is set to true, the subtokens will be merged into a
+     single entity, of the same length as the token, and their attributes will be concatenated
+    :param merge_subtoken_seperator: If merge subtokens is selected, concatenate the attributes with this
+     seperator, by default '|'
 
     :returns: A list containing, for each document in the input file,
     a separate `pd.DataFrame` of four columns:
@@ -916,7 +950,8 @@ def conll_u_to_dataframes(input_file: str,
         iob_columns = [False for i in range(len(column_names))]
         # fill with falses if not specified
 
-    parsed_docs = _parse_conll_u_file(input_file, column_names, iob_columns)
+    parsed_docs = _parse_conll_u_file(input_file, column_names, iob_columns, merge_subtokens=merge_subtokens,
+                                      merge_subtoken_seperator=merge_subtoken_seperator)
     doc_dfs = [_doc_to_df(d, column_names, iob_columns, space_before_punct)
                for d in parsed_docs]
     return [_iob_to_iob2(d, column_names, iob_columns)
