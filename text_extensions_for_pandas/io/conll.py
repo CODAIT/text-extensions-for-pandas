@@ -59,6 +59,7 @@ _SPACE_AFTER_MATCH_FN = np.vectorize(lambda s:
                                      _LEFT_PAREN_REGEX.fullmatch(s)
                                      is not None)
 _DEFAULT_CONLL_U_FORMAT = ["lemma", "upostag", "xpostag", "features", "head", "deprel", "deps", "misc"]
+_DEFAULT_CONLL_U_NUMERIC_COLS = ["head","line_num"]
 
 
 # Note, Index in sentence is explicit; starts one further long
@@ -189,14 +190,17 @@ class _SentenceData:
         :param line_num: Location in file, for error reporting
         :param line_elems: Fields of a line, pre-split
         """
-        if len(line_elems) != 2 + len(self._column_names):
+        if len(line_elems) < 2 + len(self._column_names):
             raise ValueError(f"Unexpected number of elements {len(line_elems)} "
                              f"at line {line_num}; expected "
                              f"{2 + len(self._column_names)} elements, "
                              f"got {len(line_elems)} instead.")
             # TODO: we might want to make this non-static cause Fred mentioned that EWT format is not always exactly followed
         token = line_elems[1]
-        raw_tags = line_elems[2:]
+        raw_tags = line_elems[2:len(self._column_names)+2]
+        raw_tags = ['' if tag == '_' else tag for tag in raw_tags]
+        if len(line_elems) > 2 + len(self._column_names):
+            raw_tags[-1] = '  '.join(line_elems[1 + len(self._column_names):])
         self._tokens.append(token)
         self._line_nums.append(line_num)
         # because we do not combine
@@ -295,6 +299,8 @@ def _parse_conll_u_file(input_file: str,
      the returned data structure will contain *two* columns, holding IOB tags and
      entity type tags, respectively. For example, an input column "ent" will turn into
      output columns "ent_iob" and "ent_type".
+    :param numeric_cols: Columns to automatically convert to numeric dtypes. By default this will be the
+     head of dependncy and the line number of the token
 
     :returns: A list of lists of _SentenceData objects. The top list has one entry per
      document. The next level lists have one entry per sentence.
@@ -913,7 +919,8 @@ def conll_u_to_dataframes(input_file: str,
                           iob_columns: List[bool] = None,
                           space_before_punct: bool = False,
                           merge_subtokens: bool = False,
-                          merge_subtoken_seperator: str = '|') \
+                          merge_subtoken_seperator: str = '|',
+                          numeric_cols: List[str] = _DEFAULT_CONLL_U_NUMERIC_COLS) \
         -> List[pd.DataFrame]:
     """
     Parses a file from
@@ -954,8 +961,11 @@ def conll_u_to_dataframes(input_file: str,
                                       merge_subtoken_seperator=merge_subtoken_seperator)
     doc_dfs = [_doc_to_df(d, column_names, iob_columns, space_before_punct)
                for d in parsed_docs]
-    return [_iob_to_iob2(d, column_names, iob_columns)
-            for d in doc_dfs]
+    ret = [_iob_to_iob2(d, column_names, iob_columns) for d in doc_dfs]
+    for d in ret:
+        for col in numeric_cols:
+            d[col] = pd.to_numeric(d[col], errors='coerce')
+    return ret
 
 
 def conll_2003_output_to_dataframes(doc_dfs: List[pd.DataFrame],
