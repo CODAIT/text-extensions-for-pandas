@@ -557,7 +557,8 @@ def _iob_to_iob2(df: pd.DataFrame, column_names: List[str],
 def _doc_to_df(doc: List[_SentenceData],
                column_names: List[str],
                iob_columns: List[bool],
-               space_before_punct: bool) -> pd.DataFrame:
+               space_before_punct: bool,
+               conll_u:bool = False) -> pd.DataFrame:
     """
     Convert the "Python objects" representation of a document from a
     CoNLL-2003 file into a `pd.DataFrame` of token metadata.
@@ -671,8 +672,15 @@ def _doc_to_df(doc: List[_SentenceData],
 
         # conll u logic
         if conll_u_ids_exsist:
-            sentence_ids.extend([sentence.sentence_id for i in range(len(tokens))])
-            paragraph_ids.extend([sentence.paragraph_id for i in range(len(tokens))])
+            sentence_ids.extend(np.repeat(sentence.sentence_id,len(tokens)) )
+            paragraph_ids.extend(np.repeat(sentence.paragraph_id,len(tokens)) )
+        # move "head" indices so they point at the right words
+        if conll_u and "head" in column_names:
+            for i in range(sentence_begin_token,sentence_end_token):
+                val = meta_lists["head"][i]
+                if val is not None:
+                    points_to = int(val)
+                    meta_lists["head"][i] = points_to + sentence_begin_token-1 if points_to !=0 else None
 
     begins = np.concatenate(begins_list)
     ends = np.concatenate(ends_list)
@@ -687,6 +695,8 @@ def _doc_to_df(doc: List[_SentenceData],
         ret[k] = v
     ret["sentence"] = sentence_spans
     ret["line_num"] = pd.Series(doc_line_nums)
+    if conll_u and "head" in column_names:
+        ret = ret.astype({"head": 'int32'}, errors="ignore")
     if conll_u_ids_exsist:
         ret["sentence_id"] = pd.Series(sentence_ids)
         ret["paragraph_id"] = pd.Series(paragraph_ids)
@@ -1001,7 +1011,7 @@ def conll_u_to_dataframes(input_file: str,
     parsed_docs = _parse_conll_u_file(input_file, column_names, iob_columns, has_predicate_args,
                                       merge_subtokens= merge_subtokens,
                                       merge_subtoken_seperator=merge_subtoken_seperator)
-    doc_dfs = [_doc_to_df(d, column_names, iob_columns, space_before_punct)
+    doc_dfs = [_doc_to_df(d, column_names, iob_columns, space_before_punct,conll_u = True)
                for d in parsed_docs]
     ret = [_iob_to_iob2(d, column_names, iob_columns) for d in doc_dfs]
     for d in ret:
