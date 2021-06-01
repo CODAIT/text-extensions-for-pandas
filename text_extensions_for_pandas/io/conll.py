@@ -345,7 +345,6 @@ def _parse_conll_u_file(input_file: str,
     # metadata specific to conll_u
     doc_id = ''
     paragraph_id = ''
-    sentence_id = ''
 
     # if we merge subtokens we need additional logic
     in_subtok = False  # set this flag when inside of subtoken
@@ -363,16 +362,16 @@ def _parse_conll_u_file(input_file: str,
         elif line[0] == '#':
             # TODO: this is metadata. We might want to store it.
             line_elems = line.split(' = ')
-            if line_elems[0] == _EWT_DOC_SEPERATOR and i > 0:
-                # End of document.  Wrap up this document and start a new one.
-                #
-                docs.append(sentences)
-                sentences = []
-                # reset doc, paragraph and sentence id's
+            if line_elems[0] == _EWT_DOC_SEPERATOR:
+                if i > 0:
+                    # End of document.  Wrap up this document and start a new one.
+                    #
+                    docs.append(sentences)
+                    sentences = []
+                    # reset doc, paragraph and sentence id's
                 doc_id = line_elems[1]
                 current_sentence.set_conll_u_metadata(doc_id=doc_id)
                 paragraph_id = ''
-                sentence_id = ''
             elif line_elems[0] == "# newpar id":
                 paragraph_id = line_elems[1]
                 current_sentence.set_conll_u_metadata(paragraph_id=paragraph_id)
