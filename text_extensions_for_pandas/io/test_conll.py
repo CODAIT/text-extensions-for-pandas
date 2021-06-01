@@ -251,8 +251,7 @@ class CoNLLTest(unittest.TestCase):
             repr(dfs[3]),
             # NOTE the escaped backslash in the string below. Be sure to put it back
             # in when regenerating this string!
-            textwrap.dedent(
-                """\
+            textwrap.dedent("""\
                                         span      lemma upostag xpostag  \\
                 0           [0, 6): 'Google'     Google   PROPN     NNP   
                 1             [7, 10): 'has'       have     AUX     VBZ   
@@ -345,6 +344,164 @@ class CoNLLTest(unittest.TestCase):
                 165  weblog-blogspot.com_marketview_20050210075500_...  
                 
                 [166 rows x 14 columns]"""))
+
+        print(f"***{repr(dfs[0])}***") # catch bug where first df isn't the same
+        self.assertEqual(
+            repr(dfs[0]),
+            # NOTE the escaped backslash in the string below. Be sure to put it back
+            # in when regenerating this string!
+            textwrap.dedent("""\
+                                               span     lemma upostag xpostag  \\
+                        0            [0, 4): 'From'      from     ADP      IN   
+                        1             [5, 8): 'the'       the     DET      DT   
+                        2             [9, 11): 'AP'        AP   PROPN     NNP   
+                        3         [12, 17): 'comes'      come    VERB     VBZ   
+                        4          [18, 22): 'this'      this     DET      DT   
+                        ..                      ...       ...     ...     ...   
+                        81  [439, 448): 'replacing'   replace    VERB     VBG   
+                        82       [449, 453): 'John'      John   PROPN     NNP   
+                        83   [454, 462): 'Montague'  Montague   PROPN     NNP   
+                        84   [463, 471): 'Steadman'  Steadman   PROPN     NNP   
+                        85          [471, 472): '.'         .   PUNCT       .   
+                        
+                                                                     features  head deprel  \\
+                        0                                                None   2.0   case   
+                        1                           Definite=Def|PronType=Art   2.0    det   
+                        2                                         Number=Sing   3.0    obl   
+                        3   Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbF...   NaN   root   
+                        4                            Number=Sing|PronType=Dem   5.0    det   
+                        ..                                                ...   ...    ...   
+                        81                                       VerbForm=Ger  58.0  advcl   
+                        82                                        Number=Sing  81.0    obj   
+                        83                                        Number=Sing  82.0   flat   
+                        84                                        Number=Sing  82.0   flat   
+                        85                                               None  58.0  punct   
+                        
+                                  deps           misc  \\
+                        0       3:case           None   
+                        1        3:det           None   
+                        2   4:obl:from           None   
+                        3       0:root           None   
+                        4        6:det           None   
+                        ..         ...            ...   
+                        81     3:advcl           None   
+                        82      26:obj           None   
+                        83     27:flat           None   
+                        84     27:flat  SpaceAfter=No   
+                        85     3:punct           None   
+                        
+                                                                     sentence  line_num  \\
+                        0            [0, 29): 'From the AP comes this story:'         4   
+                        1            [0, 29): 'From the AP comes this story:'         5   
+                        2            [0, 29): 'From the AP comes this story:'         6   
+                        3            [0, 29): 'From the AP comes this story:'         7   
+                        4            [0, 29): 'From the AP comes this story:'         8   
+                        ..                                                ...       ...   
+                        81  [310, 472): 'Bush also nominated A. Noel Anket...        98   
+                        82  [310, 472): 'Bush also nominated A. Noel Anket...        99   
+                        83  [310, 472): 'Bush also nominated A. Noel Anket...       100   
+                        84  [310, 472): 'Bush also nominated A. Noel Anket...       101   
+                        85  [310, 472): 'Bush also nominated A. Noel Anket...       102   
+                        
+                                                                  sentence_id  \\
+                        0   weblog-blogspot.com_nominations_20041117172713...   
+                        1   weblog-blogspot.com_nominations_20041117172713...   
+                        2   weblog-blogspot.com_nominations_20041117172713...   
+                        3   weblog-blogspot.com_nominations_20041117172713...   
+                        4   weblog-blogspot.com_nominations_20041117172713...   
+                        ..                                                ...   
+                        81  weblog-blogspot.com_nominations_20041117172713...   
+                        82  weblog-blogspot.com_nominations_20041117172713...   
+                        83  weblog-blogspot.com_nominations_20041117172713...   
+                        84  weblog-blogspot.com_nominations_20041117172713...   
+                        85  weblog-blogspot.com_nominations_20041117172713...   
+                        
+                                                                 paragraph_id  \\
+                        0   weblog-blogspot.com_nominations_20041117172713...   
+                        1   weblog-blogspot.com_nominations_20041117172713...   
+                        2   weblog-blogspot.com_nominations_20041117172713...   
+                        3   weblog-blogspot.com_nominations_20041117172713...   
+                        4   weblog-blogspot.com_nominations_20041117172713...   
+                        ..                                                ...   
+                        81  weblog-blogspot.com_nominations_20041117172713...   
+                        82  weblog-blogspot.com_nominations_20041117172713...   
+                        83  weblog-blogspot.com_nominations_20041117172713...   
+                        84  weblog-blogspot.com_nominations_20041117172713...   
+                        85  weblog-blogspot.com_nominations_20041117172713...   
+                        
+                                                                       doc_id  
+                        0   weblog-blogspot.com_nominations_20041117172713...  
+                        1   weblog-blogspot.com_nominations_20041117172713...  
+                        2   weblog-blogspot.com_nominations_20041117172713...  
+                        3   weblog-blogspot.com_nominations_20041117172713...  
+                        4   weblog-blogspot.com_nominations_20041117172713...  
+                        ..                                                ...  
+                        81  weblog-blogspot.com_nominations_20041117172713...  
+                        82  weblog-blogspot.com_nominations_20041117172713...  
+                        83  weblog-blogspot.com_nominations_20041117172713...  
+                        84  weblog-blogspot.com_nominations_20041117172713...  
+                        85  weblog-blogspot.com_nominations_20041117172713...  
+                        
+                        [86 rows x 14 columns]"""))
+        dfs = conll_u_to_dataframes("test_data/io/test_conll/conll_09_test1.conllu")
+        print(f"***{repr(dfs[0])}***") # catch bug where first df isn't the same
+        self.assertEqual(
+            repr(dfs[0]),textwrap.dedent("""\
+                                         span   lemma upostag xpostag features  head deprel  deps  \\
+                    0            [0, 2): 'No'      no      DT      DT     None   3.0    DEP  None   
+                    1             [2, 3): ','       ,       ,       ,     None   3.0      P  None   
+                    2            [4, 6): 'it'      it     PRP     PRP     None   3.0    SBJ  None   
+                    3          [7, 10): 'was'      be     VBD     VBD     None   NaN   ROOT  None   
+                    4         [11, 14): 'n't'     not      RB      RB     None   3.0    ADV  None   
+                    ..                    ...     ...     ...     ...      ...   ...    ...   ...   
+                    74     [373, 377): 'both'    both      DT      DT     None  75.0   NMOD  None   
+                    75   [378, 384): 'stocks'  stocks     NNS     NNS     None  73.0   PMOD  None   
+                    76      [385, 388): 'and'     and      CC      CC     None  75.0  COORD  None   
+                    77  [389, 396): 'futures'  future     NNS     NNS     None  76.0   CONJ  None   
+                    78        [396, 397): '.'       .       .       .     None  59.0      P  None   
+                    
+                        misc predicate pred0arg pred1arg pred2arg pred3arg pred4arg pred5arg  \\
+                    0   None      None     None     None     None     None     None     None   
+                    1   None      None     None     None     None     None     None     None   
+                    2   None      None     None     None     None     None     None     None   
+                    3   None      None     None     None     None     None     None     None   
+                    4   None      None     None     None     None     None     None     None   
+                    ..   ...       ...      ...      ...      ...      ...      ...      ...   
+                    74  None      None     None     None     None     None     None     None   
+                    75  None      None     None     None     None     None     None     None   
+                    76  None      None     None     None     None     None     None     None   
+                    77  None      None     None     None     None     None     None     None   
+                    78  None      None     None     None     None     None     None     None   
+                    
+                       pred6arg pred7arg                                           sentence  \\
+                    0      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                    1      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                    2      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                    3      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                    4      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                    ..      ...      ...                                                ...   
+                    74     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                    75     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                    76     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                    77     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                    78     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                    
+                        line_num  
+                    0          1  
+                    1          2  
+                    2          3  
+                    3          4  
+                    4          5  
+                    ..       ...  
+                    74        79  
+                    75        80  
+                    76        81  
+                    77        82  
+                    78        83  
+                    
+                    [79 rows x 20 columns]"""))
+
+
 
     def test_conll_2003_output_to_dataframes(self):
         doc_dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt",
