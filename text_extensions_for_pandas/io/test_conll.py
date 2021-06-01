@@ -266,18 +266,18 @@ class CoNLLTest(unittest.TestCase):
                 164        [789, 792): 'too'        too     ADV      RB   
                 165          [792, 793): '.'          .   PUNCT       .   
                 
-                                                              features  head  deprel  \\
-                0                                          Number=Sing     4   nsubj   
-                1    Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbF...     4     aux   
-                2                                                 None     4  advmod   
-                3                             Tense=Past|VerbForm=Part     0    root   
-                4                            Definite=Ind|PronType=Art     7     det   
-                ..                                                 ...   ...     ...   
-                161                          Definite=Ind|PronType=Art     9     det   
-                162                                        Number=Sing     7   nsubj   
-                163                                               None     7   punct   
-                164                                               None     7  advmod   
-                165                                               None     1   punct   
+                                                              features   head  deprel  \\
+                0                                          Number=Sing    3.0   nsubj   
+                1    Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbF...    3.0     aux   
+                2                                                 None    3.0  advmod   
+                3                             Tense=Past|VerbForm=Part    NaN    root   
+                4                            Definite=Ind|PronType=Art    6.0     det   
+                ..                                                 ...    ...     ...   
+                161                          Definite=Ind|PronType=Art  162.0     det   
+                162                                        Number=Sing  160.0   nsubj   
+                163                                               None  160.0   punct   
+                164                                               None  160.0  advmod   
+                165                                               None  154.0   punct   
                 
                          deps           misc  \\
                 0     4:nsubj           None   
