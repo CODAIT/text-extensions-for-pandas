@@ -269,28 +269,28 @@ class CoNLLTest(unittest.TestCase):
                                                               features  head  deprel  \\
                 0                                          Number=Sing     4   nsubj   
                 1    Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbF...     4     aux   
-                2                                                          4  advmod   
+                2                                                 None     4  advmod   
                 3                             Tense=Past|VerbForm=Part     0    root   
                 4                            Definite=Ind|PronType=Art     7     det   
                 ..                                                 ...   ...     ...   
                 161                          Definite=Ind|PronType=Art     9     det   
                 162                                        Number=Sing     7   nsubj   
-                163                                                        7   punct   
-                164                                                        7  advmod   
-                165                                                        1   punct   
+                163                                               None     7   punct   
+                164                                               None     7  advmod   
+                165                                               None     1   punct   
                 
                          deps           misc  \\
-                0     4:nsubj                  
-                1       4:aux                  
-                2    4:advmod                  
-                3      0:root                  
-                4       7:det                  
+                0     4:nsubj           None   
+                1       4:aux           None   
+                2    4:advmod           None   
+                3      0:root           None   
+                4       7:det           None   
                 ..        ...            ...   
-                161     9:det                  
+                161     9:det           None   
                 162   7:nsubj  SpaceAfter=No   
-                163   7:punct                  
+                163   7:punct           None   
                 164  7:advmod  SpaceAfter=No   
-                165   1:punct                  
+                165   1:punct           None   
                 
                                                               sentence  line_num  \\
                 0    [0, 139): 'Google has finally had an analyst d...       383   

@@ -71,7 +71,7 @@ def _make_empty_meta_values(column_names: List[str], iob_columns: List[bool]) \
     ret = {}
     for i in range(len(column_names)):
         name = column_names[i]
-        if not iob_columns[i]:
+        if i >= len(iob_columns) or not iob_columns[i]:
             ret[name] = []
         else:
             ret[f"{name}_iob"] = []
@@ -87,15 +87,16 @@ class _SentenceData:
     Not intended for use outside this file.
     """
 
-    def __init__(self, column_names: List[str], iob_columns: List[bool]):
+    def __init__(self, column_names: List[str], iob_columns: List[bool],predicate_args:bool):
         self._column_names = column_names
         self._iob_columns = iob_columns
+        self._num_standard_cols = len(self._column_names)
+
+        #metadata-- init to None
+        self._token_metadata = None
 
         # Surface form of token
         self._tokens = []  # Type: List[str]
-
-        # Metadata columns by name
-        self._token_metadata = _make_empty_meta_values(column_names, iob_columns)
 
         # Line numbers for each token from the file
         self._line_nums = []  # Type: List[int]
@@ -104,6 +105,8 @@ class _SentenceData:
         self._sentence_id = None
         self._paragraph_id = None
         self._doc_id = None
+        self.conll_09_format = predicate_args
+
 
     @property
     def num_tokens(self) -> int:
@@ -134,6 +137,10 @@ class _SentenceData:
         return self._sentence_id
 
     @property
+    def column_names(self):
+        return self._column_names
+
+    @property
     def has_conll_u_metadata(self):
         return (self._sentence_id is not None) or (self._paragraph_id is not None) or (self._doc_id is not None)
 
@@ -143,6 +150,9 @@ class _SentenceData:
         self._sentence_id = sent_id if sent_id is not None else self._sentence_id
 
     def _process_line_tags(self, raw_tags: List[str], line_num: int, line_elems: List[str], is_ewt: bool = False):
+        if self._token_metadata is None: # we init this later now to allow dynamic allocation of metadata cols depending on specific sentence
+            self._token_metadata = _make_empty_meta_values(self._column_names, self._iob_columns)
+
         for i in range(len(raw_tags)):
             raw_tag = raw_tags[i]
             name = self._column_names[i]
@@ -191,16 +201,32 @@ class _SentenceData:
         :param line_elems: Fields of a line, pre-split
         """
         if len(line_elems) < 2 + len(self._column_names):
-            raise ValueError(f"Unexpected number of elements {len(line_elems)} "
+            if len(line_elems) > 2 + self._num_standard_cols:
+                line_elems.extend(['_' for i in range(2 + len(self._column_names) - len(line_elems))])
+                print(f"Unexpected number of elements {len(line_elems)} "
                              f"at line {line_num}; expected "
                              f"{2 + len(self._column_names)} elements, "
-                             f"got {len(line_elems)} instead.")
-            # TODO: we might want to make this non-static cause Fred mentioned that EWT format is not always exactly followed
+                             f"got {len(line_elems)} instead. "
+                             f" min_num: {self._num_standard_cols}")
+            else:
+                raise ValueError(f"Unexpected number of elements {len(line_elems)} "
+                             f"at line {line_num}; expected "
+                             f"{2 + len(self._column_names)} elements, "
+                             f"got {len(line_elems)} instead." 
+                             f" min_num: {self._num_standard_cols}")
+        if len(line_elems) > 2 + len(self._column_names) and self.conll_09_format and self.num_tokens==0:
+            # only modify once per sentence
+            additional_lines = len(line_elems) -(3 + len(self._column_names))
+            self._column_names.append("predicate")
+            addnl_col_names = [f"pred{i}arg" for i in range(additional_lines)]
+            self._column_names.extend(addnl_col_names)
+            self._iob_columns.extend([False for i in range(additional_lines+1)])
+            # print(f"found Conll9 format. Added{additional_lines} columns. cols are now {self._column_names}")
+            assert(len(self._column_names) +2 == len(line_elems))
+
         token = line_elems[1]
         raw_tags = line_elems[2:len(self._column_names)+2]
-        raw_tags = ['' if tag == '_' else tag for tag in raw_tags]
-        if len(line_elems) > 2 + len(self._column_names):
-            raw_tags[-1] = '  '.join(line_elems[1 + len(self._column_names):])
+        raw_tags = [None if tag == '_' else tag for tag in raw_tags]
         self._tokens.append(token)
         self._line_nums.append(line_num)
         # because we do not combine
@@ -239,7 +265,7 @@ def _parse_conll_file(input_file: str,
     # Build up a list of document metadata as Python objects
     docs = []  # Type: List[List[Dict[str, List[str]]]]
 
-    current_sentence = _SentenceData(column_names, iob_columns)
+    current_sentence = _SentenceData(column_names, iob_columns,False)
 
     # Information about the current document
     sentences = []  # Type: SentenceData
@@ -250,7 +276,7 @@ def _parse_conll_file(input_file: str,
             # Blank line is the sentence separator
             if current_sentence.num_tokens > 0:
                 sentences.append(current_sentence)
-                current_sentence = _SentenceData(column_names, iob_columns)
+                current_sentence = _SentenceData(column_names, iob_columns,False)
         else:
             # Not at the end of a sentence
             line_elems = line.split(" ")
@@ -278,6 +304,7 @@ def _parse_conll_file(input_file: str,
 def _parse_conll_u_file(input_file: str,
                         column_names: List[str],
                         iob_columns: List[bool],
+                        predicate_args:bool = True,
                         merge_subtokens: bool = False,
                         merge_subtoken_seperator: str = '|') \
         -> List[List[_SentenceData]]:
@@ -299,8 +326,7 @@ def _parse_conll_u_file(input_file: str,
      the returned data structure will contain *two* columns, holding IOB tags and
      entity type tags, respectively. For example, an input column "ent" will turn into
      output columns "ent_iob" and "ent_type".
-    :param numeric_cols: Columns to automatically convert to numeric dtypes. By default this will be the
-     head of dependncy and the line number of the token
+    :param predicate_args: whether or not predicate arguments are stored in this file format.
 
     :returns: A list of lists of _SentenceData objects. The top list has one entry per
      document. The next level lists have one entry per sentence.
@@ -311,7 +337,7 @@ def _parse_conll_u_file(input_file: str,
     # Build up a list of document metadata as Python objects
     docs = []  # Type: List[List[Dict[str, List[str]]]]
 
-    current_sentence = _SentenceData(column_names, iob_columns)
+    current_sentence = _SentenceData(column_names.copy(), iob_columns.copy(),predicate_args)
 
     # Information about the current document
     sentences = []  # Type: SentenceData
@@ -331,7 +357,7 @@ def _parse_conll_u_file(input_file: str,
             # Blank line is the sentence separator
             if current_sentence.num_tokens > 0:
                 sentences.append(current_sentence)
-                current_sentence = _SentenceData(column_names, iob_columns)
+                current_sentence = _SentenceData(column_names.copy(), iob_columns.copy(),predicate_args)
                 current_sentence.set_conll_u_metadata(doc_id=doc_id,
                                                       paragraph_id=paragraph_id)  # sentence id gets set later
         elif line[0] == '#':
@@ -571,15 +597,23 @@ def _doc_to_df(doc: List[_SentenceData],
     sentence_begins_list = []  # Type: List[np.ndarray]
     sentence_ends_list = []  # Type: List[np.ndarray]
 
+    # conll_u metadata information.
+    conll_u_ids_exsist = doc is not None and doc[0].has_conll_u_metadata
+    conll_2009_format = doc is not None and doc[0].conll_09_format
+    # this should be the same for all sentences so we check the first
+    sentence_ids = []
+    paragraph_ids = []
+
+    if conll_2009_format:
+        max_list = max(doc, key=lambda sent : len(sent.column_names)).column_names
+        if len(max_list) > len(column_names):
+            column_names = max_list
+        # print(f"modified list: {max_list}, {column_names}")
+
     # Token metadata column values. Key is column name, value is metadata for
     # each token.
     meta_lists = _make_empty_meta_values(column_names, iob_columns)
 
-    # conll_u metadata information.
-    conll_u_ids_exsist = doc is not None and doc[
-        0].has_conll_u_metadata  # this should be the same for all sentences so we check the first
-    sentence_ids = []
-    paragraph_ids = []
 
     # Line numbers of the parsed file for each token in the doc
     doc_line_nums = []
@@ -625,8 +659,11 @@ def _doc_to_df(doc: List[_SentenceData],
         sentence_begins_list.append(sentence_begins)
         sentence_ends_list.append(sentence_ends)
 
-        for k in sentence.token_metadata.keys():
-            meta_lists[k].extend(sentence.token_metadata[k])
+        for k in meta_lists.keys():
+            if k in sentence.token_metadata.keys():
+                meta_lists[k].extend(sentence.token_metadata[k])
+            else:
+                meta_lists[k].extend([None for i in range(sentence.num_tokens)])
 
         char_position += e[-1] + 1  # "+ 1" to account for newline
         token_position += len(e)
@@ -917,6 +954,7 @@ def conll_2003_to_dataframes(input_file: str,
 def conll_u_to_dataframes(input_file: str,
                           column_names: List[str] = _DEFAULT_CONLL_U_FORMAT,
                           iob_columns: List[bool] = None,
+                          has_predicate_args: bool = True,
                           space_before_punct: bool = False,
                           merge_subtokens: bool = False,
                           merge_subtoken_seperator: str = '|',
@@ -937,6 +975,9 @@ def conll_u_to_dataframes(input_file: str,
      the returned dataframe will contain *two* columns, holding **IOB2** tags and
      entity type tags, respectively. For example, an input column "ent" will turn into
      output columns "ent_iob" and "ent_type". By default in CONLL_U or EWT formats this is all false.
+    :param has_predicate_args: Whether or not the file format includes predicate args. True by default, and
+     should support most files in the conllu format, but will assume that any tabs in the last
+     element are additional predicate arguments
     :param merge_subtokens: dictates how to handle tokens that are smaller than one word. By default, we keep
      the subtokens as two seperate entities, but if this is set to true, the subtokens will be merged into a
      single entity, of the same length as the token, and their attributes will be concatenated
@@ -952,12 +993,14 @@ def conll_u_to_dataframes(input_file: str,
       entity begins with a "B" tag.
     * `ent_type`: Entity type names for tokens tagged "I" or "B" in
       the `ent_iob` column; `None` everywhere else.
+
     """
     if iob_columns is None:
         iob_columns = [False for i in range(len(column_names))]
         # fill with falses if not specified
 
-    parsed_docs = _parse_conll_u_file(input_file, column_names, iob_columns, merge_subtokens=merge_subtokens,
+    parsed_docs = _parse_conll_u_file(input_file, column_names, iob_columns, has_predicate_args,
+                                      merge_subtokens= merge_subtokens,
                                       merge_subtoken_seperator=merge_subtoken_seperator)
     doc_dfs = [_doc_to_df(d, column_names, iob_columns, space_before_punct)
                for d in parsed_docs]
