@@ -324,6 +324,9 @@ def _parse_conll_u_file(input_file: str,
      entity type tags, respectively. For example, an input column "ent" will turn into
      output columns "ent_iob" and "ent_type".
     :param predicate_args: whether or not predicate arguments are stored in this file format.
+    :param metadata_fields: the types of metadata fields you want to store from the docuement. in the form of a
+    dictionary: tag_in_text -> "pretty" tag (i.e. what you want to show in the output)
+
 
     :returns: A list of lists of _SentenceData objects. The top list has one entry per
      document. The next level lists have one entry per sentence.
@@ -980,6 +983,8 @@ def conll_u_to_dataframes(input_file: str,
      single entity, of the same length as the token, and their attributes will be concatenated
     :param merge_subtoken_seperator: If merge subtokens is selected, concatenate the attributes with this
      seperator, by default '|'
+    :param metadata_fields: the types of metadata fields you want to store from the docuement. in the form of a
+    dictionary: tag_in_text -> "pretty" tag (i.e. what you want to show in the output)
 
     :returns: A list containing, for each document in the input file,
     a separate `pd.DataFrame` of four columns:
