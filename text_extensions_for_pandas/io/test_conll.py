@@ -21,6 +21,7 @@ from text_extensions_for_pandas.io.conll import *
 from text_extensions_for_pandas.io.spacy import make_tokens_and_features
 
 import spacy
+
 _SPACY_LANGUAGE_MODEL = spacy.load("en_core_web_sm")
 
 
@@ -72,8 +73,9 @@ class CoNLLTest(unittest.TestCase):
         pd.testing.assert_series_equal(df["ent_iob"], result["ent_iob"])
 
     def test_conll_2003_to_dataframes(self):
-        dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt",
-                                       ["ent"], [True])
+        dfs = conll_2003_to_dataframes(
+            "test_data/io/test_conll/conll03_test.txt", ["ent"], [True]
+        )
         self.assertEqual(len(dfs), 2)
         self.assertEqual(
             dfs[0]["span"].values.document_text,
@@ -163,8 +165,11 @@ class CoNLLTest(unittest.TestCase):
         )
 
     def test_conll_2003_to_dataframes_multi_field(self):
-        dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test2.txt",
-                                       ["pos", "phrase", "ent"], [False, True, True])
+        dfs = conll_2003_to_dataframes(
+            "test_data/io/test_conll/conll03_test2.txt",
+            ["pos", "phrase", "ent"],
+            [False, True, True],
+        )
         # print(f"***{repr(dfs[0])}***")  # Uncomment to regenerate gold standard
         self.assertEqual(
             repr(dfs[0]),
@@ -242,7 +247,6 @@ class CoNLLTest(unittest.TestCase):
             ),
         )
 
-
     def test_conll_u_to_dataframes(self):
         dfs = conll_u_to_dataframes("test_data/io/test_conll/conll_u_test1.txt")
         self.maxDiff = None
@@ -251,7 +255,8 @@ class CoNLLTest(unittest.TestCase):
             repr(dfs[3]),
             # NOTE the escaped backslash in the string below. Be sure to put it back
             # in when regenerating this string!
-            textwrap.dedent("""\
+            textwrap.dedent(
+                """\
                                             span      lemma upostag xpostag  \\
                     0           [0, 6): 'Google'     Google   PROPN     NNP   
                     1             [7, 10): 'has'       have     AUX     VBZ   
@@ -343,14 +348,17 @@ class CoNLLTest(unittest.TestCase):
                     164  [743, 793): 'Read the entire article; there's ...       568  
                     165  [743, 793): 'Read the entire article; there's ...       569  
                     
-                    [166 rows x 14 columns]"""))
+                    [166 rows x 14 columns]"""
+            ),
+        )
 
-        print(f"***{repr(dfs[0])}***") # catch bug where first df isn't the same
+        print(f"***{repr(dfs[0])}***")  # catch bug where first df isn't the same
         self.assertEqual(
             repr(dfs[0]),
             # NOTE the escaped backslash in the string below. Be sure to put it back
             # in when regenerating this string!
-            textwrap.dedent("""\
+            textwrap.dedent(
+                """\
                                        span     lemma upostag xpostag  \\
                 0            [0, 4): 'From'      from     ADP      IN   
                 1             [5, 8): 'the'       the     DET      DT   
@@ -442,11 +450,15 @@ class CoNLLTest(unittest.TestCase):
                 84  [310, 472): 'Bush also nominated A. Noel Anket...       101  
                 85  [310, 472): 'Bush also nominated A. Noel Anket...       102  
                 
-                [86 rows x 14 columns]"""))
+                [86 rows x 14 columns]"""
+            ),
+        )
         dfs = conll_u_to_dataframes("test_data/io/test_conll/conll_09_test1.conllu")
-        print(f"***{repr(dfs[0])}***") # catch bug where first df isn't the same
+        print(f"***{repr(dfs[0])}***")  # catch bug where first df isn't the same
         self.assertEqual(
-            repr(dfs[0]),textwrap.dedent("""\
+            repr(dfs[0]),
+            textwrap.dedent(
+                """\
                                          span   lemma upostag xpostag features  head deprel  deps  \\
                     0            [0, 2): 'No'      no      DT      DT     None   3.0    DEP  None   
                     1             [2, 3): ','       ,       ,       ,     None   3.0      P  None   
@@ -499,14 +511,14 @@ class CoNLLTest(unittest.TestCase):
                     77  [232, 397): 'Some `` circuit breakers '' insta...        82  
                     78  [232, 397): 'Some `` circuit breakers '' insta...        83  
                     
-                    [79 rows x 23 columns]"""))
-
-
-
+                    [79 rows x 23 columns]"""
+            ),
+        )
 
     def test_conll_2003_output_to_dataframes(self):
-        doc_dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt",
-                                           ["ent"], [True])
+        doc_dfs = conll_2003_to_dataframes(
+            "test_data/io/test_conll/conll03_test.txt", ["ent"], [True]
+        )
         output_dfs = conll_2003_output_to_dataframes(
             doc_dfs, "test_data/io/test_conll/conll03_output.txt"
         )
@@ -670,7 +682,7 @@ class CoNLLTest(unittest.TestCase):
         ]
         folds = {
             "train": [pd.DataFrame({"spans": arrays[0], "foos": [1, 2], "bars": True})],
-            "bus": [pd.DataFrame({"spans": arrays[1], "foos": [5], "bars": [False]})]
+            "bus": [pd.DataFrame({"spans": arrays[1], "foos": [5], "bars": [False]})],
         }
         combined_df = combine_folds(folds)
         # print(f"****{combined_df}****")
@@ -688,8 +700,9 @@ class CoNLLTest(unittest.TestCase):
         self.assertEqual(str(combined_df["spans"].dtype), "SpanDtype")
 
     def test_compute_accuracy(self):
-        doc_dfs = conll_2003_to_dataframes("test_data/io/test_conll/conll03_test.txt",
-                                           ["ent"], [True])
+        doc_dfs = conll_2003_to_dataframes(
+            "test_data/io/test_conll/conll03_test.txt", ["ent"], [True]
+        )
         output_dfs = conll_2003_output_to_dataframes(
             doc_dfs, "test_data/io/test_conll/conll03_output.txt"
         )
@@ -706,14 +719,16 @@ class CoNLLTest(unittest.TestCase):
              recall        F1  
         0  0.774194  0.774194  
         1  0.777778  0.777778  """
-            )
+            ),
         )
         global_stats = compute_global_accuracy(stats_by_doc)
         # ßprint(f"****{global_stats}****")
         self.assertEqual(
             str(global_stats),
-            ("{'num_true_positives': 31, 'num_entities': 40, 'num_extracted': 40, "
-             "'precision': 0.775, 'recall': 0.775, 'F1': 0.775}")
+            (
+                "{'num_true_positives': 31, 'num_entities': 40, 'num_extracted': 40, "
+                "'precision': 0.775, 'recall': 0.775, 'F1': 0.775}"
+            ),
         )
 
 
