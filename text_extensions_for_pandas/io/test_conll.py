@@ -485,33 +485,33 @@ class CoNLLTest(unittest.TestCase):
                     77  None      None     None     None     None     None     None     None   
                     78  None      None     None     None     None     None     None     None   
                     
-                       pred6arg pred7arg sentence_id paragraph_id doc_id  \\
-                    0      None     None                                   
-                    1      None     None                                   
-                    2      None     None                                   
-                    3      None     None                                   
-                    4      None     None                                   
-                    ..      ...      ...         ...          ...    ...   
-                    74     None     None                                   
-                    75     None     None                                   
-                    76     None     None                                   
-                    77     None     None                                   
-                    78     None     None                                   
+                       pred6arg pred7arg                                           sentence  \\
+                    0      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                    1      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                    2      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                    3      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                    4      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                    ..      ...      ...                                                ...   
+                    74     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                    75     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                    76     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                    77     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                    78     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
                     
-                                                                 sentence  line_num  
-                    0             [0, 28): 'No, it was n't Black Monday.'         1  
-                    1             [0, 28): 'No, it was n't Black Monday.'         2  
-                    2             [0, 28): 'No, it was n't Black Monday.'         3  
-                    3             [0, 28): 'No, it was n't Black Monday.'         4  
-                    4             [0, 28): 'No, it was n't Black Monday.'         5  
-                    ..                                                ...       ...  
-                    74  [232, 397): 'Some `` circuit breakers '' insta...        79  
-                    75  [232, 397): 'Some `` circuit breakers '' insta...        80  
-                    76  [232, 397): 'Some `` circuit breakers '' insta...        81  
-                    77  [232, 397): 'Some `` circuit breakers '' insta...        82  
-                    78  [232, 397): 'Some `` circuit breakers '' insta...        83  
+                        line_num  
+                    0          1  
+                    1          2  
+                    2          3  
+                    3          4  
+                    4          5  
+                    ..       ...  
+                    74        79  
+                    75        80  
+                    76        81  
+                    77        82  
+                    78        83  
                     
-                    [79 rows x 23 columns]"""
+                    [79 rows x 20 columns]"""
             ),
         )
 

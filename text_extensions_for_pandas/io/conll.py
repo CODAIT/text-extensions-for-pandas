@@ -129,6 +129,8 @@ class _SentenceData:
             if conllu_metadata_cols is not None
             else None
         )
+        self._conllu_metadata_exists = False
+
         self._conll_09_format = predicate_args
 
     @property
@@ -161,17 +163,26 @@ class _SentenceData:
 
     @property
     def has_conll_u_metadata(self):
-        return self._conllu_metadata is not None
+        return self._conllu_metadata_exists
 
     def set_conll_u_metadata(self, field: str, val: str):
+        if str != "":
+            self._conllu_metadata_exists = True
         self._conllu_metadata[field] = val
+        self._update_conllu_metadata_exists()
 
     def set_batch_conll_u_metadata(self, metadata: Dict[str, str]):
         assert metadata.keys() <= self._conllu_metadata.keys()
         self._conllu_metadata.update(metadata)
+        self._update_conllu_metadata_exists()
 
     def get_conll_u_metadata(self, field: str) -> str:
         return self._conllu_metadata[field]
+
+    def _update_conllu_metadata_exists(self):
+        self._conllu_metadata_exists = any(
+            [v is not None and v != "" for v in self._conllu_metadata.values()]
+        )
 
     def _process_line_tags(
         self,
