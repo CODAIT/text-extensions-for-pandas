@@ -257,98 +257,98 @@ class CoNLLTest(unittest.TestCase):
             # in when regenerating this string!
             textwrap.dedent(
                 """\
-                                            span      lemma upostag xpostag  \\
-                    0           [0, 6): 'Google'     Google   PROPN     NNP   
-                    1             [7, 10): 'has'       have     AUX     VBZ   
-                    2        [11, 18): 'finally'    finally     ADV      RB   
-                    3            [19, 22): 'had'       have    VERB     VBN   
-                    4             [23, 25): 'an'          a     DET      DT   
-                    ..                       ...        ...     ...     ...   
-                    161          [776, 777): 'a'          a     DET      DT   
-                    162  [778, 787): 'punchline'  punchline    NOUN      NN   
-                    163          [787, 788): ','          ,   PUNCT       ,   
-                    164        [789, 792): 'too'        too     ADV      RB   
-                    165          [792, 793): '.'          .   PUNCT       .   
-                    
-                                                                  features   head  deprel  \\
-                    0                                          Number=Sing    3.0   nsubj   
-                    1    Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbF...    3.0     aux   
-                    2                                                 None    3.0  advmod   
-                    3                             Tense=Past|VerbForm=Part    NaN    root   
-                    4                            Definite=Ind|PronType=Art    6.0     det   
-                    ..                                                 ...    ...     ...   
-                    161                          Definite=Ind|PronType=Art  162.0     det   
-                    162                                        Number=Sing  160.0   nsubj   
-                    163                                               None  160.0   punct   
-                    164                                               None  160.0  advmod   
-                    165                                               None  154.0   punct   
-                    
-                             deps           misc  \\
-                    0     4:nsubj           None   
-                    1       4:aux           None   
-                    2    4:advmod           None   
-                    3      0:root           None   
-                    4       7:det           None   
-                    ..        ...            ...   
-                    161     9:det           None   
-                    162   7:nsubj  SpaceAfter=No   
-                    163   7:punct           None   
-                    164  7:advmod  SpaceAfter=No   
-                    165   1:punct           None   
-                    
-                                                               sentence_id  \\
-                    0    weblog-blogspot.com_marketview_20050210075500_...   
-                    1    weblog-blogspot.com_marketview_20050210075500_...   
-                    2    weblog-blogspot.com_marketview_20050210075500_...   
-                    3    weblog-blogspot.com_marketview_20050210075500_...   
-                    4    weblog-blogspot.com_marketview_20050210075500_...   
-                    ..                                                 ...   
-                    161  weblog-blogspot.com_marketview_20050210075500_...   
-                    162  weblog-blogspot.com_marketview_20050210075500_...   
-                    163  weblog-blogspot.com_marketview_20050210075500_...   
-                    164  weblog-blogspot.com_marketview_20050210075500_...   
-                    165  weblog-blogspot.com_marketview_20050210075500_...   
-                    
-                                                              paragraph_id  \\
-                    0    weblog-blogspot.com_marketview_20050210075500_...   
-                    1    weblog-blogspot.com_marketview_20050210075500_...   
-                    2    weblog-blogspot.com_marketview_20050210075500_...   
-                    3    weblog-blogspot.com_marketview_20050210075500_...   
-                    4    weblog-blogspot.com_marketview_20050210075500_...   
-                    ..                                                 ...   
-                    161  weblog-blogspot.com_marketview_20050210075500_...   
-                    162  weblog-blogspot.com_marketview_20050210075500_...   
-                    163  weblog-blogspot.com_marketview_20050210075500_...   
-                    164  weblog-blogspot.com_marketview_20050210075500_...   
-                    165  weblog-blogspot.com_marketview_20050210075500_...   
-                    
-                                                                    doc_id  \\
-                    0    weblog-blogspot.com_marketview_20050210075500_...   
-                    1    weblog-blogspot.com_marketview_20050210075500_...   
-                    2    weblog-blogspot.com_marketview_20050210075500_...   
-                    3    weblog-blogspot.com_marketview_20050210075500_...   
-                    4    weblog-blogspot.com_marketview_20050210075500_...   
-                    ..                                                 ...   
-                    161  weblog-blogspot.com_marketview_20050210075500_...   
-                    162  weblog-blogspot.com_marketview_20050210075500_...   
-                    163  weblog-blogspot.com_marketview_20050210075500_...   
-                    164  weblog-blogspot.com_marketview_20050210075500_...   
-                    165  weblog-blogspot.com_marketview_20050210075500_...   
-                    
-                                                                  sentence  line_num  
-                    0    [0, 139): 'Google has finally had an analyst d...       383  
-                    1    [0, 139): 'Google has finally had an analyst d...       384  
-                    2    [0, 139): 'Google has finally had an analyst d...       385  
-                    3    [0, 139): 'Google has finally had an analyst d...       386  
-                    4    [0, 139): 'Google has finally had an analyst d...       387  
-                    ..                                                 ...       ...  
-                    161  [743, 793): 'Read the entire article; there's ...       565  
-                    162  [743, 793): 'Read the entire article; there's ...       566  
-                    163  [743, 793): 'Read the entire article; there's ...       567  
-                    164  [743, 793): 'Read the entire article; there's ...       568  
-                    165  [743, 793): 'Read the entire article; there's ...       569  
-                    
-                    [166 rows x 14 columns]"""
+                                        span      lemma upostag xpostag  \\
+                0           [0, 6): 'Google'     Google   PROPN     NNP   
+                1             [7, 10): 'has'       have     AUX     VBZ   
+                2        [11, 18): 'finally'    finally     ADV      RB   
+                3            [19, 22): 'had'       have    VERB     VBN   
+                4             [23, 25): 'an'          a     DET      DT   
+                ..                       ...        ...     ...     ...   
+                161          [776, 777): 'a'          a     DET      DT   
+                162  [778, 787): 'punchline'  punchline    NOUN      NN   
+                163          [787, 788): ','          ,   PUNCT       ,   
+                164        [789, 792): 'too'        too     ADV      RB   
+                165          [792, 793): '.'          .   PUNCT       .   
+                
+                                                              features  head  deprel  \\
+                0                                          Number=Sing     3   nsubj   
+                1    Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbF...     3     aux   
+                2                                                 None     3  advmod   
+                3                             Tense=Past|VerbForm=Part    -1    root   
+                4                            Definite=Ind|PronType=Art     6     det   
+                ..                                                 ...   ...     ...   
+                161                          Definite=Ind|PronType=Art   162     det   
+                162                                        Number=Sing   160   nsubj   
+                163                                               None   160   punct   
+                164                                               None   160  advmod   
+                165                                               None   154   punct   
+                
+                         deps           misc  \\
+                0     4:nsubj           None   
+                1       4:aux           None   
+                2    4:advmod           None   
+                3      0:root           None   
+                4       7:det           None   
+                ..        ...            ...   
+                161     9:det           None   
+                162   7:nsubj  SpaceAfter=No   
+                163   7:punct           None   
+                164  7:advmod  SpaceAfter=No   
+                165   1:punct           None   
+                
+                                                           sentence_id  \\
+                0    weblog-blogspot.com_marketview_20050210075500_...   
+                1    weblog-blogspot.com_marketview_20050210075500_...   
+                2    weblog-blogspot.com_marketview_20050210075500_...   
+                3    weblog-blogspot.com_marketview_20050210075500_...   
+                4    weblog-blogspot.com_marketview_20050210075500_...   
+                ..                                                 ...   
+                161  weblog-blogspot.com_marketview_20050210075500_...   
+                162  weblog-blogspot.com_marketview_20050210075500_...   
+                163  weblog-blogspot.com_marketview_20050210075500_...   
+                164  weblog-blogspot.com_marketview_20050210075500_...   
+                165  weblog-blogspot.com_marketview_20050210075500_...   
+                
+                                                          paragraph_id  \\
+                0    weblog-blogspot.com_marketview_20050210075500_...   
+                1    weblog-blogspot.com_marketview_20050210075500_...   
+                2    weblog-blogspot.com_marketview_20050210075500_...   
+                3    weblog-blogspot.com_marketview_20050210075500_...   
+                4    weblog-blogspot.com_marketview_20050210075500_...   
+                ..                                                 ...   
+                161  weblog-blogspot.com_marketview_20050210075500_...   
+                162  weblog-blogspot.com_marketview_20050210075500_...   
+                163  weblog-blogspot.com_marketview_20050210075500_...   
+                164  weblog-blogspot.com_marketview_20050210075500_...   
+                165  weblog-blogspot.com_marketview_20050210075500_...   
+                
+                                                                doc_id  \\
+                0    weblog-blogspot.com_marketview_20050210075500_...   
+                1    weblog-blogspot.com_marketview_20050210075500_...   
+                2    weblog-blogspot.com_marketview_20050210075500_...   
+                3    weblog-blogspot.com_marketview_20050210075500_...   
+                4    weblog-blogspot.com_marketview_20050210075500_...   
+                ..                                                 ...   
+                161  weblog-blogspot.com_marketview_20050210075500_...   
+                162  weblog-blogspot.com_marketview_20050210075500_...   
+                163  weblog-blogspot.com_marketview_20050210075500_...   
+                164  weblog-blogspot.com_marketview_20050210075500_...   
+                165  weblog-blogspot.com_marketview_20050210075500_...   
+                
+                                                              sentence  line_num  
+                0    [0, 139): 'Google has finally had an analyst d...       383  
+                1    [0, 139): 'Google has finally had an analyst d...       384  
+                2    [0, 139): 'Google has finally had an analyst d...       385  
+                3    [0, 139): 'Google has finally had an analyst d...       386  
+                4    [0, 139): 'Google has finally had an analyst d...       387  
+                ..                                                 ...       ...  
+                161  [743, 793): 'Read the entire article; there's ...       565  
+                162  [743, 793): 'Read the entire article; there's ...       566  
+                163  [743, 793): 'Read the entire article; there's ...       567  
+                164  [743, 793): 'Read the entire article; there's ...       568  
+                165  [743, 793): 'Read the entire article; there's ...       569  
+                
+                [166 rows x 14 columns]"""
             ),
         )
 
@@ -373,17 +373,17 @@ class CoNLLTest(unittest.TestCase):
                 85          [471, 472): '.'         .   PUNCT       .   
                 
                                                              features  head deprel  \\
-                0                                                None   2.0   case   
-                1                           Definite=Def|PronType=Art   2.0    det   
-                2                                         Number=Sing   3.0    obl   
-                3   Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbF...   NaN   root   
-                4                            Number=Sing|PronType=Dem   5.0    det   
+                0                                                None     2   case   
+                1                           Definite=Def|PronType=Art     2    det   
+                2                                         Number=Sing     3    obl   
+                3   Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbF...    -1   root   
+                4                            Number=Sing|PronType=Dem     5    det   
                 ..                                                ...   ...    ...   
-                81                                       VerbForm=Ger  58.0  advcl   
-                82                                        Number=Sing  81.0    obj   
-                83                                        Number=Sing  82.0   flat   
-                84                                        Number=Sing  82.0   flat   
-                85                                               None  58.0  punct   
+                81                                       VerbForm=Ger    58  advcl   
+                82                                        Number=Sing    81    obj   
+                83                                        Number=Sing    82   flat   
+                84                                        Number=Sing    82   flat   
+                85                                               None    58  punct   
                 
                           deps           misc  \\
                 0       3:case           None   
@@ -459,59 +459,59 @@ class CoNLLTest(unittest.TestCase):
             repr(dfs[0]),
             textwrap.dedent(
                 """\
-                                         span   lemma upostag xpostag features  head deprel  deps  \\
-                    0            [0, 2): 'No'      no      DT      DT     None   3.0    DEP  None   
-                    1             [2, 3): ','       ,       ,       ,     None   3.0      P  None   
-                    2            [4, 6): 'it'      it     PRP     PRP     None   3.0    SBJ  None   
-                    3          [7, 10): 'was'      be     VBD     VBD     None   NaN   ROOT  None   
-                    4         [11, 14): 'n't'     not      RB      RB     None   3.0    ADV  None   
-                    ..                    ...     ...     ...     ...      ...   ...    ...   ...   
-                    74     [373, 377): 'both'    both      DT      DT     None  75.0   NMOD  None   
-                    75   [378, 384): 'stocks'  stocks     NNS     NNS     None  73.0   PMOD  None   
-                    76      [385, 388): 'and'     and      CC      CC     None  75.0  COORD  None   
-                    77  [389, 396): 'futures'  future     NNS     NNS     None  76.0   CONJ  None   
-                    78        [396, 397): '.'       .       .       .     None  59.0      P  None   
-                    
-                        misc predicate pred0arg pred1arg pred2arg pred3arg pred4arg pred5arg  \\
-                    0   None      None     None     None     None     None     None     None   
-                    1   None      None     None     None     None     None     None     None   
-                    2   None      None     None     None     None     None     None     None   
-                    3   None      None     None     None     None     None     None     None   
-                    4   None      None     None     None     None     None     None     None   
-                    ..   ...       ...      ...      ...      ...      ...      ...      ...   
-                    74  None      None     None     None     None     None     None     None   
-                    75  None      None     None     None     None     None     None     None   
-                    76  None      None     None     None     None     None     None     None   
-                    77  None      None     None     None     None     None     None     None   
-                    78  None      None     None     None     None     None     None     None   
-                    
-                       pred6arg pred7arg                                           sentence  \\
-                    0      None     None            [0, 28): 'No, it was n't Black Monday.'   
-                    1      None     None            [0, 28): 'No, it was n't Black Monday.'   
-                    2      None     None            [0, 28): 'No, it was n't Black Monday.'   
-                    3      None     None            [0, 28): 'No, it was n't Black Monday.'   
-                    4      None     None            [0, 28): 'No, it was n't Black Monday.'   
-                    ..      ...      ...                                                ...   
-                    74     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
-                    75     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
-                    76     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
-                    77     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
-                    78     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
-                    
-                        line_num  
-                    0          1  
-                    1          2  
-                    2          3  
-                    3          4  
-                    4          5  
-                    ..       ...  
-                    74        79  
-                    75        80  
-                    76        81  
-                    77        82  
-                    78        83  
-                    
-                    [79 rows x 20 columns]"""
+                                     span   lemma upostag xpostag features  head deprel  deps  \\
+                0            [0, 2): 'No'      no      DT      DT     None     3    DEP  None   
+                1             [2, 3): ','       ,       ,       ,     None     3      P  None   
+                2            [4, 6): 'it'      it     PRP     PRP     None     3    SBJ  None   
+                3          [7, 10): 'was'      be     VBD     VBD     None    -1   ROOT  None   
+                4         [11, 14): 'n't'     not      RB      RB     None     3    ADV  None   
+                ..                    ...     ...     ...     ...      ...   ...    ...   ...   
+                74     [373, 377): 'both'    both      DT      DT     None    75   NMOD  None   
+                75   [378, 384): 'stocks'  stocks     NNS     NNS     None    73   PMOD  None   
+                76      [385, 388): 'and'     and      CC      CC     None    75  COORD  None   
+                77  [389, 396): 'futures'  future     NNS     NNS     None    76   CONJ  None   
+                78        [396, 397): '.'       .       .       .     None    59      P  None   
+                
+                    misc predicate pred0arg pred1arg pred2arg pred3arg pred4arg pred5arg  \\
+                0   None      None     None     None     None     None     None     None   
+                1   None      None     None     None     None     None     None     None   
+                2   None      None     None     None     None     None     None     None   
+                3   None      None     None     None     None     None     None     None   
+                4   None      None     None     None     None     None     None     None   
+                ..   ...       ...      ...      ...      ...      ...      ...      ...   
+                74  None      None     None     None     None     None     None     None   
+                75  None      None     None     None     None     None     None     None   
+                76  None      None     None     None     None     None     None     None   
+                77  None      None     None     None     None     None     None     None   
+                78  None      None     None     None     None     None     None     None   
+                
+                   pred6arg pred7arg                                           sentence  \\
+                0      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                1      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                2      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                3      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                4      None     None            [0, 28): 'No, it was n't Black Monday.'   
+                ..      ...      ...                                                ...   
+                74     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                75     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                76     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                77     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                78     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
+                
+                    line_num  
+                0          1  
+                1          2  
+                2          3  
+                3          4  
+                4          5  
+                ..       ...  
+                74        79  
+                75        80  
+                76        81  
+                77        82  
+                78        83  
+                
+                [79 rows x 20 columns]"""
             ),
         )
 

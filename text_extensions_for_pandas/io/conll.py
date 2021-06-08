@@ -749,7 +749,7 @@ def _doc_to_df(
                 if val is not None:
                     points_to = int(val)
                     meta_lists["head"][i] = (
-                        points_to + sentence_begin_token - 1 if points_to != 0 else None
+                        points_to + sentence_begin_token - 1 if points_to != 0 else -1
                     )
 
     begins = np.concatenate(begins_list)
@@ -1297,7 +1297,9 @@ def maybe_download_conll_data(target_dir: str) -> Dict[str, str]:
     return {"train": _TRAIN_FILE, "dev": _DEV_FILE, "test": _TEST_FILE}
 
 
-def maybe_download_dataset_data(target_dir: str,document_url:str,alternate_name:str = None) -> Union[str,List[str]]:
+def maybe_download_dataset_data(
+    target_dir: str, document_url: str, alternate_name: str = None
+) -> Union[str, List[str]]:
     """
     If the file found at the github url is not found in the target directory,
     downloads it from the github url, and saves it to that plave in downloads.
@@ -1314,19 +1316,23 @@ def maybe_download_dataset_data(target_dir: str,document_url:str,alternate_name:
 
     :returns: the path to the file, or None if downloading was not successful
     """
-    file_name = alternate_name if alternate_name is not None else document_url.split('/')[-1]
+    file_name = (
+        alternate_name if alternate_name is not None else document_url.split("/")[-1]
+    )
     full_path = target_dir + file_name
 
     # special logic for zip files
-    if document_url.split('.')[-1] == 'zip' and (alternate_name is None or not os.path.exists(full_path) ) :
-        with ZipFile(full_path, 'r') as zipf:
+    if document_url.split(".")[-1] == "zip" and (
+        alternate_name is None or not os.path.exists(full_path)
+    ):
+        with ZipFile(full_path, "r") as zipf:
             fnames = zipf.namelist()
             if alternate_name is not None and alternate_name in fnames:
-                zipf.extract(alternate_name,target_dir)
+                zipf.extract(alternate_name, target_dir)
                 return full_path
             for fname in fnames:
                 if not os.path.exists(target_dir + fname):
-                    zipf.extract(fname,target_dir)
+                    zipf.extract(fname, target_dir)
         if len(fnames) == 1:
             full_path = target_dir + fnames[0]
         else:
