@@ -36,20 +36,19 @@ class JupyterTest(TestBase):
     def test_pretty_print_html(self):
         self.maxDiff = None
         html = pretty_print_html(_TEST_TOKS["span"].values, True)
-        suffix = html[-800:]
+        suffix = html[-1571:]
         # print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
             """\
-</tbody>
 </table>
     </div>
     <div id="text"
-     style="float:right; border: 1px solid var(--jp-border-color0); width: 60%;">
+     style="float:right; border: 1px solid var(--jp-border-color0); border-radius: var(--jp-border-radius); width: 60%; margin-top: 5px; line-height: 2">
 
                 <div style="float:center; padding:10px">
                     <p style="font-family:var(--jp-code-font-family); font-size:var(--jp-code-font-size)">
-                        <span style="background-color:rgba(255, 215, 0, 0.5)">Item&#39;s</span> <span style="background-color:rgba(255, 215, 0, 0.5)">for</span> <span style="background-color:rgba(255, 215, 0, 0.5)">&lt;</span> <span style="background-color:rgba(255, 215, 0, 0.5)"><span>&#36;</span>100</span> <span style="background-color:rgba(255, 215, 0, 0.5)">&amp;</span> <span style="background-color:rgba(255, 215, 0, 0.5)">change
+                        <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">Item&#39;s</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">for</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">&lt;</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;"><span>&#36;</span>100</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">&amp;</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">change
                     </p>
                 </div>
 
@@ -58,18 +57,18 @@ class JupyterTest(TestBase):
 """)
 
         html = pretty_print_html(_TEST_TOKS["span"].values, False)
-        suffix = html[-809:]
+        suffix = html[-1599:]
         # print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
             """\
 
 <div id="text"
- style="float:right; color: var(--jp-layout-color2); border: 1px solid var(--jp-border-color0); width: 100%;">
+ style="float:right; color: var(--jp-layout-color2); border: 1px solid var(--jp-border-color0); border-radius: var(--jp-border-radius); width: 100%;">
 
                 <div style="float:center; padding:10px">
                     <p style="font-family:var(--jp-code-font-family); font-size:var(--jp-code-font-size)">
-                        <span style="background-color:rgba(255, 215, 0, 0.5)">Item&#39;s</span> <span style="background-color:rgba(255, 215, 0, 0.5)">for</span> <span style="background-color:rgba(255, 215, 0, 0.5)">&lt;</span> <span style="background-color:rgba(255, 215, 0, 0.5)"><span>&#36;</span>100</span> <span style="background-color:rgba(255, 215, 0, 0.5)">&amp;</span> <span style="background-color:rgba(255, 215, 0, 0.5)">change
+                        <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">Item&#39;s</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">for</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">&lt;</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;"><span>&#36;</span>100</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">&amp;</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">change
                     </p>
                 </div>
 
