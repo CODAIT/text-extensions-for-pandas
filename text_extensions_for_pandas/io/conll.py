@@ -768,7 +768,8 @@ def _doc_to_df(
     ret["sentence"] = sentence_spans
     ret["line_num"] = pd.Series(doc_line_nums)
     if conll_u and "head" in column_names:
-        ret = ret.astype({"head": "int32"}, errors="ignore")
+        ret = ret.astype({"head": "Int64"}, errors="ignore")
+        ret.loc[ret['head'] == -1, 'head'] = pd.NA
     return ret
 
 

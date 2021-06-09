@@ -274,7 +274,7 @@ class CoNLLTest(unittest.TestCase):
                 0                                          Number=Sing     3   nsubj   
                 1    Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbF...     3     aux   
                 2                                                 None     3  advmod   
-                3                             Tense=Past|VerbForm=Part    -1    root   
+                3                             Tense=Past|VerbForm=Part  <NA>    root   
                 4                            Definite=Ind|PronType=Art     6     det   
                 ..                                                 ...   ...     ...   
                 161                          Definite=Ind|PronType=Art   162     det   
@@ -376,7 +376,7 @@ class CoNLLTest(unittest.TestCase):
                 0                                                None     2   case   
                 1                           Definite=Def|PronType=Art     2    det   
                 2                                         Number=Sing     3    obl   
-                3   Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbF...    -1   root   
+                3   Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbF...  <NA>   root   
                 4                            Number=Sing|PronType=Dem     5    det   
                 ..                                                ...   ...    ...   
                 81                                       VerbForm=Ger    58  advcl   
@@ -463,7 +463,7 @@ class CoNLLTest(unittest.TestCase):
                 0            [0, 2): 'No'      no      DT      DT     None     3    DEP  None   
                 1             [2, 3): ','       ,       ,       ,     None     3      P  None   
                 2            [4, 6): 'it'      it     PRP     PRP     None     3    SBJ  None   
-                3          [7, 10): 'was'      be     VBD     VBD     None    -1   ROOT  None   
+                3          [7, 10): 'was'      be     VBD     VBD     None  <NA>   ROOT  None   
                 4         [11, 14): 'n't'     not      RB      RB     None     3    ADV  None   
                 ..                    ...     ...     ...     ...      ...   ...    ...   ...   
                 74     [373, 377): 'both'    both      DT      DT     None    75   NMOD  None   
