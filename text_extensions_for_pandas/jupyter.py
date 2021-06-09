@@ -90,7 +90,7 @@ _BORDER_STYLE = "border: 1px solid var(--jp-border-color0); border-radius: var(-
 # accent colors very well. So instead we mix orange-yellow into the current theme's
 # background color.
 _HL_COLOR = (
-    ("background-color:var(--jp-info-color2); "
+    ("background-color:rgba(255, 215, 0, 0.5); "
     "color:var(--jp-content-font-color1)")
 )
 
