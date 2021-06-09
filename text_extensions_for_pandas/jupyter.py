@@ -79,7 +79,7 @@ def run_with_progress_bar(num_items: int, fn: Callable, item_type: str = "doc") 
 _BG_COLOR = "color: var(--jp-layout-color2)"
 
 # Border of boxes containing span info and annotated doc
-_BORDER_STYLE = "border: 1px solid var(--jp-border-color0)"
+_BORDER_STYLE = "border: 1px solid var(--jp-border-color0); border-radius: var(--jp-border-radius)"
 
 # Background for highlighted span locations
 #
@@ -90,7 +90,8 @@ _BORDER_STYLE = "border: 1px solid var(--jp-border-color0)"
 # accent colors very well. So instead we mix orange-yellow into the current theme's
 # background color.
 _HL_COLOR = (
-    "background-color:rgba(255, 215, 0, 0.5)"
+    ("background-color:var(--jp-info-color2); "
+    "color:var(--jp-content-font-color1)")
 )
 
 # Font of rendered document text
@@ -121,10 +122,10 @@ def _pretty_print_text(column: Union["SpanArray", "TokenSpanArray"]) -> List[str
         if mask[i] and (i == 0 or not mask[i - 1]):
             # Starting a highlighted region
             text_pieces.append(
-                f"""<span style="{_HL_COLOR}">""")
+                f"""<mark style="{_HL_COLOR}; padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">""")
         elif not (mask[i]) and i > 0 and mask[i - 1]:
             # End of a bold region
-            text_pieces.append("</span>")
+            text_pieces.append("</mark>")
         if text[i] == "\n":
             text_pieces.append("<br>")
         elif text[i] == "&":
@@ -191,7 +192,7 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
         {spans_html}
     </div>
     <div id="text"
-     style="float:right; {_BORDER_STYLE}; width: 60%;">
+     style="float:right; {_BORDER_STYLE}; width: 60%; margin-top: 5px; line-height: 2">
 {_NEWLINE.join(doc_divs)}
     </div>
 </div>
