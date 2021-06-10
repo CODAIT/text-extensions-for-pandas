@@ -243,7 +243,7 @@ def extract_regex_tok(
 
 def extract_regex(
     doc_text: str,
-    compiled_regex: re.Pattern
+    compiled_regex: "re.Pattern"  # Double quotes for Python 3.6 compatibility
 ):
     """
     Identify all non-overlapping matches of a regular expression, as returned by
