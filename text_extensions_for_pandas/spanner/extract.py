@@ -246,8 +246,8 @@ def extract_regex(
     compiled_regex: re.Pattern
 ):
     """
-    Identify all non-overlapping matches of a regular expression, as returned by `
-    `regex.finditer()``, and return those locations as an array of spans.
+    Identify all non-overlapping matches of a regular expression, as returned by
+    ``re.Pattern.finditer()``, and return those locations as an array of spans.
 
     :param doc_text: Text of the document; will be the target text of the returned spans.
 
