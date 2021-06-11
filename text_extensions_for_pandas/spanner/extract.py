@@ -274,7 +274,7 @@ def extract_split(
     :param doc_text: Text of the document; will be the target text of the returned spans.
 
     :param split_points: A series of offsets into ``doc_text``, expressed as either:
-      * A sequence if integers (split at certain locations and return a set of splits that
+      * A sequence of integers (split at certain locations and return a set of splits that
         covers every character in the document) as a list or 1-d Numpy array
       * A sequence of spans (split around the indicated locations, but discard the parts
         of the document that are within a split point)
