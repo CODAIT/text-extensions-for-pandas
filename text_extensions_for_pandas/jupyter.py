@@ -30,7 +30,8 @@ import pandas as pd
 import numpy as np
 import time
 from typing import *
-
+import importlib.resources
+import text_extensions_for_pandas.resources as resources
 
 def run_with_progress_bar(num_items: int, fn: Callable, item_type: str = "doc") \
         -> List[pd.DataFrame]:
@@ -71,83 +72,24 @@ def run_with_progress_bar(num_items: int, fn: Callable, item_type: str = "doc") 
     return result
 
 
-#########################################################################################
-# HTML style constants
-# Eventually these should be replaced by a proper stylesheet.
-
-# Background for boxes containing span info and annotated doc
-_BG_COLOR = "color: var(--jp-layout-color2)"
-
-# Border of boxes containing span info and annotated doc
-_BORDER_STYLE = "border: 1px solid var(--jp-border-color0); border-radius: var(--jp-border-radius)"
-
-# Background for highlighted span locations
-#
-# We ought to use the following combination:
-# _HL_COLOR = ("background-color:var(--jp-info-color2); "
-#              "color:var(--jp-content-font-color2)")
-# ...but currently the stylesheets for JupyterLab dark mode don't display text on
-# accent colors very well. So instead we mix orange-yellow into the current theme's
-# background color.
-_HL_COLOR = (
-    ("background-color:rgba(255, 215, 0, 0.5); "
-    "color:var(--jp-content-font-color1)")
-)
-
-# Font of rendered document text
-_DOC_FONT = "font-family:var(--jp-code-font-family); font-size:var(--jp-code-font-size)"
-
-# END HTML style constants
-#########################################################################################
-
-
-def _pretty_print_text(column: Union["SpanArray", "TokenSpanArray"]) -> List[str]:
+def _get_sanitized_doctext(column: Union["SpanArray", "TokenSpanArray"]) -> List[str]:
     # Subroutine of pretty_print_html() below.
     # Should only be called for single-document span arrays.
     if not column.is_single_document:
         raise ValueError("Array contains spans from multiple documents. Can only "
                          "render one document at a time.")
 
-    # Build up a mask of which characters in the target text are within
-    # at least one span.
     text = column.document_text
-    mask = np.zeros(shape=(len(text)), dtype=bool)
-    # TODO: Vectorize
-    for e in column:
-        mask[e.begin:e.end] = True
 
-    # Walk through the text, building up an HTML representation
     text_pieces = []
     for i in range(len(text)):
-        if mask[i] and (i == 0 or not mask[i - 1]):
-            # Starting a highlighted region
-            text_pieces.append(
-                f"""<mark style="{_HL_COLOR}; padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">""")
-        elif not (mask[i]) and i > 0 and mask[i - 1]:
-            # End of a bold region
-            text_pieces.append("</mark>")
-        if text[i] == "\n":
-            text_pieces.append("<br>")
-        elif text[i] == "&":
-            text_pieces.append("&amp;")
-        elif text[i] == "<":
-            text_pieces.append("&lt;")
-        elif text[i] == ">":
-            text_pieces.append("&gt;")
-        elif text[i] == "\"":
-            # Not strictly necessary, but just in case.
-            text_pieces.append("&quot;")
-        elif text[i] == "'":
-            # Not strictly necessary, but just in case.
-            text_pieces.append("&#39;")
-        elif text[i] == "$":
-            # Dollar sign messes up Jupyter's JavaScript UI.
-            # Place dollar sign in its own sub-span to avoid being misinterpeted as a LaTeX delimiter
-            text_pieces.append("<span>&#36;</span>")
+        if text[i] == "`":
+            text_pieces.append("\`")
         else:
             text_pieces.append(text[i])
-    return text_pieces
+    return "".join(text_pieces)
 
+_spanarray_instance_counter = 0
 
 def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
                       show_offsets: bool) -> str:
@@ -166,41 +108,44 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
         raise TypeError(f"Expected SpanArray or TokenSpanArray, but received "
                         f"{column} of type {type(column)}")
 
+    global _spanarray_instance_counter 
+    _spanarray_instance_counter += 1
 
+    # Get a javascript representation of the column
+    span_array = []
+    for e in column:
+        span_array.append(f"""[{e.begin},{e.end}]""")
 
-    doc_divs = [
-        f"""
-                <div style="float:center; padding:10px">
-                    <p style="{_DOC_FONT}">
-                        {"".join(_pretty_print_text(column_slice))}
-                    </p>
-                </div>
-        """
-        for column_slice in column.split_by_document()
-    ]
+    # If this is the initial instance, load the base script and stylesheet from resources
+    style_text = ""
+    script_text = ""
+    
+    if _spanarray_instance_counter == 1:
+        style_text = importlib.resources.read_text(resources, "span_array.css")
+        script_text = importlib.resources.read_text(resources, "span_array.js")
+    
+    return textwrap.dedent(f"""
+        <div class="span-array" data-instance="{_spanarray_instance_counter}">
+            If you're reading this message, your notebook viewer does not support Javascript execution. Try pasting the URL into a service like nbviewer.
+        </div>
+        <style>
+            {style_text}
+        </style>
+        <script>
+            {{
+                {script_text}
+                // create entry objects and render
+                const Entry = window.SpanArray.Entry
+                const render = window.SpanArray.render
 
-    # TODO: Add a proper CSS stylesheet instead of embedding formatting into the
-    #  generated HTML
-    _NEWLINE = "\n"
-    if show_offsets:
-        # Generate a dataframe of atomic types to pretty-print the spans
-        spans_html = column.as_frame().to_html()
-        return textwrap.dedent(f"""
-<div id="spanArray">
-    <div id="spans" 
-     style="{_BG_COLOR}; {_BORDER_STYLE}; float:left; padding:10px;">
-        {spans_html}
-    </div>
-    <div id="text"
-     style="float:right; {_BORDER_STYLE}; width: 60%; margin-top: 5px; line-height: 2">
-{_NEWLINE.join(doc_divs)}
-    </div>
-</div>
-        """)
-    else:  # if not show_offsets
-        return textwrap.dedent(f"""
-<div id="text"
- style="float:right; {_BG_COLOR}; {_BORDER_STYLE}; width: 100%;">
-{_NEWLINE.join(doc_divs)}
-</div>
-        """)
+                const spanArray = [{','.join(span_array)}]
+                const entries = Entry.fromSpanArray(spanArray, 0)
+                Entry.updateSets(entries)
+                const doc_text = `{_get_sanitized_doctext(column)}`
+
+                console.log(entries)
+
+                render(doc_text, entries, {_spanarray_instance_counter}, true)
+            }}
+        </script>
+    """)
