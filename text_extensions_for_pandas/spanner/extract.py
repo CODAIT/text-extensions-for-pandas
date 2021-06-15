@@ -19,6 +19,8 @@
 # Variants of the Extract operator from spanner algebra. The Extract operator
 # returns sub-spans of a parent span that match a predicate.
 #
+import collections
+import re
 
 import numpy as np
 import pandas as pd
@@ -27,7 +29,7 @@ import regex
 from typing import *
 
 # Internal imports
-from text_extensions_for_pandas.array.span import SpanArray
+from text_extensions_for_pandas.array.span import SpanArray, Span
 from text_extensions_for_pandas.array.token_span import TokenSpanArray
 from text_extensions_for_pandas.io.spacy import simple_tokenizer
 
@@ -202,7 +204,7 @@ def extract_regex_tok(
     Identify all (possibly overlapping) matches of a regular expression
     that start and end on token boundaries.
 
-    :param tokens: `SpanArray` of token information, optionally wrapped in a
+    :param tokens: ``SpanArray`` of token information, optionally wrapped in a
     `pd.Series`.
 
     :param compiled_regex: Regular expression to evaluate.
@@ -237,3 +239,76 @@ def extract_regex_tok(
             pd.Series(window_tok_spans[matches_regex_f(window_tok_spans.covered_text)])
         )
     return pd.DataFrame({output_col_name: pd.concat(matches_list)})
+
+
+def extract_regex(
+    doc_text: str,
+    compiled_regex: "re.Pattern"  # Double quotes for Python 3.6 compatibility
+):
+    """
+    Identify all non-overlapping matches of a regular expression, as returned by
+    ``re.Pattern.finditer()``, and return those locations as an array of spans.
+
+    :param doc_text: Text of the document; will be the target text of the returned spans.
+
+    :param compiled_regex: Regular expression to evaluate, compiled with either the ``re``
+      or the ``regex`` package.
+
+    :returns: A ``SpanArray`` containing a span for each match of the regex.
+    """
+    begins = []
+    ends = []
+    for a in compiled_regex.finditer(doc_text):
+        begins.append(a.start())
+        ends.append(a.end())
+
+    return SpanArray(doc_text, begins, ends)
+
+
+def extract_split(
+    doc_text: str, split_points: Union[Sequence[int], np.ndarray, SpanArray]
+) -> SpanArray:
+    """
+    Split a document into spans along a specified set of split points.
+
+    :param doc_text: Text of the document; will be the target text of the returned spans.
+
+    :param split_points: A series of offsets into ``doc_text``, expressed as either:
+      * A sequence of integers (split at certain locations and return a set of splits that
+        covers every character in the document) as a list or 1-d Numpy array
+      * A sequence of spans (split around the indicated locations, but discard the parts
+        of the document that are within a split point)
+
+    :returns: An ``SpanArray``  that splits the document in the specified way.
+    """
+    if isinstance(split_points, (collections.Sequence, np.ndarray)):
+        # Single-integer split points ==> zero-length spans
+        split_points = SpanArray(doc_text, split_points, split_points)
+    elif not isinstance(split_points, SpanArray):
+        raise TypeError(f"Split points are of type {type(split_points)}. Expected a "
+                        f"sequence of integers or a SpanArray.")
+
+    # Make sure split points are in order
+    sorted_indices = split_points.argsort()
+    sorted_split_points = split_points[sorted_indices]
+
+    # Break out the split points.
+    split_begins = sorted_split_points.begin.tolist()  # type: List[int]
+    split_ends = sorted_split_points.end.tolist()  # type: List[int]
+
+    # Tack on an additional split point at the very end to simplify the logic below.
+    split_begins.append(len(doc_text))
+    split_ends.append(len(doc_text))
+
+    # Walk through the document, generating the begin and end offsets of spans
+    begins = []
+    ends = []
+    begin = 0
+    for split_begin, split_end in zip(split_begins, split_ends):
+        end = split_begin
+        if end > begin:  # Ignore zero-length and negative-length chunks
+            begins.append(begin)
+            ends.append(end)
+        begin = split_end
+
+    return SpanArray(doc_text, begins, ends)
