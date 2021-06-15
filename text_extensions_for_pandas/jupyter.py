@@ -134,17 +134,12 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
         <script>
             {{
                 {script_text}
-                // create entry objects and render
                 const Entry = window.SpanArray.Entry
                 const render = window.SpanArray.render
-
                 const spanArray = [{','.join(span_array)}]
                 const entries = Entry.fromSpanArray(spanArray, 0)
                 Entry.updateSets(entries)
                 const doc_text = `{_get_sanitized_doctext(column)}`
-
-                console.log(entries)
-
                 render(doc_text, entries, {_spanarray_instance_counter}, true)
             }}
         </script>
