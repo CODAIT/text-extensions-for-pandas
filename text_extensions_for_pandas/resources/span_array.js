@@ -1,5 +1,5 @@
 // Increment the version to invalidate the cached script
-const VERSION = 0.48
+const VERSION = 0.5
 
 if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
 
@@ -48,7 +48,7 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
 
             let set;
             for(let i = 0; i < entries.length; i++) {
-                for(let j = i+1; j < entries.length; j++) {
+                for(let j = i+1; j < entries.length && entries[j].begin <= entries[i].end; j++) {
                     if(entries[j].begin < entries[i].end) {
                         if(entries[j].end <= entries[i].end) {
                             set = {type: TYPE_NESTED, entry: entries[j]}
