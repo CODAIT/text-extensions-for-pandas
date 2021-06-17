@@ -120,27 +120,25 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
     style_text = ""
     script_text = ""
     
-    if _spanarray_instance_counter == 1:
-        style_text = importlib.resources.read_text(resources, "span_array.css")
-        script_text = importlib.resources.read_text(resources, "span_array.js")
+    style_text = importlib.resources.read_text(resources, "span_array.css")
+    script_text = importlib.resources.read_text(resources, "span_array.js")
     
     return textwrap.dedent(f"""
         <div class="span-array" data-instance="{_spanarray_instance_counter}">
             If you're reading this message, your notebook viewer does not support Javascript execution. Try pasting the URL into a service like nbviewer.
         </div>
         <style>
-            {style_text}
+            {textwrap.indent(style_text, "        ")}
         </style>
         <script>
             {{
-                {script_text}
+                {textwrap.indent(script_text, "        ")}
                 const Entry = window.SpanArray.Entry
                 const render = window.SpanArray.render
                 const spanArray = [{','.join(span_array)}]
-                const entries = Entry.fromSpanArray(spanArray, 0)
-                Entry.updateSets(entries)
+                const entries = Entry.fromSpanArray(spanArray)
                 const doc_text = `{_get_sanitized_doctext(column)}`
-                render(doc_text, entries, {_spanarray_instance_counter}, true)
+                render(doc_text, entries, {_spanarray_instance_counter}, {'true' if show_offsets else 'false'})
             }}
         </script>
     """)

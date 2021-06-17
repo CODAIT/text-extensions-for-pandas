@@ -36,41 +36,37 @@ class JupyterTest(TestBase):
     def test_pretty_print_html(self):
         self.maxDiff = None
         html = pretty_print_html(_TEST_TOKS["span"].values, True)
-        suffix = html[-1571:]
+        suffix = html[-380:]
         # print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
             """\
-</table>
-    </div>
-    <div id="text"
-     style="float:right; border: 1px solid var(--jp-border-color0); border-radius: var(--jp-border-radius); width: 60%; margin-top: 5px; line-height: 2">
-
-                <div style="float:center; padding:10px">
-                    <p style="font-family:var(--jp-code-font-family); font-size:var(--jp-code-font-size)">
-                        <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">Item&#39;s</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">for</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">&lt;</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;"><span>&#36;</span>100</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">&amp;</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">change
-                    </p>
-                </div>
-
-    </div>
-</div>
+ndow.SpanArray.render = render
+}
+        const Entry = window.SpanArray.Entry
+        const render = window.SpanArray.render
+        const spanArray = [[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]]
+        const entries = Entry.fromSpanArray(spanArray)
+        const doc_text = `Item's for < $100 & change`
+        render(doc_text, entries, 1, true)
+    }
+</script>
 """)
 
         html = pretty_print_html(_TEST_TOKS["span"].values, False)
-        suffix = html[-1599:]
+        suffix = html[-380:]
         # print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
             """\
-
-<div id="text"
- style="float:right; color: var(--jp-layout-color2); border: 1px solid var(--jp-border-color0); border-radius: var(--jp-border-radius); width: 100%;">
-
-                <div style="float:center; padding:10px">
-                    <p style="font-family:var(--jp-code-font-family); font-size:var(--jp-code-font-size)">
-                        <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">Item&#39;s</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">for</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">&lt;</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;"><span>&#36;</span>100</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">&amp;</mark> <mark style="background-color:rgba(255, 215, 0, 0.5); color:var(--jp-content-font-color1); padding: 0.25em 0.6em; margin: 0 0.25em; border-radius: 0.35em; line-height: 1;">change
-                    </p>
-                </div>
-
-</div>
+dow.SpanArray.render = render
+}
+        const Entry = window.SpanArray.Entry
+        const render = window.SpanArray.render
+        const spanArray = [[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]]
+        const entries = Entry.fromSpanArray(spanArray)
+        const doc_text = `Item's for < $100 & change`
+        render(doc_text, entries, 2, false)
+    }
+</script>
 """)

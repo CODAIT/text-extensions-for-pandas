@@ -1,5 +1,5 @@
 // Increment the version to invalidate the cached script
-const VERSION = 0.41
+const VERSION = 0.48
 
 if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
 
@@ -27,11 +27,29 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
 
     class Entry {
 
-        static updateSets(entries) {
+        // Creates an ordered list of entries from a list of spans with struct [begin, end]
+        static fromSpanArray(spanArray) {
+            let entries = []
+            let id = 0
+            
+            spanArray.sort((a, b) => {
+                if(a[0] < b[0]) {
+                    return a
+                } else if(a[0] == b[0] && a[1] >= b[1]) {
+                    return a
+                } else {
+                    return b
+                }
+            })
+            .forEach(span => {
+                entries.push(new Entry(id, span[0], span[1]))
+                id += 1
+            })
+
+            let set;
             for(let i = 0; i < entries.length; i++) {
                 for(let j = i+1; j < entries.length; j++) {
                     if(entries[j].begin < entries[i].end) {
-                        let set;
                         if(entries[j].end <= entries[i].end) {
                             set = {type: TYPE_NESTED, entry: entries[j]}
                         } else {
@@ -41,17 +59,8 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
                     }
                 }
             }
-        }
 
-        static fromSpanArray(spanArray, start_id) {
-            let set = []
-            if(start_id == undefined) start_id = 0
-            let id = start_id
-            spanArray.forEach(span => {
-                set.push(new Entry(id, span[0], span[1]))
-                id += 1
-            })
-            return set
+            return entries
         }
 
         constructor(id, begin, end) {
@@ -62,25 +71,24 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
             this.visible = true
         }
 
-        get length() {
-            return this.end - this.begin
-        }
-
+        // Returns only visible sets
         get valid_sets() {
             let valid_sets = []
+
             this.sets.forEach(set => {
                 if(set.entry.visible) valid_sets.push(set)
             })
+
             return valid_sets
         }
 
+        // Returns true if mark should render as a compound set of spans
         isComplex() {
-            for(let i = 0; i < this.valid_sets.length; i++)
-            {
+            for(let i = 0; i < this.valid_sets.length; i++) {
                 let otherMember = this.valid_sets[i].entry;
-                if(this.valid_sets[i].type == TYPE_OVERLAP && otherMember.visible) return true;
-                else
-                {
+                if(this.valid_sets[i].type == TYPE_OVERLAP && otherMember.visible) {
+                    return true;
+                } else {
                     if(otherMember.valid_sets.length > 0 && otherMember.visible) {
                         return true;
                     }
@@ -89,34 +97,37 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
             return false;
         }
 
-
+        // Gets the combined span of all connected elements
         getSetSpan() {
             let begin = this.begin
             let end = this.end
             let highest_id = this.id
+
             this.valid_sets.forEach(set => {
                 let other = set.entry.getSetSpan()
                 if(other.begin < begin) begin = other.begin
                 if(other.end > end) end = other.end
                 if(other.highest_id > highest_id) highest_id = other.highest_id
             })
+
             return {begin: begin, end: end, highest_id: highest_id}
         }
     }
 
     window.SpanArray.Entry = Entry
 
+    // Render DOM
     function render(doc_text, entries, instance_id, show_offsets) {
 
         let frag = document.createDocumentFragment()
         
+        // Render Table
         if(show_offsets) {
             let table = document.createElement("table")
             table.innerHTML = `
             <thead>
             <tr>
                 <th></th>
-                <th>id</th>
                 <th>begin</th>
                 <th>end</th>
                 <th>context</th>
@@ -132,8 +143,7 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
                 }
 
                 row.innerHTML += `
-                <td></td>
-                <td>${entry.id.toString()}</td>
+                <td><b>${entry.id.toString()}</b></td>
                 <td>${entry.begin}</td>
                 <td>${entry.end}</td>
                 <td>${doc_text.substring(entry.begin, entry.end)}</td>`
@@ -144,6 +154,7 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
             frag.appendChild(table)
         }
 
+        // Render Text
         let highlight_regions = []
         for(let i = 0; i < entries.length; i++)
         {
@@ -170,10 +181,10 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
             let begin = 0
             highlight_regions.forEach(region => {
                 paragraph.innerHTML += sanitize(doc_text.substring(begin, region.begin))
+
                 let mark = document.createElement("mark")
                 mark.setAttribute("data-ids", "");
-                if (region.type != TYPE_NESTED)
-                {
+                if (region.type != TYPE_NESTED) {
                     region.ids.forEach(id => {
                         mark.setAttribute("data-ids", mark.getAttribute("data-ids") + `${id},`)
                     })
@@ -209,15 +220,13 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
         
         frag.appendChild(paragraph)
 
+        // Attach fragments to all copies of the instance
         let containers = document.querySelectorAll(`.span-array[data-instance='${instance_id}']`)
-
         containers.forEach(container => {
             let cloned_frag = frag.cloneNode(true)
-            // attach events
             container.innerHTML = ""
             container.appendChild(cloned_frag)
         })
-
     }
 
     window.SpanArray.render = render
