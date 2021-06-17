@@ -30,8 +30,12 @@ import pandas as pd
 import numpy as np
 import time
 from typing import *
-import importlib.resources
 import text_extensions_for_pandas.resources as resources
+
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    import importlib_resources as pkg_resources
 
 def run_with_progress_bar(num_items: int, fn: Callable, item_type: str = "doc") \
         -> List[pd.DataFrame]:
@@ -84,7 +88,7 @@ def _get_sanitized_doctext(column: Union["SpanArray", "TokenSpanArray"]) -> List
     text_pieces = []
     for i in range(len(text)):
         if text[i] == "`":
-            text_pieces.append("\`")
+            text_pieces.append("\\`")
         else:
             text_pieces.append(text[i])
     return "".join(text_pieces)
@@ -120,8 +124,8 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
     style_text = ""
     script_text = ""
     
-    style_text = importlib.resources.read_text(resources, "span_array.css")
-    script_text = importlib.resources.read_text(resources, "span_array.js")
+    style_text = pkg_resources.read_text(resources, "span_array.css")
+    script_text = pkg_resources.read_text(resources, "span_array.js")
     
     return textwrap.dedent(f"""
         <div class="span-array" data-instance="{_spanarray_instance_counter}">
