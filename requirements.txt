@@ -2,6 +2,7 @@ numpy>=1.17
 pandas>=1.0.3
 pyarrow>=1.0.0
 regex
+importlib_resources
 # TODO: The following dependency should go away when we switch to Python 3.8.
 memoized-property
 requests
