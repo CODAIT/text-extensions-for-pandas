@@ -112,6 +112,7 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
                         f"{column} of type {type(column)}")
 
 
+    # Gets the main script and stylesheet from the 'resources' sub-package
     style_text: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.css")
     script_text: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.js")
 
@@ -119,7 +120,6 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
     instance_init_script_list = []
 
     # For each document, pass the array of spans and document text into the script's render function
-    show_offset_string = 'true' if show_offsets else 'false'
     for column_slice in column.split_by_document():
         # Get a javascript representation of the column
         span_array = []
@@ -134,6 +134,8 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
             }}
         """)
 
+    # Get the show_offsets parameter as a JavaScript boolean
+    show_offset_string = 'true' if show_offsets else 'false'
     
     return textwrap.dedent(f"""
         <script>

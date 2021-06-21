@@ -37,7 +37,7 @@ class JupyterTest(TestBase):
         self.maxDiff = None
         html = pretty_print_html(_TEST_TOKS["span"].values, True)
         suffix = html[-500:]
-        print(f"[[[{suffix}]]]")
+        # print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
             """\
@@ -59,7 +59,7 @@ class JupyterTest(TestBase):
 
         html = pretty_print_html(_TEST_TOKS["span"].values, False)
         suffix = html[-500:]
-        print(f"[[[{suffix}]]]")
+        # print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
             """\
