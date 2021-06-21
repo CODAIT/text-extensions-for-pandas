@@ -36,42 +36,35 @@ class JupyterTest(TestBase):
     def test_pretty_print_html(self):
         self.maxDiff = None
         html = pretty_print_html(_TEST_TOKS["span"].values, True)
-        suffix = html[-800:]
+        suffix = html[-380:]
         # print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
             """\
-</tbody>
-</table>
-    </div>
-    <div id="text"
-     style="float:right; border: 1px solid var(--jp-border-color0); width: 60%;">
-
-                <div style="float:center; padding:10px">
-                    <p style="font-family:var(--jp-code-font-family); font-size:var(--jp-code-font-size)">
-                        <span style="background-color:rgba(255, 215, 0, 0.5)">Item&#39;s</span> <span style="background-color:rgba(255, 215, 0, 0.5)">for</span> <span style="background-color:rgba(255, 215, 0, 0.5)">&lt;</span> <span style="background-color:rgba(255, 215, 0, 0.5)"><span>&#36;</span>100</span> <span style="background-color:rgba(255, 215, 0, 0.5)">&amp;</span> <span style="background-color:rgba(255, 215, 0, 0.5)">change
-                    </p>
-                </div>
-
-    </div>
-</div>
+ray.Entry
+        const render = window.SpanArray.render
+        const spanArray = [[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]]
+        const entries = Entry.fromSpanArray(spanArray)
+        const doc_text = 'Item\\'s for < $100 & change'
+        const script_context = document.currentScript
+        render(doc_text, entries, true, script_context)
+    }
+</script>
 """)
 
         html = pretty_print_html(_TEST_TOKS["span"].values, False)
-        suffix = html[-809:]
+        suffix = html[-380:]
         # print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
             """\
-
-<div id="text"
- style="float:right; color: var(--jp-layout-color2); border: 1px solid var(--jp-border-color0); width: 100%;">
-
-                <div style="float:center; padding:10px">
-                    <p style="font-family:var(--jp-code-font-family); font-size:var(--jp-code-font-size)">
-                        <span style="background-color:rgba(255, 215, 0, 0.5)">Item&#39;s</span> <span style="background-color:rgba(255, 215, 0, 0.5)">for</span> <span style="background-color:rgba(255, 215, 0, 0.5)">&lt;</span> <span style="background-color:rgba(255, 215, 0, 0.5)"><span>&#36;</span>100</span> <span style="background-color:rgba(255, 215, 0, 0.5)">&amp;</span> <span style="background-color:rgba(255, 215, 0, 0.5)">change
-                    </p>
-                </div>
-
-</div>
+ay.Entry
+        const render = window.SpanArray.render
+        const spanArray = [[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]]
+        const entries = Entry.fromSpanArray(spanArray)
+        const doc_text = 'Item\\'s for < $100 & change'
+        const script_context = document.currentScript
+        render(doc_text, entries, false, script_context)
+    }
+</script>
 """)

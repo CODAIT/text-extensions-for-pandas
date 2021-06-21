@@ -1,0 +1,128 @@
+.span-array {
+    --thead-background-color: var(--jp-layout-color4, inherit);
+    --thead-text-color: var(--jp-ui-font-color4);
+    --tbody-background-color-1: var(--jp-layout-color2, inherit);
+    --tbody-background-color-2: var(--jp-layout-color1, inherit);
+    --tbody-background-color-hover: var(--jp-layout-color3, inherit);
+    --tbody-background-color-disabled: var(--jp-layout-color4, inherit);
+    --tbody-text-color: var(--jp-ui-font-color0, inherit);
+    --table-font-family: var(--jp-content-font-family, var(--fallback-font-family, inherit));
+
+    --root-highlight: #a0c4ff;
+    --nested-highlight: #ffadad;
+    --hover-highlight: #ffd6a5;
+
+    --inverted-background-color: #0B525B;
+    --inverted-text-color: rgb(243, 243, 243);
+    --paragraph-border-color: transparent;
+
+    --fallback-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif
+}
+
+/* These 2 CSS block sets variable overrides for JupyterLab's default themes */
+body[data-jp-theme-name="JupyterLab Dark"] .span-array {
+    --thead-background-color: #144552;
+    --thead-text-color: whitesmoke;
+    --tbody-background-color-1: #0B525B;
+    --tbody-background-color-2: #065A60;
+    --tbody-background-color-hover: #197072;
+    --tbody-background-color-disabled: #486669;
+    --tbody-text-color: rgb(243, 243, 243);
+    --paragraph-border-color: #1b1b1b;
+}
+
+body[data-jp-theme-name="JupyterLab Light"] .span-array {
+    --thead-background-color: #0d2025;
+    --thead-text-color: whitesmoke;
+    --tbody-background-color-1: #f0f0f0;
+    --tbody-background-color-2: #ececec;
+    --tbody-background-color-hover: #6fd9db;
+    --tbody-background-color-disabled: #9c9c9c;
+    --tbody-text-color: rgb(0, 0, 0);
+    --paragraph-border-color: #f1f1f1;
+}
+
+/* Table of span offsets */
+.span-array>table {
+    table-layout: auto;
+    border-radius: 1em 1em 0 0;
+    overflow: hidden;
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--table-font-family);
+}
+
+.span-array>table thead {
+    background-color: var(--thead-background-color);
+    font-variant-caps: all-petite-caps;
+    color: var(--thead-text-color);
+}
+
+.span-array>table th {
+    padding: 1em;
+}
+
+.span-array>table>tbody>tr:nth-child(2n+1) {
+    background-color: var(--tbody-background-color-1);
+    color: var(--tbody-text-color);
+}
+
+.span-array>table>tbody>tr:nth-child(2n) {
+    background-color: var(--tbody-background-color-2);
+}
+
+.span-array>table td {
+    padding: 0.5em;
+    color: var(--tbody-text-color)
+}
+
+.span-array>table tr>td:last-child, .span-array>table tr>th:last-child {
+    text-align: right;
+}
+
+.span-array>table tr>td:not(tr>td:last-child), .span-array>table tr>th:not(tr>th:last-child) {
+    text-align: left;
+}
+
+/* Styling for spans within document context */
+.span-array>p {
+    border:1px solid var(--paragraph-border-color);
+    border-radius: 0.2em;
+    padding: 1em;
+    line-height: calc(var(--jp-content-line-height, 1.6) * 1.6);
+    box-sizing: border-box;
+    font-family: var(--jp-content-font-family, var(--fallback-font-family, inherit));
+}
+
+body[data-jp-theme-light="false"].span-array>p {
+    border: 1px solid black;
+    background-color: var(--inverted-background-color);
+    color: var(--inverted-text-color);
+}
+
+.span-array>p mark {
+    padding: 0.4em 0.4em;
+    border-radius: 0.35em;
+}
+
+.span-array>p mark {
+    background-color: var(--root-highlight);
+}
+
+.span-array>p mark>mark {
+    background-color: var(--nested-highlight);
+    padding: 0.2em 0.4em;
+}
+
+.span-array>p mark.complex-set {
+    background: linear-gradient(to right, var(--root-highlight), var(--nested-highlight))
+}
+
+.span-array>p mark>span.mark-tag {
+    font-weight: bolder;
+    font-size: 0.8em;
+    font-variant: small-caps;
+    font-variant-caps: all-small-caps;
+    margin-left: 8px;
+    text-transform: uppercase;
+}

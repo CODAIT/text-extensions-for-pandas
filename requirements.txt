@@ -2,6 +2,8 @@ numpy>=1.17
 pandas>=1.0.3
 pyarrow>=1.0.0
 regex
+# TODO: The following dependency is to support compatibility with Python 3.6, and should be removed when that version's support is dropped
+importlib_resources
 # TODO: The following dependency should go away when we switch to Python 3.8.
 memoized-property
 requests
