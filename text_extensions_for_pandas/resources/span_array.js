@@ -1,5 +1,5 @@
 // Increment the version to invalidate the cached script
-const VERSION = 0.5
+const VERSION = 0.58
 
 if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
 
@@ -21,10 +21,12 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
         out = out.replace("&", "&amp;")
         out = out.replace("<", "&lt;")
         out = out.replace(">", "&gt;")
+        out = out.replace("$", "&#36;")
         out = out.replace("\"", "&quot;")
         return out;
     }
 
+    /** Models an instance of a Span rendered within the offset table and document context. */
     class Entry {
 
         // Creates an ordered list of entries from a list of spans with struct [begin, end]
@@ -48,15 +50,13 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
 
             let set;
             for(let i = 0; i < entries.length; i++) {
-                for(let j = i+1; j < entries.length && entries[j].begin <= entries[i].end; j++) {
-                    if(entries[j].begin < entries[i].end) {
-                        if(entries[j].end <= entries[i].end) {
-                            set = {type: TYPE_NESTED, entry: entries[j]}
-                        } else {
-                            set = {type: TYPE_OVERLAP, entry: entries[j]}
-                        }
-                        entries[i].sets.push(set)
+                for(let j = i+1; j < entries.length && entries[j].begin < entries[i].end; j++) {
+                    if(entries[j].end <= entries[i].end) {
+                        set = {type: TYPE_NESTED, entry: entries[j]}
+                    } else {
+                        set = {type: TYPE_OVERLAP, entry: entries[j]}
                     }
+                    entries[i].sets.push(set)
                 }
             }
 
@@ -117,7 +117,7 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
     window.SpanArray.Entry = Entry
 
     // Render DOM
-    function render(doc_text, entries, instance_id, show_offsets) {
+    function render(doc_text, entries, show_offsets, script_context) {
 
         let frag = document.createDocumentFragment()
         
@@ -142,11 +142,13 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
                     row.classList.add("disabled")
                 }
 
+                // Adds the span entry to the table. doc_text is sanitized by replacing the reserved
+                // symbols by their entity name representations
                 row.innerHTML += `
                 <td><b>${entry.id.toString()}</b></td>
                 <td>${entry.begin}</td>
                 <td>${entry.end}</td>
-                <td>${doc_text.substring(entry.begin, entry.end)}</td>`
+                <td>${sanitize(doc_text.substring(entry.begin, entry.end))}</td>`
 
                 tbody.appendChild(row)
             })
@@ -183,6 +185,7 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
                 paragraph.innerHTML += sanitize(doc_text.substring(begin, region.begin))
 
                 let mark = document.createElement("mark")
+                // The data-ids tag is a list of comma-separated reference IDs for matching Spans 
                 mark.setAttribute("data-ids", "");
                 if (region.type != TYPE_NESTED) {
                     region.ids.forEach(id => {
@@ -194,7 +197,7 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
                     let nested_begin = region.begin
                     region.ids.slice(1).forEach(nested_id => {
                         let nested_region = entries.find(entry => entry.id == nested_id)
-                        mark.innerHTML += doc_text.substring(nested_begin, nested_region.begin)
+                        mark.innerHTML += sanitize(doc_text.substring(nested_begin, nested_region.begin))
                         let nested_mark = document.createElement("mark")
                         nested_mark.setAttribute("data-ids", `${nested_id},`)
                         nested_mark.textContent = doc_text.substring(nested_region.begin, nested_region.end)
@@ -221,12 +224,10 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
         frag.appendChild(paragraph)
 
         // Attach fragments to all copies of the instance
-        let containers = document.querySelectorAll(`.span-array[data-instance='${instance_id}']`)
-        containers.forEach(container => {
-            let cloned_frag = frag.cloneNode(true)
-            container.innerHTML = ""
-            container.appendChild(cloned_frag)
-        })
+        let context = script_context.parentElement
+        let container = context.querySelector(".span-array")
+        container.innerHTML = ""
+        container.appendChild(frag);
     }
 
     window.SpanArray.render = render

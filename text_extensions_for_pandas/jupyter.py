@@ -30,8 +30,9 @@ import pandas as pd
 import numpy as np
 import time
 from typing import *
-import text_extensions_for_pandas.resources as resources
+import text_extensions_for_pandas.resources
 
+# TODO: This try/except block is for Python 3.6 support, and should be reduced to just importing importlib.resources when 3.6 support is dropped.
 try:
     import importlib.resources as pkg_resources
 except ImportError:
@@ -87,13 +88,11 @@ def _get_sanitized_doctext(column: Union["SpanArray", "TokenSpanArray"]) -> List
 
     text_pieces = []
     for i in range(len(text)):
-        if text[i] == "`":
-            text_pieces.append("\\`")
+        if text[i] == "'":
+            text_pieces.append("\\'")
         else:
             text_pieces.append(text[i])
     return "".join(text_pieces)
-
-_spanarray_instance_counter = 0
 
 def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
                       show_offsets: bool) -> str:
@@ -112,9 +111,6 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
         raise TypeError(f"Expected SpanArray or TokenSpanArray, but received "
                         f"{column} of type {type(column)}")
 
-    global _spanarray_instance_counter 
-    _spanarray_instance_counter += 1
-
     # Get a javascript representation of the column
     span_array = []
     for e in column:
@@ -124,25 +120,26 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
     style_text = ""
     script_text = ""
     
-    style_text = pkg_resources.read_text(resources, "span_array.css")
-    script_text = pkg_resources.read_text(resources, "span_array.js")
+    style_text = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.css")
+    script_text = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.js")
     
     return textwrap.dedent(f"""
-        <div class="span-array" data-instance="{_spanarray_instance_counter}">
+        <div class="span-array">
             If you're reading this message, your notebook viewer does not support Javascript execution. Try pasting the URL into a service like nbviewer.
         </div>
         <style>
-            {textwrap.indent(style_text, "        ")}
+            {textwrap.indent(style_text, '        ')}
         </style>
         <script>
             {{
-                {textwrap.indent(script_text, "        ")}
+                {textwrap.indent(script_text, '        ')}
                 const Entry = window.SpanArray.Entry
                 const render = window.SpanArray.render
                 const spanArray = [{','.join(span_array)}]
                 const entries = Entry.fromSpanArray(spanArray)
-                const doc_text = `{_get_sanitized_doctext(column)}`
-                render(doc_text, entries, {_spanarray_instance_counter}, {'true' if show_offsets else 'false'})
+                const doc_text = '{_get_sanitized_doctext(column)}'
+                const script_context = document.currentScript
+                render(doc_text, entries, {'true' if show_offsets else 'false'}, script_context)
             }}
         </script>
     """)

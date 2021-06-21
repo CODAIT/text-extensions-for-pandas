@@ -41,14 +41,13 @@ class JupyterTest(TestBase):
         self.assertEqual(
             suffix,
             """\
-ndow.SpanArray.render = render
-}
-        const Entry = window.SpanArray.Entry
+ray.Entry
         const render = window.SpanArray.render
         const spanArray = [[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]]
         const entries = Entry.fromSpanArray(spanArray)
-        const doc_text = `Item's for < $100 & change`
-        render(doc_text, entries, 1, true)
+        const doc_text = 'Item\\'s for < $100 & change'
+        const script_context = document.currentScript
+        render(doc_text, entries, true, script_context)
     }
 </script>
 """)
@@ -59,14 +58,13 @@ ndow.SpanArray.render = render
         self.assertEqual(
             suffix,
             """\
-dow.SpanArray.render = render
-}
-        const Entry = window.SpanArray.Entry
+ay.Entry
         const render = window.SpanArray.render
         const spanArray = [[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]]
         const entries = Entry.fromSpanArray(spanArray)
-        const doc_text = `Item's for < $100 & change`
-        render(doc_text, entries, 2, false)
+        const doc_text = 'Item\\'s for < $100 & change'
+        const script_context = document.currentScript
+        render(doc_text, entries, false, script_context)
     }
 </script>
 """)
