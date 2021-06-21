@@ -449,6 +449,12 @@ def infer_and_extract_raw_entites(
             # this method assumes independence between subtoken classes and calculates the probabilities of
             # all subtokens being the same class, then re-normalizes so the vector components sum to one again
             vec = series.to_numpy().prod(axis=0)
+            if np.sum(vec) ==0: # if we underflow, (only happens in rare cases) log everything and continue 
+                mat = np.log2(series.to_numpy())
+                vec = mat.sum(axis=0)
+                vec -= np.logaddexp2.reduce(vec)
+                return np.exp2(vec)
+
             return tp.TensorArray(vec / np.sum(vec))
 
     # build aggregation fields
@@ -595,7 +601,7 @@ def flag_suspicious_labels(
     label_name=None,
     gold_feats: pd.DataFrame = None,
     align_over_cols: List[str] = ["fold", "doc_num", "raw_span_id"],
-    keep_cols: List[str] = [],
+    keep_cols: List[str] = ['raw_span'],
 ):
     """
      Takes in the outputs of a number of models and and correlates the elements they
@@ -617,11 +623,8 @@ def flag_suspicious_labels(
     if label_name is None:
         label_name = "class"
     # create gold features dataframe
-    gold_feats = (
-        predicted_features[list(predicted_features.keys())[0]]
-        if gold_feats is None
-        else gold_feats
-    )
+    if gold_feats is None:
+        gold_feats = predicted_features[list(predicted_features.keys())[0]]
     gold_df = gold_feats[df_cols + [corpus_label_col]].copy()
     gold_df["models"] = "GOLD"
     gold_df["in_gold"] = True
