@@ -111,35 +111,50 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
         raise TypeError(f"Expected SpanArray or TokenSpanArray, but received "
                         f"{column} of type {type(column)}")
 
-    # Get a javascript representation of the column
-    span_array = []
-    for e in column:
-        span_array.append(f"""[{e.begin},{e.end}]""")
 
-    # If this is the initial instance, load the base script and stylesheet from resources
-    style_text = ""
-    script_text = ""
-    
-    style_text = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.css")
-    script_text = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.js")
+    style_text: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.css")
+    script_text: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.js")
+
+    # Declare initial variables common to all render calls
+    instance_init_script_list = []
+
+    # For each document, pass the array of spans and document text into the script's render function
+    show_offset_string = 'true' if show_offsets else 'false'
+    for column_slice in column.split_by_document():
+        # Get a javascript representation of the column
+        span_array = []
+        for e in column_slice:
+            span_array.append(f"""[{e.begin},{e.end}]""")
+        
+        instance_init_script_list.append(f"""
+            {{
+                const doc_spans = Span.arrayFromSpanArray([{','.join(span_array)}])
+                const doc_text = '{_get_sanitized_doctext(column_slice)}'
+                documents.push({{doc_text: doc_text, doc_spans: doc_spans}})
+            }}
+        """)
+
     
     return textwrap.dedent(f"""
-        <div class="span-array">
-            If you're reading this message, your notebook viewer does not support Javascript execution. Try pasting the URL into a service like nbviewer.
-        </div>
+        <script>
+        {{
+            {textwrap.indent(script_text, '        ')}
+        }}
+        </script>
         <style>
             {textwrap.indent(style_text, '        ')}
         </style>
+        <div class="span-array">
+            If you're reading this message, your notebook viewer does not support Javascript execution. Try pasting the URL into a service like nbviewer.
+        </div>
         <script>
             {{
-                {textwrap.indent(script_text, '        ')}
-                const Entry = window.SpanArray.Entry
-                const render = window.SpanArray.render
-                const spanArray = [{','.join(span_array)}]
-                const entries = Entry.fromSpanArray(spanArray)
-                const doc_text = '{_get_sanitized_doctext(column)}'
+                const Span = window.SpanArray.Span
                 const script_context = document.currentScript
-                render(doc_text, entries, {'true' if show_offsets else 'false'}, script_context)
+                const documents = []
+                {''.join(instance_init_script_list)}
+                const instance = new window.SpanArray.SpanArray(documents, {show_offset_string}, script_context)
+                instance.render()
             }}
         </script>
     """)

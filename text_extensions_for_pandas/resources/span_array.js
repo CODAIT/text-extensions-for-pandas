@@ -1,8 +1,9 @@
 // Increment the version to invalidate the cached script
-const VERSION = 0.58
+const VERSION = 0.62
 
 if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
 
+    // Sets up the SpanArray global namespace
     window.SpanArray = {}
     window.SpanArray.VERSION = VERSION
 
@@ -26,11 +27,47 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
         return out;
     }
 
-    /** Models an instance of a Span rendered within the offset table and document context. */
-    class Entry {
+    /** Models an instance of a SpanArray, with document-separated spans and text
+     * NOTE: Using docs instead of documents to avoid unintentionally manipulating the global 'document' object.
+    */
+    class SpanArray {
+        constructor(docs, show_offsets, script_context) {
+            this.docs = docs
+            this.show_offsets = show_offsets
+            this.script_context = script_context
+        }
+
+        render() {
+            let span_array_frag = document.createDocumentFragment()
+            // For each document, create a document fragment and append to a document container
+            for(let doc_index = 0; doc_index < this.docs.length; doc_index++)
+            {
+                let doc = this.docs[doc_index]
+                let doc_container = document.createElement("div")
+                // Using the data-doc-id attribute allows a selector to access a document's render by its index
+                doc_container.setAttribute("data-doc-id", doc_index)
+                doc_container.classList.add("document")
+                doc_container.appendChild(getDocumentFragment(doc.doc_text, doc.doc_spans, this.show_offsets))
+                span_array_frag.appendChild(doc_container)
+            }
+            let container = this.script_context.parentElement.querySelector(".span-array")
+            if(container != undefined) {
+                container.innerHTML = ""
+                container.appendChild(span_array_frag)
+            } else {
+                console.error("No container found for SpanArray renderer")
+            }
+        }
+    }
+
+    window.SpanArray.SpanArray = SpanArray
+
+
+    /** Models an instance of a Span and its relationship to other spans in the document */
+    class Span {
 
         // Creates an ordered list of entries from a list of spans with struct [begin, end]
-        static fromSpanArray(spanArray) {
+        static arrayFromSpanArray(spanArray) {
             let entries = []
             let id = 0
             
@@ -44,7 +81,7 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
                 }
             })
             .forEach(span => {
-                entries.push(new Entry(id, span[0], span[1]))
+                entries.push(new Span(id, span[0], span[1]))
                 id += 1
             })
 
@@ -114,10 +151,10 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
         }
     }
 
-    window.SpanArray.Entry = Entry
+    window.SpanArray.Span = Span
 
-    // Render DOM
-    function render(doc_text, entries, show_offsets, script_context) {
+    // Get the DocumentFragment for a single document 
+    function getDocumentFragment(doc_text, entries, show_offsets) {
 
         let frag = document.createDocumentFragment()
         
@@ -223,12 +260,6 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
         
         frag.appendChild(paragraph)
 
-        // Attach fragments to all copies of the instance
-        let context = script_context.parentElement
-        let container = context.querySelector(".span-array")
-        container.innerHTML = ""
-        container.appendChild(frag);
+        return frag
     }
-
-    window.SpanArray.render = render
 }

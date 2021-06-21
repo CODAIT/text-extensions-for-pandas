@@ -36,35 +36,45 @@ class JupyterTest(TestBase):
     def test_pretty_print_html(self):
         self.maxDiff = None
         html = pretty_print_html(_TEST_TOKS["span"].values, True)
-        suffix = html[-380:]
-        # print(f"[[[{suffix}]]]")
+        suffix = html[-500:]
+        print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
             """\
-ray.Entry
-        const render = window.SpanArray.render
-        const spanArray = [[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]]
-        const entries = Entry.fromSpanArray(spanArray)
-        const doc_text = 'Item\\'s for < $100 & change'
+   const Span = window.SpanArray.Span
         const script_context = document.currentScript
-        render(doc_text, entries, true, script_context)
+        const documents = []
+
+    {
+        const doc_spans = Span.arrayFromSpanArray([[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]])
+        const doc_text = 'Item\\'s for < $100 & change'
+        documents.push({doc_text: doc_text, doc_spans: doc_spans})
+    }
+
+        const instance = new window.SpanArray.SpanArray(documents, true, script_context)
+        instance.render()
     }
 </script>
 """)
 
         html = pretty_print_html(_TEST_TOKS["span"].values, False)
-        suffix = html[-380:]
-        # print(f"[[[{suffix}]]]")
+        suffix = html[-500:]
+        print(f"[[[{suffix}]]]")
         self.assertEqual(
             suffix,
             """\
-ay.Entry
-        const render = window.SpanArray.render
-        const spanArray = [[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]]
-        const entries = Entry.fromSpanArray(spanArray)
-        const doc_text = 'Item\\'s for < $100 & change'
+  const Span = window.SpanArray.Span
         const script_context = document.currentScript
-        render(doc_text, entries, false, script_context)
+        const documents = []
+
+    {
+        const doc_spans = Span.arrayFromSpanArray([[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]])
+        const doc_text = 'Item\\'s for < $100 & change'
+        documents.push({doc_text: doc_text, doc_spans: doc_spans})
+    }
+
+        const instance = new window.SpanArray.SpanArray(documents, false, script_context)
+        instance.render()
     }
 </script>
 """)
