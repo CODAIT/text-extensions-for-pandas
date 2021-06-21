@@ -125,7 +125,7 @@ def _preprocess_with_bert(
 ):
     """
     Translates the document from standard spans into BERT compatible spans, and calculates BERT embeddings,
-    carrys over iob spans properly, as well as any additional information specified, on a span-by-span basis,
+    carries over iob spans properly, as well as any additional information specified, on a span-by-span basis,
     and ensures that iob-spans are treated properly
     """
     # make bert tokens
@@ -175,7 +175,7 @@ def preprocess_documents(
     docs: Dict[str, List[pd.DataFrame]],
     label_col: str,
     iob_format: bool,
-    carry_cols: List[str],
+    carry_cols: List[str]=[],
     iob_col: str = None,
     tokenizer=None,
     bert_model=None,
@@ -185,10 +185,28 @@ def preprocess_documents(
 ):
     """
     Take a dictionary of fold->list of documents as input, and run the full preprocessing
-    sequence. This retokenizes the corpus from its original format to a BERT-compatible format
-    and carries over any important information regarding it.
-    It convewrts the label_col to a categorical dtype (allowing for iob if necessary) and uses the mapped outputs
-    to create an index for each dtype type
+    sequence. This retokenizes the corpus from its original format to a BERT-compatible 
+    format and carries over any important information regarding it.
+    It converts the label_col to a categorical dtype (allowing for iob if necessary) and 
+    uses the mapped outputs to create an id for each category
+    :param Docs: Mapping from fold name ("train", "test", etc.) to
+     list of per-document DataFrames as produced by :func:`tp.io.conll.conll_2003_to_documents`.
+     or `tp.io.conll_u_to_documents` All DataFrames must contain a column containing 
+     `span` elements and some form of label column, or two if IOB format is being used.
+    :param label_col: the name of the pandas column in each DataFrame containing the label 
+     over which you wish to classify (or identify incorrect elements). If using iob format 
+     this should be the entity type label, not the in out boundary label
+    :param iob_format: boolean label indicating if the labels are in iob format or not.
+    :param carry_cols: by default an empty list. Lists any columns that should be carried
+     over into the output document.
+    :param: tokenizer: A tokenizer that is a subclass of huggingface transformers
+                       PreTrainingTokenizerFast which supports `encode_plus` with
+                       return_offsets_mapping=True.
+                       A default tokenizer will be used if this is `None` or not specified
+    :param bert: PyTorch-based BERT model from the `transformers` library.
+                       A default model will be used if this is `None` or not specified
+    :param span_col
+
     """
     # input logic for default label type. Defaults to 'O' for iob, and 'X' otherwise
     if default_label_type is None:
@@ -196,16 +214,10 @@ def preprocess_documents(
 
     # initialize bert and tokenizer models if not already done
     bert_model_name = "dslim/bert-base-NER"
-    tokenizer = (
-        tokenizer
-        if tokenizer is not None
-        else transformers.BertTokenizerFast.from_pretrained(bert_model_name)
-    )
-    bert_model = (
-        bert_model
-        if bert_model is not None
-        else transformers.BertModel.from_pretrained(bert_model_name)
-    )
+    if tokenizer is None: 
+        tokenizer =  transformers.BertTokenizerFast.from_pretrained(bert_model_name)
+    if bert_model is None:
+        bert_model = transformers.BertModel.from_pretrained(bert_model_name)
 
     bert_docs_by_fold = {}
     for fold in docs.keys():
@@ -304,7 +316,7 @@ def train_model_ensemble(
     :param labels_col: the name of the column containing the labels for the model
      to train on
     :param x_feats_col: the name of the column containing the BERT embeddings
-      that the model trains off of
+     for each token, off which the model trains
     :param model_sizes: the number of components that the gaussian random progression
      reduces the BERT embedding to.
     :param model_seeds: seeds for the random initialization of the model.
@@ -365,19 +377,20 @@ def infer_on_df(
     df: pd.DataFrame, id_to_class_dict, predictor, iob=False, embeddings_col="embedding"
 ):
     """
-    Takes a dataframe containing bert embeddings and a model trained on bert embeddings, and
-    runs inference on the dataframe. if IOB is specified, predicted id and type are broken out
-    from the raw probabilities given.
+    Takes a dataframe containing bert embeddings and a model trained on bert embeddings, 
+    and runs inference on the dataframe. if IOB is specified, predicted id and type are 
+    broken out from the raw probabilities given.
     :param df: the document on which to perform inference; of the form output by  the
-     `preprocess_documents` method of this module, and containing BERT embeddings, references to
-     fold and document numbers, as well as some column containing unique identifiers for the raw
-     tokenization of the document
+     `preprocess_documents` method of this module, and containing BERT embeddings, 
+     references to fold and document numbers, as well as some column containing unique 
+     identifiers for the raw tokenization of the document (i.e. `'raw_token_id'` field in
+     output DataFrames from `preprocess_documents`) 
     :param id_to_class_dict:  Mapping from class ID to class name, as returned by
       :func:`text_extensions_for_pandas.make_iob_tag_categories`
     :param predictor: Python object with a `predict` method that accepts a
      numpy array of embeddings.
-    :param iob: a boolean value, when set to true, additional logic for iob-formatted classes is
-      activated
+    :param iob: a boolean value, when set to true, additional logic for iob-formatted 
+     classes is activated
     :param embeddings_col: the column in `df` that contains BERT embeddings for that document
     """
     result_df = df.copy()
@@ -610,9 +623,9 @@ def flag_suspicious_labels(
         else gold_feats
     )
     gold_df = gold_feats[df_cols + [corpus_label_col]].copy()
-    gold_df["model"] = "GOLD"
+    gold_df["models"] = "GOLD"
     gold_df["in_gold"] = True
-    gold_df.rename(columns={label_name: corpus_label_col}, inplace=True)
+    gold_df.rename(columns={corpus_label_col:label_name}, inplace=True)
     # create list of features
     features_list = [gold_df]
     # now populate that list with all of the features from the model
@@ -629,7 +642,7 @@ def flag_suspicious_labels(
     all_features["count"] = 1
     all_features.loc[all_features.in_gold, "count"] = 0
     # create groupby aggregation dict:
-    aggby = {"in_gold": "any", "count": "sum", "model": lambda x: list(x)}
+    aggby = {"in_gold": "any", "count": "sum", "models": lambda x: list(x)}
     aggby.update({col: "first" for col in keep_cols})
     # now groupby
     grouped_features = (
