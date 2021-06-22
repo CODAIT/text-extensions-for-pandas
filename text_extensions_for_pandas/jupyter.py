@@ -94,6 +94,9 @@ def _get_sanitized_doctext(column: Union["SpanArray", "TokenSpanArray"]) -> List
             text_pieces.append(text[i])
     return "".join(text_pieces)
 
+# Limits the max number of displayed documents. Matches Pandas' default display.max_seq_items.
+_DOCUMENT_DISPLAY_LIMIT = 100
+
 def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
                       show_offsets: bool) -> str:
     """
@@ -117,21 +120,30 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
     script_text: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.js")
 
     # Declare initial variables common to all render calls
-    instance_init_script_list = []
+    instance_init_script_list: List[str] = []
 
     # For each document, pass the array of spans and document text into the script's render function
-    for column_slice in column.split_by_document():
+    document_columns = column.split_by_document()
+    for column_index in range(min(_DOCUMENT_DISPLAY_LIMIT, len(document_columns))):
         # Get a javascript representation of the column
         span_array = []
-        for e in column_slice:
+        for e in document_columns[column_index]:
             span_array.append(f"""[{e.begin},{e.end}]""")
         
         instance_init_script_list.append(f"""
             {{
                 const doc_spans = Span.arrayFromSpanArray([{','.join(span_array)}])
-                const doc_text = '{_get_sanitized_doctext(column_slice)}'
+                const doc_text = '{_get_sanitized_doctext(document_columns[column_index])}'
                 documents.push({{doc_text: doc_text, doc_spans: doc_spans}})
             }}
+        """)
+
+    # Defines a list of DOM strings to be appended to the end of the returned HTML.
+    postfix_tags: List[str] = []
+    
+    if len(document_columns) > _DOCUMENT_DISPLAY_LIMIT:
+        postfix_tags.append(f"""
+            <footer>Documents truncated. Showing {_DOCUMENT_DISPLAY_LIMIT} of {len(document_columns)}</footer>
         """)
 
     # Get the show_offsets parameter as a JavaScript boolean
@@ -159,4 +171,5 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
                 instance.render()
             }}
         </script>
+        {''.join(postfix_tags)}
     """)
