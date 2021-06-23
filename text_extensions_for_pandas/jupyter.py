@@ -94,6 +94,9 @@ def _get_sanitized_doctext(column: Union["SpanArray", "TokenSpanArray"]) -> List
             text_pieces.append(text[i])
     return "".join(text_pieces)
 
+# Limits the max number of displayed documents. Matches Pandas' default display.max_seq_items.
+_DOCUMENT_DISPLAY_LIMIT = 100
+
 def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
                       show_offsets: bool) -> str:
     """
@@ -111,35 +114,62 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
         raise TypeError(f"Expected SpanArray or TokenSpanArray, but received "
                         f"{column} of type {type(column)}")
 
-    # Get a javascript representation of the column
-    span_array = []
-    for e in column:
-        span_array.append(f"""[{e.begin},{e.end}]""")
 
-    # If this is the initial instance, load the base script and stylesheet from resources
-    style_text = ""
-    script_text = ""
+    # Gets the main script and stylesheet from the 'resources' sub-package
+    style_text: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.css")
+    script_text: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.js")
+
+    # Declare initial variables common to all render calls
+    instance_init_script_list: List[str] = []
+
+    # For each document, pass the array of spans and document text into the script's render function
+    document_columns = column.split_by_document()
+    for column_index in range(min(_DOCUMENT_DISPLAY_LIMIT, len(document_columns))):
+        # Get a javascript representation of the column
+        span_array = []
+        for e in document_columns[column_index]:
+            span_array.append(f"""[{e.begin},{e.end}]""")
+        
+        instance_init_script_list.append(f"""
+            {{
+                const doc_spans = Span.arrayFromSpanArray([{','.join(span_array)}])
+                const doc_text = '{_get_sanitized_doctext(document_columns[column_index])}'
+                documents.push({{doc_text: doc_text, doc_spans: doc_spans}})
+            }}
+        """)
+
+    # Defines a list of DOM strings to be appended to the end of the returned HTML.
+    postfix_tags: List[str] = []
     
-    style_text = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.css")
-    script_text = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.js")
+    if len(document_columns) > _DOCUMENT_DISPLAY_LIMIT:
+        postfix_tags.append(f"""
+            <footer>Documents truncated. Showing {_DOCUMENT_DISPLAY_LIMIT} of {len(document_columns)}</footer>
+        """)
+
+    # Get the show_offsets parameter as a JavaScript boolean
+    show_offset_string = 'true' if show_offsets else 'false'
     
     return textwrap.dedent(f"""
-        <div class="span-array">
-            If you're reading this message, your notebook viewer does not support Javascript execution. Try pasting the URL into a service like nbviewer.
-        </div>
+        <script>
+        {{
+            {textwrap.indent(script_text, '        ')}
+        }}
+        </script>
         <style>
             {textwrap.indent(style_text, '        ')}
         </style>
+        <div class="span-array">
+            If you're reading this message, your notebook viewer does not support Javascript execution. Try pasting the URL into a service like nbviewer.
+        </div>
         <script>
             {{
-                {textwrap.indent(script_text, '        ')}
-                const Entry = window.SpanArray.Entry
-                const render = window.SpanArray.render
-                const spanArray = [{','.join(span_array)}]
-                const entries = Entry.fromSpanArray(spanArray)
-                const doc_text = '{_get_sanitized_doctext(column)}'
+                const Span = window.SpanArray.Span
                 const script_context = document.currentScript
-                render(doc_text, entries, {'true' if show_offsets else 'false'}, script_context)
+                const documents = []
+                {''.join(instance_init_script_list)}
+                const instance = new window.SpanArray.SpanArray(documents, {show_offset_string}, script_context)
+                instance.render()
             }}
         </script>
+        {''.join(postfix_tags)}
     """)

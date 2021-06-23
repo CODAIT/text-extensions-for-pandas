@@ -43,7 +43,7 @@ body[data-jp-theme-name="JupyterLab Light"] .span-array {
 }
 
 /* Table of span offsets */
-.span-array>table {
+.span-array>.document>table {
     table-layout: auto;
     border-radius: 1em 1em 0 0;
     overflow: hidden;
@@ -52,40 +52,40 @@ body[data-jp-theme-name="JupyterLab Light"] .span-array {
     font-family: var(--table-font-family);
 }
 
-.span-array>table thead {
+.span-array>.document>table thead {
     background-color: var(--thead-background-color);
     font-variant-caps: all-petite-caps;
     color: var(--thead-text-color);
 }
 
-.span-array>table th {
+.span-array>.document>table th {
     padding: 1em;
 }
 
-.span-array>table>tbody>tr:nth-child(2n+1) {
+.span-array>.document>table>tbody>tr:nth-child(2n+1) {
     background-color: var(--tbody-background-color-1);
     color: var(--tbody-text-color);
 }
 
-.span-array>table>tbody>tr:nth-child(2n) {
+.span-array>.document>table>tbody>tr:nth-child(2n) {
     background-color: var(--tbody-background-color-2);
 }
 
-.span-array>table td {
+.span-array>.document>table td {
     padding: 0.5em;
     color: var(--tbody-text-color)
 }
 
-.span-array>table tr>td:last-child, .span-array>table tr>th:last-child {
+.span-array>.document>table tr>td:last-child, .span-array>.document>table tr>th:last-child {
     text-align: right;
 }
 
-.span-array>table tr>td:not(tr>td:last-child), .span-array>table tr>th:not(tr>th:last-child) {
+.span-array>.document>table tr>td:not(tr>td:last-child), .span-array>.document>table tr>th:not(tr>th:last-child) {
     text-align: left;
 }
 
 /* Styling for spans within document context */
-.span-array>p {
+.span-array>.document>p {
     border:1px solid var(--paragraph-border-color);
     border-radius: 0.2em;
     padding: 1em;
@@ -94,31 +94,31 @@ body[data-jp-theme-name="JupyterLab Light"] .span-array {
     font-family: var(--jp-content-font-family, var(--fallback-font-family, inherit));
 }
 
-body[data-jp-theme-light="false"].span-array>p {
+body[data-jp-theme-light="false"].span-array>.document>p {
     border: 1px solid black;
     background-color: var(--inverted-background-color);
     color: var(--inverted-text-color);
 }
 
-.span-array>p mark {
+.span-array>.document>p mark {
     padding: 0.4em 0.4em;
     border-radius: 0.35em;
 }
 
-.span-array>p mark {
+.span-array>.document>p mark {
     background-color: var(--root-highlight);
 }
 
-.span-array>p mark>mark {
+.span-array>.document>p mark>mark {
     background-color: var(--nested-highlight);
     padding: 0.2em 0.4em;
 }
 
-.span-array>p mark.complex-set {
+.span-array>.document>p mark.complex-set {
     background: linear-gradient(to right, var(--root-highlight), var(--nested-highlight))
 }
 
-.span-array>p mark>span.mark-tag {
+.span-array>.document>p mark>span.mark-tag {
     font-weight: bolder;
     font-size: 0.8em;
     font-variant: small-caps;
