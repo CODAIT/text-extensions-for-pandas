@@ -1,11 +1,12 @@
 .span-array {
-    --thead-background-color: var(--jp-layout-color4, inherit);
-    --thead-text-color: var(--jp-ui-font-color4);
-    --tbody-background-color-1: var(--jp-layout-color2, inherit);
-    --tbody-background-color-2: var(--jp-layout-color1, inherit);
-    --tbody-background-color-hover: var(--jp-layout-color3, inherit);
+    --thead-background-color: var(--jp-layout-color1, inherit);
+    --thead-text-color: var(--jp-ui-font-color1, inherit);
+    --tbody-background-color-1: var(--jp-layout-color1, inherit);
+    --tbody-background-color-2: var(--jp-layout-color2, inherit);
+    --tbody-background-color-hover: var(--jp-rendermime-table-row-hover-background, var(--jp-layout-color3, inherit));
     --tbody-background-color-disabled: var(--jp-layout-color4, inherit);
     --tbody-text-color: var(--jp-ui-font-color0, inherit);
+    --tbody-text-color-disabled: var(--jp-ui-inverse-font-color0, inherit);
     --table-font-family: var(--jp-content-font-family, var(--fallback-font-family, inherit));
 
     --root-highlight: #a0c4ff;
@@ -20,6 +21,7 @@
 }
 
 /* These 2 CSS block sets variable overrides for JupyterLab's default themes */
+/*
 body[data-jp-theme-name="JupyterLab Dark"] .span-array {
     --thead-background-color: #144552;
     --thead-text-color: whitesmoke;
@@ -41,11 +43,11 @@ body[data-jp-theme-name="JupyterLab Light"] .span-array {
     --tbody-text-color: rgb(0, 0, 0);
     --paragraph-border-color: #f1f1f1;
 }
+*/
 
 /* Table of span offsets */
 .span-array>.document>table {
     table-layout: auto;
-    border-radius: 1em 1em 0 0;
     overflow: hidden;
     width: 100%;
     border-collapse: collapse;
@@ -64,7 +66,6 @@ body[data-jp-theme-name="JupyterLab Light"] .span-array {
 
 .span-array>.document>table>tbody>tr:nth-child(2n+1) {
     background-color: var(--tbody-background-color-1);
-    color: var(--tbody-text-color);
 }
 
 .span-array>.document>table>tbody>tr:nth-child(2n) {
@@ -82,6 +83,18 @@ body[data-jp-theme-name="JupyterLab Light"] .span-array {
 
 .span-array>.document>table tr>td:not(tr>td:last-child), .span-array>.document>table tr>th:not(tr>th:last-child) {
     text-align: left;
+}
+
+.span-array>.document>table tr.hover:nth-child(n) {
+    background-color: var(--tbody-background-color-hover);
+}
+
+.span-array>.document>table tr.disabled:nth-child(n), .span-array>.document>table tr.disabled.hover:nth-child(n) {
+    background-color: var(--tbody-background-color-disabled);
+}
+
+.span-array>.document>table tr.disabled:nth-child(n)>td, .span-array>.document>table tr.disabled.hover:nth-child(n)>td {
+    color: var(--tbody-text-color-disabled);
 }
 
 /* Styling for spans within document context */
@@ -125,4 +138,9 @@ body[data-jp-theme-light="false"].span-array>.document>p {
     font-variant-caps: all-small-caps;
     margin-left: 8px;
     text-transform: uppercase;
+}
+
+.span-array>.document>p mark.hover, .span-array.span-array>.document>p mark>mark.hover, .span-array>.document>p mark.complex-set.hover {
+    background: none;
+    background-color: var(--hover-highlight);
 }

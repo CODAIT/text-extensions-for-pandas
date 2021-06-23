@@ -1,7 +1,17 @@
 // Increment the version to invalidate the cached script
-const VERSION = 0.62
+const VERSION = 0.738
 
 if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
+
+    // Replace global SpanArray CSS with latest copy
+    const global_stylesheet = document.head.querySelector("style.span-array-css")
+    const local_stylesheet = document.currentScript.parentElement.querySelector("style.span-array-css")
+    if(local_stylesheet != undefined) {
+        if(global_stylesheet != undefined) {
+            document.head.removeChild(global_stylesheet)
+        }
+        document.head.appendChild(local_stylesheet)
+    }
 
     // Sets up the SpanArray global namespace
     window.SpanArray = {}
@@ -27,6 +37,18 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
         return out;
     }
 
+    /** Comparison function used to sort SpanArrays by position and length
+     *  Will sort by primarily by earliest beginning point. On a tie, will prioritize latest end point (first and largest)
+     *  Used by mark relationship algorithm.
+     */
+    function compareSpanArrays(a, b) {
+        const start_diff = a[0] - b[0]
+        if(start_diff == 0) {
+            return b[1] - a[1]
+        }
+        return start_diff;
+    }
+
     /** Models an instance of a SpanArray, with document-separated spans and text
      * NOTE: Using docs instead of documents to avoid unintentionally manipulating the global 'document' object.
     */
@@ -47,7 +69,11 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
                 // Using the data-doc-id attribute allows a selector to access a document's render by its index
                 doc_container.setAttribute("data-doc-id", doc_index)
                 doc_container.classList.add("document")
-                doc_container.appendChild(getDocumentFragment(doc.doc_text, doc.doc_spans, this.show_offsets))
+                const document_fragment = getDocumentFragment(doc.doc_text, doc.doc_spans, this.show_offsets)
+                if(this.show_offsets) {
+                    attachDocumentEvents(document_fragment, doc, this)
+                }
+                doc_container.appendChild(document_fragment)
                 span_array_frag.appendChild(doc_container)
             }
             let container = this.script_context.parentElement.querySelector(".span-array")
@@ -71,15 +97,7 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
             let entries = []
             let id = 0
             
-            spanArray.sort((a, b) => {
-                if(a[0] < b[0]) {
-                    return a
-                } else if(a[0] == b[0] && a[1] >= b[1]) {
-                    return a
-                } else {
-                    return b
-                }
-            })
+            spanArray.sort(compareSpanArrays)
             .forEach(span => {
                 entries.push(new Span(id, span[0], span[1]))
                 id += 1
@@ -213,6 +231,8 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
             }
         }
 
+        console.log(highlight_regions)
+
         let paragraph = document.createElement("p")
         if(highlight_regions.length == 0) {
             paragraph.textContent = doc_text
@@ -226,17 +246,17 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
                 mark.setAttribute("data-ids", "");
                 if (region.type != TYPE_NESTED) {
                     region.ids.forEach(id => {
-                        mark.setAttribute("data-ids", mark.getAttribute("data-ids") + `${id},`)
+                        mark.setAttribute("data-ids", mark.getAttribute("data-ids") + `#${id},`)
                     })
                     mark.textContent = doc_text.substring(region.begin, region.end)
                 } else {
-                    mark.setAttribute("data-ids", `${region.ids[0]},`)
+                    mark.setAttribute("data-ids", `#${region.ids[0]},`)
                     let nested_begin = region.begin
                     region.ids.slice(1).forEach(nested_id => {
                         let nested_region = entries.find(entry => entry.id == nested_id)
                         mark.innerHTML += sanitize(doc_text.substring(nested_begin, nested_region.begin))
                         let nested_mark = document.createElement("mark")
-                        nested_mark.setAttribute("data-ids", `${nested_id},`)
+                        nested_mark.setAttribute("data-ids", `#${nested_id},`)
                         nested_mark.textContent = doc_text.substring(nested_region.begin, nested_region.end)
                         nested_begin = nested_region.end
                         mark.appendChild(nested_mark)
@@ -255,11 +275,106 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
                 begin = region.end
                 paragraph.appendChild(mark)
             })
-            paragraph.innerHTML += sanitize(doc_text.substring(entries[entries.length - 1].end, doc_text.length))
+            paragraph.innerHTML += sanitize(doc_text.substring(highlight_regions[highlight_regions.length - 1].end, doc_text.length))
         }
         
         frag.appendChild(paragraph)
 
         return frag
     }
+
+    /** Attach hover and click events to a document render via event delegation */
+    function attachDocumentEvents(fragment, doc_object, source_spanarray) {
+        const doc_table_body = fragment.querySelector("table>tbody")
+        const doc_text = fragment.querySelector("p")
+
+        // Hover highlight events
+
+        doc_table_body.addEventListener("pointerenter", (event) => {
+            if(event.target.nodeName == "TR") {
+                event.target.classList.add("hover")
+                const span_id = event.target.getAttribute("data-id")
+                const marks = doc_text.querySelectorAll("mark[data-ids]")
+                Array.from(marks)
+                    .filter(mark => {
+                        return mark.getAttribute("data-ids").includes(`#${span_id},`)
+                    })
+                    .forEach(related_mark => {
+                        related_mark.classList.add("hover")
+                    })
+            }
+        }, true)
+
+        doc_table_body.addEventListener("pointerleave", (event) => {
+            if(event.target.nodeName == "TR") {
+                event.target.classList.remove("hover")
+                const span_id = event.target.getAttribute("data-id")
+                const marks = doc_text.querySelectorAll("mark[data-ids]")
+                Array.from(marks)
+                    .filter(mark => {
+                        return mark.getAttribute("data-ids").includes(`#${span_id},`)
+                    })
+                    .forEach(related_mark => {
+                        related_mark.classList.remove("hover")
+                    })
+            }
+        }, true)
+
+        doc_text.addEventListener("pointerenter", (event) => {
+            if(event.target.nodeName == "MARK") {
+                event.target.classList.add("hover")
+                const ids = event.target.getAttribute("data-ids").split(",").slice(0, -1)
+                Array.from(ids)
+                    .map(id_tag => {
+                        return id_tag.substring(1)
+                    })
+                    .forEach(id => {
+                        const entry = doc_table_body.querySelector(`tr[data-id="${id}"]`)
+                        entry.classList.add("hover")
+                    })
+            }
+        }, true)
+
+        doc_text.addEventListener("pointerleave", (event) => {
+            if(event.target.nodeName == "MARK") {
+                event.target.classList.remove("hover")
+                const ids = event.target.getAttribute("data-ids").split(",").slice(0, -1)
+                Array.from(ids)
+                    .map(id_tag => {
+                        return id_tag.substring(1)
+                    })
+                    .forEach(id => {
+                        const entry = doc_table_body.querySelector(`tr[data-id="${id}"]`)
+                        entry.classList.remove("hover")
+                    })
+            }
+        }, true)
+
+        // Click disable/enable events
+
+        doc_table_body.addEventListener("click", (event) => {
+            const closest_tr = event.target.closest("tr")
+            if(closest_tr == undefined) return
+
+            const matching_span = doc_object.doc_spans.find(span => {
+                if(span.id.toString() == closest_tr.getAttribute("data-id")) return true
+                return false
+            })
+            if(matching_span != undefined) matching_span.visible = !matching_span.visible
+            source_spanarray.render()
+        }, true)
+    }
+} else {
+    // SpanArray JS is already defined and not an outdated copy
+    // Replace global SpanArray CSS with latest copy IFF global stylesheet is undefined
+
+    const global_stylesheet = document.head.querySelector("style.span-array-css")
+    const local_stylesheet = document.currentScript.parentElement.querySelector("style.span-array-css")
+    if(local_stylesheet != undefined) {
+        if(global_stylesheet == undefined) {
+            document.head.appendChild(local_stylesheet)
+        } else {
+            document.currentScript.parentElement.removeChild(local_stylesheet)
+        }
+    }       
 }
