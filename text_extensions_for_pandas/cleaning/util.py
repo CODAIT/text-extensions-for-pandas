@@ -23,7 +23,7 @@ import pandas as pd
 import sklearn.random_projection
 import sklearn.pipeline
 import sklearn.linear_model
-import ray
+import sklearn.metrics
 import transformers
 
 import text_extensions_for_pandas as tp
@@ -34,41 +34,6 @@ import importlib
 tp = importlib.reload(tp)
 
 from typing import *
-
-# Define a Ray actor to compute embeddings.
-@ray.remote
-class BertActor:
-    """
-    Ray actor wrapper for tp.io.bert.conll_to_bert()
-    """
-
-    def __init__(
-        self,
-        bert_model_name: str,
-        token_class_dtype: Any,
-        compute_embeddings: bool = True,
-    ):
-        import transformers as trf
-
-        self._tokenizer = trf.BertTokenizerFast.from_pretrained(
-            bert_model_name,
-            add_special_tokens=True,
-        )
-        self._tokenizer.deprecation_warnings[
-            "sequence-length-is-longer-than-the-specified-maximum"
-        ] = True
-        self._bert = trf.BertModel.from_pretrained(bert_model_name)
-        self._token_class_dtype = token_class_dtype
-        self._compute_embeddings = compute_embeddings
-
-    def process_doc(self, tokens_df):
-        return tp.io.bert.conll_to_bert(
-            tokens_df,
-            self._tokenizer,
-            self._bert,
-            self._token_class_dtype,
-            compute_embeddings=self._compute_embeddings,
-        )
 
 
 def train_reduced_model(
@@ -175,7 +140,7 @@ def preprocess_documents(
     docs: Dict[str, List[pd.DataFrame]],
     label_col: str,
     iob_format: bool,
-    carry_cols: List[str]=[],
+    carry_cols: List[str] = [],
     iob_col: str = None,
     tokenizer=None,
     bert_model=None,
@@ -185,16 +150,16 @@ def preprocess_documents(
 ):
     """
     Take a dictionary of fold->list of documents as input, and run the full preprocessing
-    sequence. This retokenizes the corpus from its original format to a BERT-compatible 
+    sequence. This retokenizes the corpus from its original format to a BERT-compatible
     format and carries over any important information regarding it.
-    It converts the label_col to a categorical dtype (allowing for iob if necessary) and 
+    It converts the label_col to a categorical dtype (allowing for iob if necessary) and
     uses the mapped outputs to create an id for each category
     :param Docs: Mapping from fold name ("train", "test", etc.) to
      list of per-document DataFrames as produced by :func:`tp.io.conll.conll_2003_to_documents`.
-     or `tp.io.conll_u_to_documents` All DataFrames must contain a column containing 
+     or `tp.io.conll_u_to_documents` All DataFrames must contain a column containing
      `span` elements and some form of label column, or two if IOB format is being used.
-    :param label_col: the name of the pandas column in each DataFrame containing the label 
-     over which you wish to classify (or identify incorrect elements). If using iob format 
+    :param label_col: the name of the pandas column in each DataFrame containing the label
+     over which you wish to classify (or identify incorrect elements). If using iob format
      this should be the entity type label, not the in out boundary label
     :param iob_format: boolean label indicating if the labels are in iob format or not.
     :param carry_cols: by default an empty list. Lists any columns that should be carried
@@ -214,8 +179,8 @@ def preprocess_documents(
 
     # initialize bert and tokenizer models if not already done
     bert_model_name = "dslim/bert-base-NER"
-    if tokenizer is None: 
-        tokenizer =  transformers.BertTokenizerFast.from_pretrained(bert_model_name)
+    if tokenizer is None:
+        tokenizer = transformers.BertTokenizerFast.from_pretrained(bert_model_name)
     if bert_model is None:
         bert_model = transformers.BertModel.from_pretrained(bert_model_name)
 
@@ -327,6 +292,8 @@ def train_model_ensemble(
      level of dimension reduction by random projection.
     """
 
+    import ray  # TODO: put a note about this in the docstring
+
     # input logic
     if model_sizes is None:
         model_sizes = [32, 64, 128, 256]
@@ -377,19 +344,19 @@ def infer_on_df(
     df: pd.DataFrame, id_to_class_dict, predictor, iob=False, embeddings_col="embedding"
 ):
     """
-    Takes a dataframe containing bert embeddings and a model trained on bert embeddings, 
-    and runs inference on the dataframe. if IOB is specified, predicted id and type are 
+    Takes a dataframe containing bert embeddings and a model trained on bert embeddings,
+    and runs inference on the dataframe. if IOB is specified, predicted id and type are
     broken out from the raw probabilities given.
     :param df: the document on which to perform inference; of the form output by  the
-     `preprocess_documents` method of this module, and containing BERT embeddings, 
-     references to fold and document numbers, as well as some column containing unique 
+     `preprocess_documents` method of this module, and containing BERT embeddings,
+     references to fold and document numbers, as well as some column containing unique
      identifiers for the raw tokenization of the document (i.e. `'raw_token_id'` field in
-     output DataFrames from `preprocess_documents`) 
+     output DataFrames from `preprocess_documents`)
     :param id_to_class_dict:  Mapping from class ID to class name, as returned by
       :func:`text_extensions_for_pandas.make_iob_tag_categories`
     :param predictor: Python object with a `predict` method that accepts a
      numpy array of embeddings.
-    :param iob: a boolean value, when set to true, additional logic for iob-formatted 
+    :param iob: a boolean value, when set to true, additional logic for iob-formatted
      classes is activated
     :param embeddings_col: the column in `df` that contains BERT embeddings for that document
     """
@@ -449,7 +416,9 @@ def infer_and_extract_raw_entites(
             # this method assumes independence between subtoken classes and calculates the probabilities of
             # all subtokens being the same class, then re-normalizes so the vector components sum to one again
             vec = series.to_numpy().prod(axis=0)
-            if np.sum(vec) ==0: # if we underflow, (only happens in rare cases) log everything and continue 
+            if (
+                np.sum(vec) == 0
+            ):  # if we underflow, (only happens in rare cases) log everything and continue
                 mat = np.log2(series.to_numpy())
                 vec = mat.sum(axis=0)
                 vec -= np.logaddexp2.reduce(vec)
@@ -594,14 +563,117 @@ def combine_raw_spans_docs(
     return tp.io.conll.combine_folds(docs_dict)
 
 
+def create_f1_score_report(
+    predicted_features: Dict[str, pd.DataFrame],
+    corpus_label_col: str,
+    predicted_label_col: str,
+    print_output: bool = False,
+):
+    """
+    Takes in a set of non-IOB formatted documents such as those returned by
+    `infer_and_extract_entities` as well as two column names and
+    """
+    if print_output:
+        print(
+            sklearn.metrics.classification_report(
+                predicted_features[corpus_label_col],
+                predicted_features[predicted_label_col],
+                zero_division=0,
+            )
+        )
+    return pd.DataFrame(
+        sklearn.metrics.classification_report(
+            predicted_features[corpus_label_col],
+            predicted_features[predicted_label_col],
+            output_dict=True,
+            zero_division=0,
+        )
+    )
+
+
+def create_f1_score_report_iob(
+    predicted_ents: pd.DataFrame,
+    corpus_ents: pd.DataFrame,
+    span_id_col_names: List[str] = ["fold", "doc_num", "span"],
+    entity_type_col_name: str = "ent_type",
+    simple:bool = False
+):
+    """
+    Calculates precision, recall and F1 scores for the given predicted elements and model
+    entities. This function has two modes. In normal operation it calculates classs-wise
+    precision, recall and accuacy figures, as well as global averaged metrics, and r
+    eturns them as a pandas DataFrame In the 'Simple' mode, calculates micro averaged 
+    precision recall and F1 scorereturns them as a dictionary. 
+    :param predicted_ents: entities returned from the predictions of the model, in the 
+     form of a pandas DataFrame, with one entity per line, and some sort of 'type' column
+    :param corpus_ents: the ground truth entities from the model, with one entity per line
+     and some sort of entity type columns 
+    :param span_id_col_names: a list of column names which by themselves will be sufficent
+     to uniquely identify each entity by default `['fold', 'doc_num', 'span']` to be 
+     compatible with outputs from `combine_raw_spans_docs` 
+     and `infer_and_extract_entities_iob` from this module
+    :param entity_type_col_name: the name of a column in both entity DataFrames that identifies
+     the type of the element. 
+    :param simple: by default `false`. If `false`, a full report is generated, for each entity
+     type with individual precisions, recalls and F1 scores, as well as averaged metrics
+     If  `true`, an dictionary with three elements `'precision'` `'recall'` and `'F1 score'` 
+     is returned. 
+    :returns: If simple is `false`, a full report is generated, for each entity
+     type with individual precisions, recalls and F1 scores, as well as averaged metrics
+     If simple is `true`, an dictionary with three elements `'precision'` `'recall'` and 
+     `'F1 score'` is returned. 
+    :returns: 
+    """
+    # use an inner join to count the number of identical elts.
+    inner = predicted_ents.copy().merge(
+        corpus_ents, on=span_id_col_names + [entity_type_col_name], how="inner"
+    )
+    if simple: 
+        res_dict = {}
+        res_dict['precision'] = inner.shape[0]/predicted_ents.shape[0]
+        res_dict['recall'] = inner.shape[0]/corpus_ents.shape[0]
+        res_dict['f1_score'] =( 2*res_dict['precision']*res_dict['recall']/
+                                (res_dict['precision']+res_dict['recall']))
+        return res_dict
+    inner["true_positives"] = 1
+    inner_counts = inner.groupby(entity_type_col_name).agg({"true_positives": "count"})
+
+    pos = predicted_ents
+    pos["predicted_positives"] = 1
+    positive_counts = pos.groupby(entity_type_col_name).agg({"predicted_positives": "count"})
+
+    actuals = corpus_ents
+    actuals["actual_positives"] = 1
+    actual_counts = actuals.groupby(entity_type_col_name).agg({"actual_positives": "count"})
+
+    stats = pd.concat([inner_counts, positive_counts, actual_counts], axis=1)
+    # add micro average 
+    micro = stats.sum()
+    micro.name = 'Micro-avg'
+    stats = stats.append(micro)
+    # calc stuff 
+    stats['precision'] = stats.true_positives / stats.predicted_positives
+    stats['recall']  = stats.true_positives / stats.actual_positives
+    # macro average
+    macro = stats.mean()
+    macro.name = 'Macro-avg'
+    stats = stats.append(macro)
+    #f1 calc
+    stats['f1_score'] = 2*(stats.precision*stats.recall)/(stats.precision + stats.recall)
+    stats['support'] = stats['actual_positives']
+    stats.loc['Micro-avg':'Macro-avg','support'] = pd.NA
+    #return
+    stats = stats.drop(columns =[col for col in stats.columns if 'positives' in col])
+    return stats
+
 def flag_suspicious_labels(
     predicted_features: Dict[str, pd.DataFrame],
-    corpus_label_col,
-    predicted_label_col,
+    corpus_label_col: str,
+    predicted_label_col: str,
     label_name=None,
     gold_feats: pd.DataFrame = None,
     align_over_cols: List[str] = ["fold", "doc_num", "raw_span_id"],
-    keep_cols: List[str] = ['raw_span'],
+    keep_cols: List[str] = ["raw_span"],
 ):
     """
      Takes in the outputs of a number of models and and correlates the elements they
@@ -628,7 +700,7 @@ def flag_suspicious_labels(
     gold_df = gold_feats[df_cols + [corpus_label_col]].copy()
     gold_df["models"] = "GOLD"
     gold_df["in_gold"] = True
-    gold_df.rename(columns={corpus_label_col:label_name}, inplace=True)
+    gold_df.rename(columns={corpus_label_col: label_name}, inplace=True)
     # create list of features
     features_list = [gold_df]
     # now populate that list with all of the features from the model
@@ -640,7 +712,7 @@ def flag_suspicious_labels(
         model_pred_df["in_gold"] = False
         model_pred_df.rename(columns={predicted_label_col: label_name}, inplace=True)
         features_list.append(model_pred_df)
-    # now combine the dataframes of features and combine them with a groupby operation
+    # now combine the dataframes of features and combine them with a groupby operation`
     all_features = pd.concat(features_list)
     all_features["count"] = 1
     all_features.loc[all_features.in_gold, "count"] = 0
