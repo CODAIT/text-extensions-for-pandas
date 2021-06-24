@@ -35,7 +35,6 @@ tp = importlib.reload(tp)
 from typing import *
 
 
-
 def train_reduced_model(
     x_values: np.ndarray,
     y_values: np.ndarray,
@@ -76,7 +75,6 @@ def train_reduced_model(
     )
     print(f"Training model with n_components={n_components} and seed={seed}.")
     return reduce_pipeline.fit(x_values, y_values)
-
 
 
 def train_model_ensemble(
@@ -281,6 +279,63 @@ def infer_and_extract_raw_entites(
     return results_df
 
 
+def extract_entities_iob(
+    predicted_df:pd.DataFrame,
+    raw_docs: Dict[str, List[pd.DataFrame]],
+    span_col="span",
+    fold_col="fold",
+    doc_col="doc_num",
+    iob_col="predicted_iob",
+    entity_type_col="predicted_type",
+    raw_docs_span_col_name="span",
+    ):
+    """
+    Takes a dataframe containing bert embeddings and a model trained on bert embeddings, and
+    runs inference on the dataframe. Then using a reference to the surface form of the document
+    converts the iob-type entities into entity spans, that align with the original tokenization
+    of the document.
+    **This method is specifically for IOB-formatted labels**
+    :param predicted_df: Document in BERT tokenization with inferred element types and iob tags.
+      as well as token span, doc number, and fold information for each token. This can be the
+      output from :func: `pd.cleaning.ensemble.infer_on_df`.
+    :param raw_docs: Mapping from fold name ("train", "test", etc.) to
+     list of per-document DataFrames as produced by :func:`tp.io.conll.conll_2003_to_documents`.
+     thes DataFrames must contain the original tokenization in the form of text-extensions spans
+    :param span_col: the name of the column of `doc` containing the surface tokens as spans
+    :param fold_col: the name of the column of `doc` containing the fold of each token
+    :param doc_col: the name of the column of `doc` containing the document number of each token
+    :param raw_docs_span_col_name: the name of the column of the documents in `raw_docs` containing
+     the tokens of those documents as spans.
+    :param iob_col: the column containing the predicted iob values from the model
+    :param entity_type_col: the column containing the predicted element types from the model
+    """
+
+    # create predicted spans using inference
+    pred_dfs = []
+    for fold, doc_num in (
+        predicted_df[[fold_col, doc_col]]
+        .drop_duplicates()
+        .itertuples(index=False, name=None)
+    ):
+        pred_doc = predicted_df[
+            (predicted_df[fold_col] == fold) & (predicted_df[doc_col] == doc_num)
+        ].reset_index()
+        pred_spans = tp.io.conll.iob_to_spans(
+            pred_doc,
+            iob_col_name=iob_col,
+            span_col_name=span_col,
+            entity_type_col_name=entity_type_col,
+        )
+        pred_spans.rename(columns={entity_type_col: "ent_type"}, inplace=True)
+        pred_aligned_doc = tp.io.bert.align_bert_tokens_to_corpus_tokens(
+            pred_spans, raw_docs[fold][doc_num].rename({raw_docs_span_col_name: "span"})
+        )
+        pred_aligned_doc[[fold_col, doc_col]] = [fold, doc_num]
+        pred_dfs.append(pred_aligned_doc)
+    result_df = pd.concat(pred_dfs)
+    return result_df
+
+
 def infer_and_extract_entities_iob(
     doc: pd.DataFrame,
     raw_docs: Dict[str, List[pd.DataFrame]],
@@ -308,10 +363,10 @@ def infer_and_extract_entities_iob(
       :func:`text_extensions_for_pandas.make_iob_tag_categories`
     :param predictor: Python object with a `predict` method that accepts a
      numpy array of embeddings.
-    :param token_col: the name of the column of `doc` containing the surface tokens as spans
+    :param span_col: the name of the column of `doc` containing the surface tokens as spans
     :param fold_col: the name of the column of `doc` containing the fold of each token
     :param doc_col: the name of the column of `doc` containing the document number of each token
-    :param embedding: the name of the column of `doc` containing the BERT embedding of that token
+    :param predict_on_col: the name of the column of `doc` containing the BERT embedding of that token
     :param raw_docs_span_col_name: the name of the column of the documents in `raw_docs` containing
      the tokens of those documents as spans.
     """
@@ -323,27 +378,4 @@ def infer_and_extract_entities_iob(
     predicted_df = infer_on_df(
         df, id_to_class_dict, predictor, embeddings_col=predict_on_col, iob=True
     )
-    # create predicted spans using inference
-    pred_dfs = []
-    for fold, doc_num in (
-        predicted_df[[fold_col, doc_col]]
-        .drop_duplicates()
-        .itertuples(index=False, name=None)
-    ):
-        pred_doc = predicted_df[
-            (predicted_df[fold_col] == fold) & (predicted_df[doc_col] == doc_num)
-        ].reset_index()
-        pred_spans = tp.io.conll.iob_to_spans(
-            pred_doc,
-            iob_col_name="predicted_iob",
-            span_col_name=span_col,
-            entity_type_col_name="predicted_type",
-        )
-        pred_spans.rename(columns={"predicted_type": "ent_type"}, inplace=True)
-        pred_aligned_doc = tp.io.bert.align_bert_tokens_to_corpus_tokens(
-            pred_spans, raw_docs[fold][doc_num].rename({raw_docs_span_col_name: "span"})
-        )
-        pred_aligned_doc[[fold_col, doc_col]] = [fold, doc_num]
-        pred_dfs.append(pred_aligned_doc)
-    result_df = pd.concat(pred_dfs)
-    return result_df
+    return extract_entities_iob(predicted_df,raw_docs,span_col=span_col,fold_col=fold_col,doc_col=doc_col,raw_docs_span_col_name=raw_docs_span_col_name)

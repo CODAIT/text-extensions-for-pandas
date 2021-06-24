@@ -13,7 +13,7 @@
 #  limitations under the License.
 #
 ###############################################################################
-# util.py
+# preprocess.py
 #
 # Cleaning utilities for finding errors in varied corpora
 #
@@ -37,14 +37,34 @@ def preprocess_doc_with_bert(
     tokenizer,
     token_col,
     label_col,
-    carry_cols_in: List[str],
+    keep_cols: List[str],
     iob: bool,
     iob_col=None,
 ):
     """
-    Translates the document from standard spans into BERT compatible spans, and calculates BERT embeddings,
-    carries over iob spans properly, as well as any additional information specified, on a span-by-span basis,
-    and ensures that iob-spans are treated properly
+    Translates a single document in the form of a pandas DataFrame from standard spans into BERT compatible spans,
+    and calculates BERT embeddings over that text, carries over iob spans properly, as well as any additional
+    information specified, on a token-by-token basis, and ensures that iob-spans are treated properly
+    :param document: a PandasDataframe as produced by :func:`tp.io.conll.conll_2003_to_documents`.
+     or :func:`tp.io.conll_u_to_documents`. Must contain a column containing `span` elements and some form of
+     label column, or two if IOB format is being used.
+    :param bert_model: PyTorch-based BERT model from the `transformers` library.
+                       A default model will be used if this is `None` or not specified
+
+    :param tokenizer: A tokenizer that is a subclass of huggingface transformers
+                       PreTrainingTokenizerFast which supports `encode_plus` with
+                       return_offsets_mapping=True.
+                       A default tokenizer will be used if this is `None` or not specified
+    :param token_col: the column in the each of the dataframes in `doc` containing the spans
+     for each individual token
+    :param label_col: the name of the pandas column `document` containing the label
+     over which you wish to classify (or identify incorrect elements). If using iob format
+     this should be the entity type label, not the IOB label
+    :param iob_col: if in iob format this must be specified. The column containing the IOB
+     tag portion of the label. If using output from :func:`tp.io.conll.conll_2003_to_documents`
+     this should be `'ent_col'`
+    :param keep_cols: a list of names of columns that you desire to carry over to the new tokeniztion
+    :param iob: if true, additional logic will be done to ensure that iob entities are treated properly
     """
     # make bert tokens
     bert_toks = tp.io.bert.make_bert_tokens(
@@ -56,7 +76,7 @@ def preprocess_doc_with_bert(
         .drop(columns=["begin", "end", "covered_text"])
     )
     # add label and token if not already added
-    carry_cols = carry_cols_in.copy()
+    carry_cols = keep_cols.copy()
     carry_cols = [token_col] + carry_cols if token_col not in carry_cols else carry_cols
     carry_cols = (
         [label_col] + carry_cols
@@ -94,12 +114,13 @@ def preprocess_documents(
     label_col: str,
     iob_format: bool,
     carry_cols: List[str] = [],
-    iob_col: str = None,
+    iob_col: str = 'ent_iob',
     tokenizer=None,
     bert_model=None,
     token_col="span",
     show_jupyter_progress_bar=True,
     default_label_type=None,
+    return_docs_as_dict=False
 ):
     """
     Take a dictionary of fold->list of documents as input, and run the full preprocessing
@@ -107,9 +128,9 @@ def preprocess_documents(
     format and carries over any important information regarding it.
     It converts the label_col to a categorical dtype (allowing for iob if necessary) and
     uses the mapped outputs to create an id for each category
-    :param Docs: Mapping from fold name ("train", "test", etc.) to
+    :param docs: Mapping from fold name ("train", "test", etc.) to
      list of per-document DataFrames as produced by :func:`tp.io.conll.conll_2003_to_documents`.
-     or `tp.io.conll_u_to_documents` All DataFrames must contain a column containing
+     or :func:`tp.io.conll_u_to_documents` All DataFrames must contain a column containing
      `span` elements and some form of label column, or two if IOB format is being used.
     :param label_col: the name of the pandas column in each DataFrame containing the label
      over which you wish to classify (or identify incorrect elements). If using iob format
@@ -117,13 +138,22 @@ def preprocess_documents(
     :param iob_format: boolean label indicating if the labels are in iob format or not.
     :param carry_cols: by default an empty list. Lists any columns that should be carried
      over into the output document.
-    :param: tokenizer: A tokenizer that is a subclass of huggingface transformers
+    :param tokenizer: A tokenizer that is a subclass of huggingface transformers
                        PreTrainingTokenizerFast which supports `encode_plus` with
                        return_offsets_mapping=True.
                        A default tokenizer will be used if this is `None` or not specified
-    :param bert: PyTorch-based BERT model from the `transformers` library.
+    :param bert_model: PyTorch-based BERT model from the `transformers` library.
                        A default model will be used if this is `None` or not specified
-    :param span_col
+    :param token_col: the column in the each of the dataframes in `doc` containing the spans
+     for each individual token
+    :param iob_col: if in iob format this must be specified. The column containing the IOB
+     tag portion of the label. If using output from :func:`tp.io.conll.conll_2003_to_documents`
+     this should be `'ent_iob'`
+    :param show_jupyter_progress_bar: if true, this method will use jupyter extensions to show
+     a progress bar as preprocessing occurs otherwise preprocessing happens silently
+    :param default_label_type: The label type that will be used if none is avaliable. If none
+     is specified, this will default to 'O' if in iob format or 'X' if not. This is dependent
+     on the specific classification task you are doing.
 
     """
     # input logic for default label type. Defaults to 'O' for iob, and 'X' otherwise
@@ -190,25 +220,130 @@ def preprocess_documents(
             classes_list
         )
         # relabel
-        corpus_df[iob_col].fillna("O", inplace=True)
-        corpus_df = tp.io.conll.add_token_classes(
-            corpus_df,
-            classes_dtype,
-            iob_col_name=iob_col,
-            entity_type_col_name=label_col,
-        )
+        if not return_docs_as_dict:
+            corpus_df[iob_col].fillna(default_label_type, inplace=True)
+            corpus_df = tp.io.conll.add_token_classes(
+                corpus_df,
+                classes_dtype,
+                iob_col_name=iob_col,
+                entity_type_col_name=label_col,
+            )
+        else: 
+            for fold in bert_docs_by_fold.keys():
+                for docnum in range(len(bert_docs_by_fold[fold])):
+                    bert_docs_by_fold[fold][docnum][iob_col].fillna(default_label_type, inplace=True)
+                    bert_docs_by_fold[fold][docnum]= tp.io.conll.add_token_classes(
+                        bert_docs_by_fold[fold][docnum],
+                        classes_dtype,
+                        iob_col_name=iob_col,
+                        entity_type_col_name=label_col,
+                    )
+                
     else:
         corpus_df[label_col].fillna(default_label_type, inplace=True)
         # create dtypes
         classes_dtype = pd.CategoricalDtype(categories=classes_list)
         classes_dict = {dtype: i for i, dtype in enumerate(classes_list)}
         # relabel
-        corpus_df[label_col + "_id"] = corpus_df[label_col].apply(
-            lambda t: classes_dict[t]
-        )
-        corpus_df = corpus_df.astype(
-            {label_col + "_id": "int", label_col: classes_dtype}
-        )
+        if not return_docs_as_dict:
+            corpus_df[label_col + "_id"] = corpus_df[label_col].apply(
+                lambda t: classes_dict[t]
+            )
+            corpus_df = corpus_df.astype(
+                {label_col + "_id": "int", label_col: classes_dtype}
+            )
+        else: 
+            for fold in bert_docs_by_fold.keys():
+                for docnum in range(len(bert_docs_by_fold[fold])):
+                    bert_docs_by_fold[fold][docnum][iob_col].fillna(default_label_type, inplace=True)
+                    bert_docs_by_fold[fold][docnum][label_col + "_id"] =(
+                        bert_docs_by_fold[fold][docnum][label_col].apply(
+                            lambda t: classes_dict[t]
+                        )
+                    )
+                    bert_docs_by_fold[fold][docnum] = (
+                        bert_docs_by_fold[fold][docnum].astype(
+                            {label_col + "_id": "int", label_col: classes_dtype}
+                        )    
+                    )
 
-    return corpus_df, classes_dtype, classes_list, classes_dict
+    ret = bert_docs_by_fold if return_docs_as_dict else corpus_df
+    return ret, classes_dtype, classes_list, classes_dict
+
+
+def combine_raw_spans_docs(
+    docs: Dict[str, List[pd.DataFrame]], iob_col, token_col, label_col
+):
+    """
+    Takes in multiple parts of a corpus and merges (i.e. train, test, validation)
+    into a single DataFrame containing all the entity spans in that corpus
+
+    This is specially intended for iob-formatted data, and converts iob labeled
+    elements to spans with labels.
+
+    :param docs: Mapping from fold name ("train", "test", etc.) to
+     list of per-document DataFrames as produced by :func:`tp.io.conll.conll_2003_to_documents`.
+     All DataFrames must contain a tokenization in the form of a span column.
+    :param iob_col: the name of the column of the datframe containing the iob portion of
+      the iob label. where all elements are labeled as either 'I','O' or 'B'
+    :param token_col: the name of the column of the datframe containing the surface tokens
+      of the document
+    :param label_col: the name of the column of the datframe containing the element type label
+    """
+    docs_dict = {}
+    for fold in docs.keys():
+        docs_dict[fold] = [
+            tp.io.conll.iob_to_spans(
+                document,
+                iob_col_name=iob_col,
+                span_col_name=token_col,
+                entity_type_col_name=label_col,
+            )
+            for document in docs[fold]
+        ]
+    return tp.io.conll.combine_folds(docs_dict)
+
+
+# alternate way to tokenize for Bert documents
+def create_bert_actor_class():
+    # create a bert actor, and initialize Ray on the spot
+    # to avoid need for ray in general
+    import ray
+
+    @ray.remote
+    class BertActor:
+        """
+        Ray actor wrapper for tp.cleaning.preprocess_doc_with_bert
+        """
+
+        def __init__(self, bert_model_name: str, token_class_dtype: Any,
+                     compute_embeddings: bool = True):
+            import transformers as trf
+            self._tokenizer = trf.BertTokenizerFast.from_pretrained(bert_model_name,
+                                                                    add_special_tokens=True,
+                                                                    )
+            self._tokenizer.deprecation_warnings[
+                "sequence-length-is-longer-than-the-specified-maximum"] = True
+            self._bert = trf.BertModel.from_pretrained(bert_model_name)
+            self._token_class_dtype = token_class_dtype
+            self._compute_embeddings = compute_embeddings
+
+        def process_doc(self, tokens_df):
+            return tp.io.bert.conll_to_bert(
+                tokens_df, self._tokenizer, self._bert, self._token_class_dtype,
+                compute_embeddings=self._compute_embeddings)
+
+    return BertActor
+
+
+def add_spans_to_corpus(corpus:pd.DataFrame,raw_docs: Dict[str, List[pd.DataFrame]],tokenizer=None):
+    bert_model_name = "dslim/bert-base-NER"
+    if tokenizer is None:
+        tokenizer = transformers.BertTokenizerFast.from_pretrained(bert_model_name)
+
+    tokenized = {
+    fold: [tp.io.bert.make_bert_tokens(doc.at[0, 'span'].target_text, tokenizer) for doc in raw_docs[fold]] for
+    fold in raw_docs.keys()}
+    corpus['span'] = tokenized['span']
+    return corpus
 

@@ -44,17 +44,22 @@ def create_f1_score_report(
 ):
     """
     Takes in a set of non-IOB formatted documents such as those returned by
-    `infer_and_extract_entities` as well as two column names and
+    `infer_and_extract_entities` as well as two column names and returns a
+    pandas DataFrame with the per-category precision, recall and F1 scores.
+    if desired, a printout of the dataframe is printed as output.
+    :param predicted_features: a DataFrame containing predicted outputs from
+      the model, as well as the corpus labels for those same elements
+    :param corpus_label_col: the name of the `predicted_features` column that
+      contains the corpus labels for the entitity types
+    :param predicted_label_col: the name of the `predicted_features` column that
+      contains the predicted labels for the entitity types
+    :param print_output: if true, the dataframe will be printed.
+    :returns: A dataframe containing four columns: `'precision'`, `'recall;`
+      `'f1-score'` and `'support'` with one row for each entity type, as well as
+      three additional rows containing accuracy, micro averaged and macro averaged
+      scores.
     """
-    if print_output:
-        print(
-            sklearn.metrics.classification_report(
-                predicted_features[corpus_label_col],
-                predicted_features[predicted_label_col],
-                zero_division=0,
-            )
-        )
-    return pd.DataFrame(
+    df = pd.DataFrame(
         sklearn.metrics.classification_report(
             predicted_features[corpus_label_col],
             predicted_features[predicted_label_col],
@@ -62,14 +67,17 @@ def create_f1_score_report(
             zero_division=0,
         )
     )
+    if print_output:
+        print(df)
+    return df
 
 
 def create_f1_score_report_iob(
     predicted_ents: pd.DataFrame,
-    corpus_ents: pd.DataFrame,
+    corpus_ents: pd.DataFrame ,
     span_id_col_names: List[str] = ["fold", "doc_num", "span"],
     entity_type_col_name: str = "ent_type",
-    simple:bool = False
+    simple: bool = False,
 ):
     """
     Calculates precision, recall and F1 scores for the given predicted elements and model
@@ -87,15 +95,18 @@ def create_f1_score_report_iob(
      and `infer_and_extract_entities_iob` from this module
     :param entity_type_col_name: the name of a column in both entity DataFrames that identifies
      the type of the element.
-    :param simple: by default `false`. If `false`, a full report is generated, for each entity
-     type with individual precisions, recalls and F1 scores, as well as averaged metrics
-     If  `true`, an dictionary with three elements `'precision'` `'recall'` and `'F1 score'`
-     is returned.
-    :returns: If simple is `false`, a full report is generated, for each entity
-     type with individual precisions, recalls and F1 scores, as well as averaged metrics
-     If simple is `true`, an dictionary with three elements `'precision'` `'recall'` and
-     `'F1 score'` is returned.
-    :returns:
+    :param simple: by default `false`. If `false`, a pandas DataFrame is returned
+      with four columns: `'precision'`, `'recall;`,`'f1-score'` and `'support'`
+      with one row for each entity type, as well as two additional rows
+      micro averaged and macro averaged scores.
+      If  `true`, an dictionary with three elements `'precision'` `'recall'` and `'f1-score'`
+      is returned.
+    :returns: If `simple` is `false`, a pandas DataFrame is returned
+      with four columns: `'precision'`, `'recall;`,`'f1-score'` and `'support'`
+      with one row for each entity type, as well as two additional rows
+      micro averaged and macro averaged scores.
+      If `simple` is `true`, an dictionary with three elements `'precision'` `'recall'` and `'f1-score'`
+      is returned.
     """
     # use an inner join to count the number of identical elts.
     inner = predicted_ents.copy().merge(
@@ -103,41 +114,62 @@ def create_f1_score_report_iob(
     )
     if simple:
         res_dict = {}
-        res_dict['precision'] = inner.shape[0]/predicted_ents.shape[0]
-        res_dict['recall'] = inner.shape[0]/corpus_ents.shape[0]
-        res_dict['f1_score'] =( 2*res_dict['precision']*res_dict['recall']/
-                                (res_dict['precision']+res_dict['recall']))
+        res_dict["precision"] = inner.shape[0] / predicted_ents.shape[0]
+        res_dict["recall"] = inner.shape[0] / corpus_ents.shape[0]
+        res_dict["f1-score"] = (
+            2
+            * res_dict["precision"]
+            * res_dict["recall"]
+            / (res_dict["precision"] + res_dict["recall"])
+        )
         return res_dict
     inner["true_positives"] = 1
     inner_counts = inner.groupby(entity_type_col_name).agg({"true_positives": "count"})
 
     pos = predicted_ents
     pos["predicted_positives"] = 1
-    positive_counts = pos.groupby(entity_type_col_name).agg({"predicted_positives": "count"})
+    positive_counts = pos.groupby(entity_type_col_name).agg(
+        {"predicted_positives": "count"}
+    )
 
     actuals = corpus_ents
     actuals["actual_positives"] = 1
-    actual_counts = actuals.groupby(entity_type_col_name).agg({"actual_positives": "count"})
+    actual_counts = actuals.groupby(entity_type_col_name).agg(
+        {"actual_positives": "count"}
+    )
 
     stats = pd.concat([inner_counts, positive_counts, actual_counts], axis=1)
     # add micro average
     micro = stats.sum()
-    micro.name = 'Micro-avg'
+    micro.name = "Micro-avg"
     stats = stats.append(micro)
     # calc stuff
-    stats['precision'] = stats.true_positives / stats.predicted_positives
-    stats['recall']  = stats.true_positives / stats.actual_positives
+    stats["precision"] = stats.true_positives / stats.predicted_positives
+    stats["recall"] = stats.true_positives / stats.actual_positives
     # macro average
     macro = stats.mean()
-    macro.name = 'Macro-avg'
+    macro.name = "Macro-avg"
     stats = stats.append(macro)
     # f1 calc
-    stats['f1_score'] = 2*(stats.precision*stats.recall)/(stats.precision + stats.recall)
-    stats['support'] = stats['actual_positives']
-    stats.loc['Micro-avg':'Macro-avg','support'] = pd.NA
+    stats["f1-score"] = (
+        2 * (stats.precision * stats.recall) / (stats.precision + stats.recall)
+    )
+    stats["support"] = stats["actual_positives"]
     # return
-    stats = stats.drop(columns =[col for col in stats.columns if 'positives' in col])
+    stats.loc["Macro-avg", "support"] = stats.loc["Micro-avg", "support"]
+    stats = stats.drop(columns=[col for col in stats.columns if "positives" in col])
     return stats
+
+
+def create_f1_report_ensemble_iob(
+    predicted_ents_by_model: Dict[str,pd.DataFrame],
+    corpus_ents: pd.DataFrame,
+    span_id_col_names: List[str] = ["fold", "doc_num", "span"],
+    entity_type_col_name: str = "ent_type",
+):
+    reports = {name: create_f1_score_report_iob(df,corpus_ents,span_id_col_names=span_id_col_names,entity_type_col_name=entity_type_col_name)
+                for name, df in predicted_ents_by_model.iteritems()}
+    return pd.DataFrame(reports)
 
 
 def flag_suspicious_labels(
@@ -207,3 +239,51 @@ def flag_suspicious_labels(
         "count", ascending=False, kind="mergesort"
     )
     return in_gold, not_in_gold
+
+# used for document-by-document seperation and alignment
+def align_model_outputs_to_tokens(model_results: pd.DataFrame,
+                                  tokens_by_doc: Dict[str, List[pd.DataFrame]]) \
+    -> Dict[Tuple[str, int], pd.DataFrame]:
+    """
+    Join the results of running a model on an entire corpus back with multiple
+    DataFrames of the token features for the individual documents.
+
+    :param model_results: DataFrame containing results of prediction over a
+     collection of documents. Must have the fields:
+     * `fold`: What fold of the original collection each document came from
+     * `doc_num`: Index of the document within the fold
+     * `token_id`: Token offset of the token
+     * `predicted_iob`/`predicted_type`: Model outputs
+     Usually this DataFrame is the result of running :func:`predict_on_df()`
+    :param tokens_by_doc: One DataFrame of tokens and labels per document,
+     indexed by fold and document number (which must align with the values
+     in the "fold" and "doc_num" columns of `model_results`).
+     These DataFrames must contain columns `ent_iob` and `ent_type` that
+     correspond to the `predicted_iob` and `predicted_type` values in
+     `model_results`
+
+    :returns: A dictionary that maps (collection, offset into collection)
+     to DataFrame of results for that document
+    """
+    all_pairs = (
+        model_results[["fold", "doc_num"]]
+            .drop_duplicates()
+            .to_records(index=False)
+    )
+    indexed_df = (
+        model_results
+            .set_index(["fold", "doc_num", "token_id"], verify_integrity=True)
+            .sort_index()
+    )
+    results = {}  # Type: Dict[Tuple[str, int], pd.DataFrame]
+    for collection, doc_num in all_pairs:
+        doc_slice = indexed_df.loc[collection, doc_num].reset_index()
+        doc_toks = tokens_by_doc[collection][doc_num][
+            ["token_id", "span", "ent_iob", "ent_type"]
+        ].rename(columns={"id": "token_id"})
+        result_df = doc_toks.copy().merge(
+            doc_slice[["token_id", "predicted_iob", "predicted_type"]])
+        results[(collection, doc_num)] = result_df
+    return results
+
+
