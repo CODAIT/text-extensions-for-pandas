@@ -1,5 +1,5 @@
 // Increment the version to invalidate the cached script
-const VERSION = 0.738
+const VERSION = 0.74
 
 if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
 
@@ -231,8 +231,6 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
             }
         }
 
-        console.log(highlight_regions)
-
         let paragraph = document.createElement("p")
         if(highlight_regions.length == 0) {
             paragraph.textContent = doc_text
@@ -353,6 +351,7 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
         // Click disable/enable events
 
         doc_table_body.addEventListener("click", (event) => {
+            // Only listen to left button clicks on or within a table row.
             const closest_tr = event.target.closest("tr")
             if(closest_tr == undefined) return
 
@@ -363,6 +362,37 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
             if(matching_span != undefined) matching_span.visible = !matching_span.visible
             source_spanarray.render()
         }, true)
+
+        doc_text.addEventListener("click", (event) => {
+            const closest_mark = event.target.closest("mark")
+            if(closest_mark == undefined) return
+
+            if(closest_mark.classList.contains("highlighted")) {
+                closest_mark.classList.remove("highlighted")
+    
+                const ids = closest_mark.getAttribute("data-ids").split(",").slice(0, -1)
+                ids.map(id => {
+                    return id.substring(1)
+                })
+                .forEach(id => {
+                    const row = doc_table_body.querySelector(`tr[data-id="${id}"]`)
+                    row.classList.remove("highlighted")
+                })
+
+            } else {
+                closest_mark.classList.add("highlighted")
+    
+                const ids = closest_mark.getAttribute("data-ids").split(",").slice(0, -1)
+                ids.map(id => {
+                    return id.substring(1)
+                })
+                .forEach(id => {
+                    const row = doc_table_body.querySelector(`tr[data-id="${id}"]`)
+                    row.classList.add("highlighted")
+                })
+            }
+
+        })
     }
 } else {
     // SpanArray JS is already defined and not an outdated copy
