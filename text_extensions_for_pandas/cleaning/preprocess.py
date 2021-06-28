@@ -21,6 +21,7 @@
 import numpy as np
 import pandas as pd
 import transformers
+from transformers.file_utils import PANDAS_IMPORT_ERROR
 
 import text_extensions_for_pandas as tp
 from typing import *
@@ -114,13 +115,13 @@ def preprocess_documents(
     label_col: str,
     iob_format: bool,
     carry_cols: List[str] = [],
-    iob_col: str = 'ent_iob',
+    iob_col: str = "ent_iob",
     tokenizer=None,
     bert_model=None,
     token_col="span",
     show_jupyter_progress_bar=True,
     default_label_type=None,
-    return_docs_as_dict=False
+    return_docs_as_dict=False,
 ):
     """
     Take a dictionary of fold->list of documents as input, and run the full preprocessing
@@ -228,17 +229,19 @@ def preprocess_documents(
                 iob_col_name=iob_col,
                 entity_type_col_name=label_col,
             )
-        else: 
+        else:
             for fold in bert_docs_by_fold.keys():
                 for docnum in range(len(bert_docs_by_fold[fold])):
-                    bert_docs_by_fold[fold][docnum][iob_col].fillna(default_label_type, inplace=True)
-                    bert_docs_by_fold[fold][docnum]= tp.io.conll.add_token_classes(
+                    bert_docs_by_fold[fold][docnum][iob_col].fillna(
+                        default_label_type, inplace=True
+                    )
+                    bert_docs_by_fold[fold][docnum] = tp.io.conll.add_token_classes(
                         bert_docs_by_fold[fold][docnum],
                         classes_dtype,
                         iob_col_name=iob_col,
                         entity_type_col_name=label_col,
                     )
-                
+
     else:
         corpus_df[label_col].fillna(default_label_type, inplace=True)
         # create dtypes
@@ -252,20 +255,20 @@ def preprocess_documents(
             corpus_df = corpus_df.astype(
                 {label_col + "_id": "int", label_col: classes_dtype}
             )
-        else: 
+        else:
             for fold in bert_docs_by_fold.keys():
                 for docnum in range(len(bert_docs_by_fold[fold])):
-                    bert_docs_by_fold[fold][docnum][iob_col].fillna(default_label_type, inplace=True)
-                    bert_docs_by_fold[fold][docnum][label_col + "_id"] =(
-                        bert_docs_by_fold[fold][docnum][label_col].apply(
-                            lambda t: classes_dict[t]
-                        )
+                    bert_docs_by_fold[fold][docnum][iob_col].fillna(
+                        default_label_type, inplace=True
                     )
-                    bert_docs_by_fold[fold][docnum] = (
-                        bert_docs_by_fold[fold][docnum].astype(
-                            {label_col + "_id": "int", label_col: classes_dtype}
-                        )    
+                    bert_docs_by_fold[fold][docnum][
+                        label_col + "_id"
+                    ] = bert_docs_by_fold[fold][docnum][label_col].apply(
+                        lambda t: classes_dict[t]
                     )
+                    bert_docs_by_fold[fold][docnum] = bert_docs_by_fold[fold][
+                        docnum
+                    ].astype({label_col + "_id": "int", label_col: classes_dtype})
 
     ret = bert_docs_by_fold if return_docs_as_dict else corpus_df
     return ret, classes_dtype, classes_list, classes_dict
@@ -304,10 +307,70 @@ def combine_raw_spans_docs(
     return tp.io.conll.combine_folds(docs_dict)
 
 
+def combine_raw_spans_docs_to_match(
+    raw_docs: Dict[str, List[pd.DataFrame]],
+    df_to_match: pd.DataFrame,
+    iob_col="ent_iob",
+    token_col="span",
+    label_col="ent_type",
+    fold_col="fold",
+    doc_col="doc_num",
+):
+    """
+    Takes in multiple parts of a corpus and merges (i.e. train, test, validation)
+    into a single DataFrame containing all the entity spans in that corpus that
+    are from document-fold pairs also contianed in `df_to_match`
+
+    This is specially intended for iob-formatted data, and converts iob labeled
+    elements to spans with labels.
+
+    :param raw_docs: Mapping from fold name ("train", "test", etc.) to
+     list of per-document DataFrames as produced by :func:`tp.io.conll.conll_2003_to_documents`.
+     All DataFrames must contain a tokenization in the form of a span column.
+    :param df_to_match: a dataframe containing elements, and two columns, representing
+     fold and document numbers respectively
+    :param iob_col: the name of the column of dataframes in `raw_docs` containing
+     the iob portion of the iob label. where all elements are labeled as
+     either 'I','O' or 'B'
+    :param token_col: the name of the column column of dataframes in `raw_docs`
+     containing the surface tokens of the document
+    :param label_col: the name of the column of dataframes in `raw_docs` containing
+     the element type label
+    :param fold_col: the name of the column in `df_to_match` containing a fold label
+    :param fold_col: the name of the column in `df_to_match` containing a document number
+    """
+
+    fold_doc_pairs = (
+        df_to_match[[fold_col, doc_col]]
+        .drop_duplicates()
+        .sort_values([fold_col, doc_col])
+        .itertuples(index=False, name=None)
+    )
+    docs_list = []
+    for fold, doc in fold_doc_pairs:
+        df = tp.io.conll.iob_to_spans(
+            raw_docs[fold][doc],
+            iob_col_name=iob_col,
+            span_col_name=token_col,
+            entity_type_col_name=label_col,
+        )
+        df["fold"] = fold
+        df[doc_col] = doc
+        docs_list.append(df)
+    return pd.concat(docs_list, ignore_index=True)
+
+
 # alternate way to tokenize for Bert documents
 def create_bert_actor_class():
-    # create a bert actor, and initialize Ray on the spot
-    # to avoid need for ray in general
+    """
+    Imports ray and creates a Ray actor class, BertActor.
+    :returns: Ray actor class with two methods
+      * __init__ which takes, a BERT model name, a token class dtype and a bool,
+        compute embeddings
+      * process_doc, which given a tokens dataframe runs :func:`tp.io.bert.conll_to_bert`
+        on that document
+
+    """
     import ray
 
     @ray.remote
@@ -316,34 +379,32 @@ def create_bert_actor_class():
         Ray actor wrapper for tp.cleaning.preprocess_doc_with_bert
         """
 
-        def __init__(self, bert_model_name: str, token_class_dtype: Any,
-                     compute_embeddings: bool = True):
+        def __init__(
+            self,
+            bert_model_name: str,
+            token_class_dtype: Any,
+            compute_embeddings: bool = True,
+        ):
             import transformers as trf
-            self._tokenizer = trf.BertTokenizerFast.from_pretrained(bert_model_name,
-                                                                    add_special_tokens=True,
-                                                                    )
+
+            self._tokenizer = trf.BertTokenizerFast.from_pretrained(
+                bert_model_name,
+                add_special_tokens=True,
+            )
             self._tokenizer.deprecation_warnings[
-                "sequence-length-is-longer-than-the-specified-maximum"] = True
+                "sequence-length-is-longer-than-the-specified-maximum"
+            ] = True
             self._bert = trf.BertModel.from_pretrained(bert_model_name)
             self._token_class_dtype = token_class_dtype
             self._compute_embeddings = compute_embeddings
 
         def process_doc(self, tokens_df):
             return tp.io.bert.conll_to_bert(
-                tokens_df, self._tokenizer, self._bert, self._token_class_dtype,
-                compute_embeddings=self._compute_embeddings)
+                tokens_df,
+                self._tokenizer,
+                self._bert,
+                self._token_class_dtype,
+                compute_embeddings=self._compute_embeddings,
+            )
 
     return BertActor
-
-
-def add_spans_to_corpus(corpus:pd.DataFrame,raw_docs: Dict[str, List[pd.DataFrame]],tokenizer=None):
-    bert_model_name = "dslim/bert-base-NER"
-    if tokenizer is None:
-        tokenizer = transformers.BertTokenizerFast.from_pretrained(bert_model_name)
-
-    tokenized = {
-    fold: [tp.io.bert.make_bert_tokens(doc.at[0, 'span'].target_text, tokenizer) for doc in raw_docs[fold]] for
-    fold in raw_docs.keys()}
-    corpus['span'] = tokenized['span']
-    return corpus
-

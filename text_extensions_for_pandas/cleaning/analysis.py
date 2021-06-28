@@ -25,6 +25,7 @@ import sklearn.pipeline
 import sklearn.linear_model
 import sklearn.metrics
 import transformers
+from transformers.utils.dummy_pt_objects import torch_distributed_zero_first
 
 import text_extensions_for_pandas as tp
 
@@ -66,7 +67,7 @@ def create_f1_score_report(
             output_dict=True,
             zero_division=0,
         )
-    )
+    ).transpose()
     if print_output:
         print(df)
     return df
@@ -74,7 +75,7 @@ def create_f1_score_report(
 
 def create_f1_score_report_iob(
     predicted_ents: pd.DataFrame,
-    corpus_ents: pd.DataFrame ,
+    corpus_ents: pd.DataFrame,
     span_id_col_names: List[str] = ["fold", "doc_num", "span"],
     entity_type_col_name: str = "ent_type",
     simple: bool = False,
@@ -162,14 +163,41 @@ def create_f1_score_report_iob(
 
 
 def create_f1_report_ensemble_iob(
-    predicted_ents_by_model: Dict[str,pd.DataFrame],
+    predicted_ents_by_model: Dict[str, pd.DataFrame],
     corpus_ents: pd.DataFrame,
     span_id_col_names: List[str] = ["fold", "doc_num", "span"],
     entity_type_col_name: str = "ent_type",
 ):
-    reports = {name: create_f1_score_report_iob(df,corpus_ents,span_id_col_names=span_id_col_names,entity_type_col_name=entity_type_col_name)
-                for name, df in predicted_ents_by_model.iteritems()}
-    return pd.DataFrame(reports)
+    """
+    Given an ensemble of model predictions (in the form of entities) and ground truth
+    labels creates a precision-recall-f1_score report for each model, and returns the
+    output as a pandas DataFrame. The outputs are of the same form as the simple output
+    from :func:`create_f1_score_report_iob`
+    :param predicted_ents_by_model: a dictionary from model name (or other unique
+     identifier) to outputs as produced by
+     :func:`cleaning.ensenble.infer_and_extract_entities_iob` or analagous.
+     Must have one of each column in `span_id_col_names` and some entity type column
+    :param corpus_ents: the entities given in the corpus. in the form of a pandas DataFrame
+     Must have one of each column name in `span_id_col_names` and `entity_type_col_name`
+     Can be produced by :func: `cleaning.preprocess.combine_raw_spans_docs`
+    :param span_id_col_names: a list column names in all input dataFrames by which each
+     span may be uniquely identified. By default, `["fold", "doc_num", "span"]`
+    :param entity_type_col_name: the name of the column in the input DataFrames containing
+     the entity type labels for each entity.
+    :returns: a pandas DataFrame with indices of the model names, and columns
+     `'precision'` `'recall'` and `'f1-score'`
+    """
+    reports = {
+        name: create_f1_score_report_iob(
+            df,
+            corpus_ents,
+            span_id_col_names=span_id_col_names,
+            entity_type_col_name=entity_type_col_name,
+            simple=True,
+        )
+        for name, df in predicted_ents_by_model.items()
+    }
+    return pd.DataFrame.from_dict(reports).transpose()
 
 
 def flag_suspicious_labels(
@@ -180,6 +208,8 @@ def flag_suspicious_labels(
     gold_feats: pd.DataFrame = None,
     align_over_cols: List[str] = ["fold", "doc_num", "raw_span_id"],
     keep_cols: List[str] = ["raw_span"],
+    count_name: str = "count",
+    split_doc: bool = True,
 ):
     """
      Takes in the outputs of a number of models and and correlates the elements they
@@ -232,18 +262,25 @@ def flag_suspicious_labels(
     grouped_features.sort_values(
         ["count"] + align_over_cols, ascending=False, inplace=True
     )
-    in_gold = grouped_features[grouped_features.in_gold].sort_values(
-        "count", ascending=True, kind="mergesort"
-    )
-    not_in_gold = grouped_features[~grouped_features.in_gold].sort_values(
-        "count", ascending=False, kind="mergesort"
-    )
-    return in_gold, not_in_gold
+    if count_name != "count":
+        grouped_features.rename(columns={"count", count_name}, inplace=True)
+    # return
+    if not split_doc:
+        return grouped_features
+    else:
+        in_gold = grouped_features[grouped_features.in_gold].sort_values(
+            "count", ascending=True, kind="mergesort"
+        )
+        not_in_gold = grouped_features[~grouped_features.in_gold].sort_values(
+            "count", ascending=False, kind="mergesort"
+        )
+        return in_gold, not_in_gold
+
 
 # used for document-by-document seperation and alignment
-def align_model_outputs_to_tokens(model_results: pd.DataFrame,
-                                  tokens_by_doc: Dict[str, List[pd.DataFrame]]) \
-    -> Dict[Tuple[str, int], pd.DataFrame]:
+def align_model_outputs_to_tokens(
+    model_results: pd.DataFrame, tokens_by_doc: Dict[str, List[pd.DataFrame]]
+) -> Dict[Tuple[str, int], pd.DataFrame]:
     """
     Join the results of running a model on an entire corpus back with multiple
     DataFrames of the token features for the individual documents.
@@ -266,15 +303,11 @@ def align_model_outputs_to_tokens(model_results: pd.DataFrame,
      to DataFrame of results for that document
     """
     all_pairs = (
-        model_results[["fold", "doc_num"]]
-            .drop_duplicates()
-            .to_records(index=False)
+        model_results[["fold", "doc_num"]].drop_duplicates().to_records(index=False)
     )
-    indexed_df = (
-        model_results
-            .set_index(["fold", "doc_num", "token_id"], verify_integrity=True)
-            .sort_index()
-    )
+    indexed_df = model_results.set_index(
+        ["fold", "doc_num", "token_id"], verify_integrity=True
+    ).sort_index()
     results = {}  # Type: Dict[Tuple[str, int], pd.DataFrame]
     for collection, doc_num in all_pairs:
         doc_slice = indexed_df.loc[collection, doc_num].reset_index()
@@ -282,8 +315,67 @@ def align_model_outputs_to_tokens(model_results: pd.DataFrame,
             ["token_id", "span", "ent_iob", "ent_type"]
         ].rename(columns={"id": "token_id"})
         result_df = doc_toks.copy().merge(
-            doc_slice[["token_id", "predicted_iob", "predicted_type"]])
+            doc_slice[["token_id", "predicted_iob", "predicted_type"]]
+        )
         results[(collection, doc_num)] = result_df
     return results
 
 
+def csv_prep(counts_df: pd.DataFrame, counts_col_name: str):
+    """
+    Reformat a dataframe of results to prepare for writing out
+    CSV files for hand-labeling.
+
+    :param counts_df: Dataframe of entities with counts of who
+     found each entity
+    :param counts_col_name: Name of column in `counts_df` with the
+     number of teams/models/etc. who found each entity
+
+    Returns two dataframes. The first dataframe contains entities that ARE
+    in the gold standard. The second dataframe contains formatted results
+    for the entities that are NOT in the gold standard but are in at least
+    one model's output.
+    """
+    # Reformat the results to prepare for hand-labeling a spreadsheet
+    in_gold_counts = counts_df[counts_df["gold"]].sort_values(
+        [counts_col_name, "fold", "doc_offset"]
+    )
+    in_gold_df = pd.DataFrame(
+        {
+            counts_col_name: in_gold_counts[counts_col_name],
+            "fold": in_gold_counts["fold"],
+            "doc_offset": in_gold_counts["doc_num"],
+            "corpus_span": in_gold_counts["span"].astype(str),
+            "corpus_ent_type": in_gold_counts["ent_type"],
+            "error_type": "",
+            "correct_span": "",
+            "correct_ent_type": "",
+            "notes": "",
+            "time_started": "",
+            "time_stopped": "",
+            "time_elapsed": "",
+        }
+    )
+
+    not_in_gold_counts = counts_df[~counts_df["gold"]].sort_values(
+        [counts_col_name, "fold", "doc_num"], ascending=[False, True, True]
+    )
+    not_in_gold_df = pd.DataFrame(
+        {
+            counts_col_name: not_in_gold_counts[counts_col_name],
+            "fold": not_in_gold_counts["fold"],
+            "doc_offset": not_in_gold_counts["doc_num"],
+            "model_span": not_in_gold_counts["span"].astype(str),
+            "model_ent_type": not_in_gold_counts["ent_type"],
+            "error_type": "",
+            "corpus_span": "",  # Incorrect span to remove from corpus
+            "corpus_ent_type": "",
+            "correct_span": "",  # Correct span to add if both corpus and model are wrong
+            "correct_ent_type": "",
+            "notes": "",
+            "time_started": "",
+            "time_stopped": "",
+            "time_elapsed": "",
+        }
+    )
+    return in_gold_df, not_in_gold_df

@@ -280,7 +280,7 @@ def infer_and_extract_raw_entites(
 
 
 def extract_entities_iob(
-    predicted_df:pd.DataFrame,
+    predicted_df: pd.DataFrame,
     raw_docs: Dict[str, List[pd.DataFrame]],
     span_col="span",
     fold_col="fold",
@@ -288,7 +288,7 @@ def extract_entities_iob(
     iob_col="predicted_iob",
     entity_type_col="predicted_type",
     raw_docs_span_col_name="span",
-    ):
+):
     """
     Takes a dataframe containing bert embeddings and a model trained on bert embeddings, and
     runs inference on the dataframe. Then using a reference to the surface form of the document
@@ -378,4 +378,11 @@ def infer_and_extract_entities_iob(
     predicted_df = infer_on_df(
         df, id_to_class_dict, predictor, embeddings_col=predict_on_col, iob=True
     )
-    return extract_entities_iob(predicted_df,raw_docs,span_col=span_col,fold_col=fold_col,doc_col=doc_col,raw_docs_span_col_name=raw_docs_span_col_name)
+    return extract_entities_iob(
+        predicted_df,
+        raw_docs,
+        span_col=span_col,
+        fold_col=fold_col,
+        doc_col=doc_col,
+        raw_docs_span_col_name=raw_docs_span_col_name,
+    )
