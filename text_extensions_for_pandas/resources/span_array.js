@@ -1,5 +1,5 @@
 // Increment the version to invalidate the cached script
-const VERSION = 0.74
+const VERSION = 0.75
 
 if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
 
@@ -57,6 +57,15 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
             this.docs = docs
             this.show_offsets = show_offsets
             this.script_context = script_context
+
+            // For each doc, generate a lookup map for quick ID access
+            this.docs = this.docs.map(doc => {
+                doc.lookup_table = {}
+                doc.doc_spans.forEach(doc_span => {
+                    doc.lookup_table[doc_span.id] = doc_span
+                })
+                return doc
+            })
         }
 
         render() {
@@ -69,7 +78,7 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
                 // Using the data-doc-id attribute allows a selector to access a document's render by its index
                 doc_container.setAttribute("data-doc-id", doc_index)
                 doc_container.classList.add("document")
-                const document_fragment = getDocumentFragment(doc.doc_text, doc.doc_spans, this.show_offsets)
+                const document_fragment = getDocumentFragment(doc, this.show_offsets)
                 if(this.show_offsets) {
                     attachDocumentEvents(document_fragment, doc, this)
                 }
@@ -124,6 +133,7 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
             this.end = end
             this.sets = []
             this.visible = true
+            this.highlighted = false
         }
 
         // Returns only visible sets
@@ -172,7 +182,10 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
     window.SpanArray.Span = Span
 
     // Get the DocumentFragment for a single document 
-    function getDocumentFragment(doc_text, entries, show_offsets) {
+    function getDocumentFragment(doc, show_offsets) {
+
+        const doc_text = doc.doc_text;
+        const entries = doc.doc_spans;
 
         let frag = document.createDocumentFragment()
         
@@ -182,6 +195,7 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
             table.innerHTML = `
             <thead>
             <tr>
+                <th></th>
                 <th></th>
                 <th>begin</th>
                 <th>end</th>
@@ -196,10 +210,20 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
                 {
                     row.classList.add("disabled")
                 }
+                if(entry.highlighted)
+                {
+                    row.classList.add("highlighted")
+                }
 
                 // Adds the span entry to the table. doc_text is sanitized by replacing the reserved
                 // symbols by their entity name representations
                 row.innerHTML += `
+                <td>
+                    <div class='sa-table-controls'>
+                    <button data-control='visibility'>V</button>
+                    <button data-control='highlight'>H</button>
+                    </div>
+                </td>
                 <td><b>${entry.id.toString()}</b></td>
                 <td>${entry.begin}</td>
                 <td>${entry.end}</td>
@@ -245,16 +269,19 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
                 if (region.type != TYPE_NESTED) {
                     region.ids.forEach(id => {
                         mark.setAttribute("data-ids", mark.getAttribute("data-ids") + `#${id},`)
+                        if(doc.lookup_table[id].highlighted) mark.classList.add("highlighted")
                     })
                     mark.textContent = doc_text.substring(region.begin, region.end)
                 } else {
                     mark.setAttribute("data-ids", `#${region.ids[0]},`)
+                    if(doc.lookup_table[region.ids[0]].highlighted) mark.classList.add("highlighted")
                     let nested_begin = region.begin
                     region.ids.slice(1).forEach(nested_id => {
-                        let nested_region = entries.find(entry => entry.id == nested_id)
+                        let nested_region = doc.lookup_table[nested_id]
                         mark.innerHTML += sanitize(doc_text.substring(nested_begin, nested_region.begin))
                         let nested_mark = document.createElement("mark")
                         nested_mark.setAttribute("data-ids", `#${nested_id},`)
+                        if(nested_region.highlighted) nested_mark.classList.add("highlighted")
                         nested_mark.textContent = doc_text.substring(nested_region.begin, nested_region.end)
                         nested_begin = nested_region.end
                         mark.appendChild(nested_mark)
@@ -351,47 +378,60 @@ if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
         // Click disable/enable events
 
         doc_table_body.addEventListener("click", (event) => {
-            // Only listen to left button clicks on or within a table row.
+            const closest_control_button = event.target.closest("button[data-control]")
+            if(closest_control_button == undefined) return
+
             const closest_tr = event.target.closest("tr")
             if(closest_tr == undefined) return
 
-            const matching_span = doc_object.doc_spans.find(span => {
-                if(span.id.toString() == closest_tr.getAttribute("data-id")) return true
-                return false
-            })
-            if(matching_span != undefined) matching_span.visible = !matching_span.visible
-            source_spanarray.render()
+            const matching_span = doc_object.lookup_table[closest_tr.getAttribute("data-id")]
+
+            switch(closest_control_button.getAttribute("data-control")) {
+                case "visibility":
+                    {
+                        if(matching_span != undefined) matching_span.visible = !matching_span.visible
+                        source_spanarray.render()
+                    }
+                    break;
+                case "highlight":
+                    {
+                        if(matching_span != undefined) matching_span.highlighted = !matching_span.highlighted
+                        source_spanarray.render()
+                    }
+                    break;
+            }
+
+
+
         }, true)
 
         doc_text.addEventListener("click", (event) => {
             const closest_mark = event.target.closest("mark")
             if(closest_mark == undefined) return
 
-            if(closest_mark.classList.contains("highlighted")) {
-                closest_mark.classList.remove("highlighted")
-    
-                const ids = closest_mark.getAttribute("data-ids").split(",").slice(0, -1)
-                ids.map(id => {
+            // Preprocess ID string into a list of IDs
+            const ids = closest_mark.getAttribute("data-ids")
+                .split(",")
+                .slice(0, -1)
+                .map(id => {
                     return id.substring(1)
                 })
-                .forEach(id => {
-                    const row = doc_table_body.querySelector(`tr[data-id="${id}"]`)
-                    row.classList.remove("highlighted")
-                })
+            
+            // If any of the connected IDs are highlighted, we set all spans in the list to not highlighted.
+            // Inversely, we want all spans highlighted if none were previously.
 
-            } else {
-                closest_mark.classList.add("highlighted")
-    
-                const ids = closest_mark.getAttribute("data-ids").split(",").slice(0, -1)
-                ids.map(id => {
-                    return id.substring(1)
-                })
-                .forEach(id => {
-                    const row = doc_table_body.querySelector(`tr[data-id="${id}"]`)
-                    row.classList.add("highlighted")
-                })
-            }
+            const highlighted_entry = ids.find(id => {
+                return doc_object.lookup_table[id].highlighted
+            })
 
+            const is_highlighted = (highlighted_entry != undefined)
+
+            ids.forEach(id => {
+                const span = doc_object.lookup_table[id]
+                if(span != undefined) span.highlighted = !is_highlighted
+            })
+
+            source_spanarray.render()
         })
     }
 } else {

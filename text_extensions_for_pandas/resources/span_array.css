@@ -9,6 +9,11 @@
     --tbody-text-color-disabled: var(--jp-ui-inverse-font-color0, #b3b3b9);
     --table-font-family: var(--jp-content-font-family, var(--fallback-font-family, inherit));
 
+    --table-control-background: rgba(0, 0, 0, 0.2);
+    --table-control-color: var(--jp-ui-font-color0);
+    --table-control-border: 1px solid rgba(0, 0, 0, 0.8);
+    --table-control-border-radius: 0.5em;
+
     --root-highlight: #a0c4ff;
     --nested-highlight: #ffadad;
     --hover-highlight: #ffd6a5;
@@ -75,11 +80,11 @@ body[data-jp-theme-name="JupyterLab Light"] .span-array {
 .span-array>.document>table td {
     padding: 0.5em;
     color: var(--tbody-text-color);
-    cursor: pointer;
 }
 
 .span-array>.document>table tr>td:last-child, .span-array>.document>table tr>th:last-child {
     text-align: right;
+    width: 100%;
 }
 
 .span-array>.document>table tr>td:not(tr>td:last-child), .span-array>.document>table tr>th:not(tr>th:last-child) {
@@ -96,6 +101,50 @@ body[data-jp-theme-name="JupyterLab Light"] .span-array {
 
 .span-array>.document>table tr.disabled:nth-child(n)>td, .span-array>.document>table tr.disabled.hover:nth-child(n)>td {
     color: var(--tbody-text-color-disabled);
+}
+
+/* Table control buttons */
+
+.span-array>.document>table td:first-child {
+    vertical-align: center;
+}
+
+.span-array>.document>table td:first-child>div.sa-table-controls {
+    display: flex;
+    flex-direction: row;
+}
+
+.span-array>.document>table td:first-child button {
+    background-color: var(--table-control-background);
+    color: var(--table-control-color);
+    border: var(--table-control-border);
+    border-right: none;
+    border-radius: 0;
+    cursor: pointer;
+}
+
+.span-array>.document>table td:first-child button:first-child {
+    border-radius: var(--table-control-border-radius) 0 0 var(--table-control-border-radius);
+}
+
+.span-array>.document>table td:first-child button:last-child {
+    border-radius: 0 var(--table-control-border-radius) var(--table-control-border-radius) 0;
+    border-right: var(--table-control-border);
+}
+
+.span-array>.document>table td:first-child button[data-control="visibility"]:hover {
+    background-color: var(--root-highlight);
+    color: black;
+}
+
+.span-array>.document>table tr:not(tr.disabled) td:first-child button[data-control="highlight"]:hover {
+    background-color: var(--hover-highlight);
+    color: black;
+}
+
+.span-array>.document>table tr.highlighted:not(tr.disabled) td:first-child button[data-control="highlight"] {
+    background-color: var(--hover-highlight);
+    color: black;
 }
 
 /* Styling for spans within document context */
