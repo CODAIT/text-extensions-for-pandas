@@ -25,31 +25,6 @@
     --fallback-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif
 }
 
-/* These 2 CSS block sets variable overrides for JupyterLab's default themes */
-/*
-body[data-jp-theme-name="JupyterLab Dark"] .span-array {
-    --thead-background-color: #144552;
-    --thead-text-color: whitesmoke;
-    --tbody-background-color-1: #0B525B;
-    --tbody-background-color-2: #065A60;
-    --tbody-background-color-hover: #197072;
-    --tbody-background-color-disabled: #486669;
-    --tbody-text-color: rgb(243, 243, 243);
-    --paragraph-border-color: #1b1b1b;
-}
-
-body[data-jp-theme-name="JupyterLab Light"] .span-array {
-    --thead-background-color: #0d2025;
-    --thead-text-color: whitesmoke;
-    --tbody-background-color-1: #f0f0f0;
-    --tbody-background-color-2: #ececec;
-    --tbody-background-color-hover: #6fd9db;
-    --tbody-background-color-disabled: #9c9c9c;
-    --tbody-text-color: rgb(0, 0, 0);
-    --paragraph-border-color: #f1f1f1;
-}
-*/
-
 /* Table of span offsets */
 .span-array>.document>table {
     table-layout: auto;
