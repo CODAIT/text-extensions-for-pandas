@@ -1,7 +1,7 @@
 // Increment the version to invalidate the cached script
 const VERSION = 0.75
 
-if(!window.SpanArray || window.SpanArray.VERSION < VERSION) {
+if(window.SpanArray == undefined || window.SpanArray.VERSION == undefined || window.SpanArray.VERSION < VERSION) {
 
     // Replace global SpanArray CSS with latest copy
     const global_stylesheet = document.head.querySelector("style.span-array-css")
