@@ -22,10 +22,10 @@ if(window.SpanArray == undefined || window.SpanArray.VERSION == undefined || win
     window.SpanArray.TYPE_COMPLEX = 2;
     window.SpanArray.TYPE_SOLO = 3;
 
-    TYPE_OVERLAP = window.SpanArray.TYPE_OVERLAP;
-    TYPE_NESTED = window.SpanArray.TYPE_NESTED;
-    TYPE_COMPLEX = window.SpanArray.TYPE_COMPLEX;
-    TYPE_SOLO = window.SpanArray.TYPE_SOLO;
+    const TYPE_OVERLAP = window.SpanArray.TYPE_OVERLAP;
+    const TYPE_NESTED = window.SpanArray.TYPE_NESTED;
+    const TYPE_COMPLEX = window.SpanArray.TYPE_COMPLEX;
+    const TYPE_SOLO = window.SpanArray.TYPE_SOLO;
 
     function sanitize(input) {
         let out = input.slice();
