@@ -321,7 +321,15 @@ def align_model_outputs_to_tokens(
     return results
 
 
-def csv_prep(counts_df: pd.DataFrame, counts_col_name: str):
+def csv_prep(
+    counts_df: pd.DataFrame,
+    counts_col_name: str,
+    gold_col_name: str = "in_gold",
+    fold_col_name: str = "fold",
+    doc_col_name="doc_num",
+    span_col_name: str = "span",
+    ent_type_col_name: str = "ent_type",
+):
     """
     Reformat a dataframe of results to prepare for writing out
     CSV files for hand-labeling.
@@ -337,16 +345,16 @@ def csv_prep(counts_df: pd.DataFrame, counts_col_name: str):
     one model's output.
     """
     # Reformat the results to prepare for hand-labeling a spreadsheet
-    in_gold_counts = counts_df[counts_df["gold"]].sort_values(
-        [counts_col_name, "fold", "doc_offset"]
+    in_gold_counts = counts_df[counts_df[gold_col_name]].sort_values(
+        [counts_col_name, fold_col_name, doc_col_name]
     )
     in_gold_df = pd.DataFrame(
         {
             counts_col_name: in_gold_counts[counts_col_name],
-            "fold": in_gold_counts["fold"],
-            "doc_offset": in_gold_counts["doc_num"],
-            "corpus_span": in_gold_counts["span"].astype(str),
-            "corpus_ent_type": in_gold_counts["ent_type"],
+            "fold": in_gold_counts[fold_col_name],
+            "doc_offset": in_gold_counts[doc_col_name],
+            "corpus_span": in_gold_counts[span_col_name].astype(str),
+            "corpus_ent_type": in_gold_counts[ent_type_col_name],
             "error_type": "",
             "correct_span": "",
             "correct_ent_type": "",
@@ -357,16 +365,16 @@ def csv_prep(counts_df: pd.DataFrame, counts_col_name: str):
         }
     )
 
-    not_in_gold_counts = counts_df[~counts_df["gold"]].sort_values(
-        [counts_col_name, "fold", "doc_num"], ascending=[False, True, True]
+    not_in_gold_counts = counts_df[~counts_df[gold_col_name]].sort_values(
+        [counts_col_name, fold_col_name, doc_col_name], ascending=[False, True, True]
     )
     not_in_gold_df = pd.DataFrame(
         {
             counts_col_name: not_in_gold_counts[counts_col_name],
-            "fold": not_in_gold_counts["fold"],
-            "doc_offset": not_in_gold_counts["doc_num"],
-            "model_span": not_in_gold_counts["span"].astype(str),
-            "model_ent_type": not_in_gold_counts["ent_type"],
+            "fold": not_in_gold_counts[fold_col_name],
+            "doc_offset": not_in_gold_counts[doc_col_name],
+            "model_span": not_in_gold_counts[span_col_name].astype(str),
+            "model_ent_type": not_in_gold_counts[ent_type_col_name],
             "error_type": "",
             "corpus_span": "",  # Incorrect span to remove from corpus
             "corpus_ent_type": "",
