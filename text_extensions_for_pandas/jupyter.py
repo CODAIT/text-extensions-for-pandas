@@ -150,6 +150,9 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
     show_offset_string = 'true' if show_offsets else 'false'
     
     return textwrap.dedent(f"""
+        <style class="span-array-css">
+            {textwrap.indent(style_text, '        ')}
+        </style>
         <script>
         {{
             {textwrap.indent(script_text, '        ')}
