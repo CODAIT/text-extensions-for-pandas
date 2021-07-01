@@ -23,6 +23,7 @@
 
 import textwrap
 from typing import *
+from enum import Enum
 import text_extensions_for_pandas.resources
 
 # TODO: This try/except block is for Python 3.6 support, and should be
@@ -35,6 +36,16 @@ except ImportError:
 
 # Limits the max number of displayed documents. Matches Pandas' default display.max_seq_items.
 _DOCUMENT_DISPLAY_LIMIT = 100
+
+
+class SetType(Enum):
+    NESTED=1
+    OVERLAP=2
+
+class RegionType(Enum):
+    NESTED=1
+    COMPLEX=2
+    SOLO=3
 
 
 def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
@@ -100,7 +111,7 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
         </script>
         <div class="span-array">
             {_get_initial_static_html(column, show_offsets)}
-            <span style="font-size: 0.8em;color: #b3b3b3;">If you're reading this message, your notebook viewer does not support Javascript execution. Try pasting the URL into a service like nbviewer.</span>
+            <span style="font-size: 0.8em;color: #b3b3b3;">Your notebook viewer does not support Javascript execution. The above rendering will not be interactive.</span>
         </div>
         <script>
             {{
@@ -176,9 +187,9 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                     break
                 else:
                     if(document[j].end <= document[i].end):
-                        span_data["sets"].append({"type": "nested", "id": j})
+                        span_data["sets"].append({"type": SetType.NESTED, "id": j})
                     else:
-                        span_data["sets"].append({"type": "overlap", "id": j})
+                        span_data["sets"].append({"type": SetType.OVERLAP, "id": j})
 
             spans[i] = span_data
 
@@ -198,11 +209,11 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
             if len(spans[i]["sets"]) > 0:
                 # get set span and type
                 if(_is_complex(spans, i)):
-                    region["type"] = "complex"
+                    region["type"] = RegionType.COMPLEX
                 else:
-                    region["type"] = "nested"
+                    region["type"] = RegionType.NESTED
             else:
-                region["type"] = "solo"
+                region["type"] = RegionType.SOLO
             mark_regions.append(region)
 
             i = set_span["highest_id"] + 1
@@ -222,12 +233,26 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                     {_get_sanitized_text(document.document_text[snippet_begin:region["begin"]])}
                 """)
                 
-                if region["type"] == "complex":
+                if region["type"] == RegionType.COMPLEX:
                     context_html.append(f"""
-                        <mark class='complex-set'>{_get_sanitized_text(document.document_text[region["begin"]:region["end"]])}<span class='mark-tag'>Set</span></mark>
+                        <mark class='complex-set' style='
+                            padding:0.4em;
+                            border-radius:0.35em;
+                            background:linear-gradient(to right, #a0c4ff, #ffadad);
+                            '>{_get_sanitized_text(document.document_text[region["begin"]:region["end"]])}
+                            <span class='mark-tag' style='
+                                font-weight: bolder;
+                                font-size: 0.8em;
+                                font-variant: small-caps;
+                                font-variant-caps: small-caps;
+                                font-variant-caps: all-small-caps;
+                                margin-left: 8px;
+                                text-transform: uppercase;
+                                '>Set</span>
+                        </mark>
                     """)
 
-                elif region["type"] == "nested":
+                elif region["type"] == RegionType.NESTED:
                     mark_html = []
                     nested_snippet_begin = region["begin"]
                     # Iterate over each span nested within the root span of the marked region
@@ -237,36 +262,49 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
 
                         mark_html.append(f"""
                             {_get_sanitized_text(document.document_text[nested_snippet_begin:nested_span["begin"]])}
-                            <mark>{_get_sanitized_text(document.document_text[nested_span["begin"]:nested_span["end"]])}</mark>
+                            <mark style='
+                                padding:0.2em 0.4em;
+                                border-radius:0.35em;
+                                background-color: #ffadad
+                                '>{_get_sanitized_text(document.document_text[nested_span["begin"]:nested_span["end"]])}</mark>
                         """)
                         nested_snippet_begin = nested_span["end"]
                     context_html.append(f"""
-                        <mark>{"".join(mark_html)}</mark>
+                        <mark style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff'>{"".join(mark_html)}</mark>
                     """)
 
-                elif region["type"] == "solo":
+                elif region["type"] == RegionType.SOLO:
                     context_html.append(f"""
-                        <mark>{_get_sanitized_text(document.document_text[region["begin"]:region["end"]])}</mark>
+                        <mark style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff'>{_get_sanitized_text(document.document_text[region["begin"]:region["end"]])}</mark>
                     """)
 
                 snippet_begin = region["end"]
+            context_html.append(_get_sanitized_text(document.document_text[snippet_begin:]))
         
         # Generate the document's DOM string
         documents_html.append(f"""
             <div class='document'>
-                <table>
-                    <thead><tr>
+                <table style='
+                    table-layout: auto;
+                    overflow: hidden;
+                    width: 100%;
+                    border-collapse: collapse;
+                    '>
+                    <thead style='font-variant-caps: all-petite-caps;'>
                         <th></th>
                         <th></th>
                         <th>begin</th>
                         <th>end</th>
-                        <th>context</th>
+                        <th style='text-align:right;width:100%'>context</th>
                     </tr></thead>
                     <tbody>
                         {"".join(table_rows_html)}
                     </tbody>
                 </table>
-                <p>
+                <p style='
+                    padding: 1em;
+                    line-height: calc(var(--jp-content-line-height, 1.6) * 1.6);
+                    '>
                     {"".join(context_html)}
                 </p>
             </div>
@@ -300,9 +338,9 @@ def _is_complex(spans: Dict, id: int) -> bool:
 
     # If any connection sets are of type:overlap or nested beyond a depth of 1, return True
     for set in spans[id]["sets"]:
-        if set["type"] == "overlap":
+        if set["type"] == SetType.OVERLAP:
             return True
-        elif set["type"] == "nested":
+        elif set["type"] == SetType.NESTED:
             if len(spans[set["id"]]["sets"]) > 0:
                 return True
     return False
