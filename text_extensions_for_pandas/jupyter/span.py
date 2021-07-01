@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2020 IBM Corp.
+#  Copyright (c) 2021 IBM Corp.
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
@@ -13,89 +13,29 @@
 #  limitations under the License.
 #
 
-"""
-The ``jupyter`` module contains functions to support the use of Text Extensions for Pandas
- in Jupyter notebooks.
-"""
 #
-# jupyter.py
+# span.py
 #
 # Part of text_extensions_for_pandas
 #
+# Support for span-centric Jupyter rendering and utilities
 #
-#
-import textwrap
 
-import pandas as pd
-import numpy as np
-import time
+import textwrap
 from typing import *
 import text_extensions_for_pandas.resources
 
-# TODO: This try/except block is for Python 3.6 support, and should be reduced to just importing importlib.resources when 3.6 support is dropped.
+# TODO: This try/except block is for Python 3.6 support, and should be
+# reduced to just importing importlib.resources when 3.6 support is dropped.
 try:
     import importlib.resources as pkg_resources
 except ImportError:
     import importlib_resources as pkg_resources
 
-def run_with_progress_bar(num_items: int, fn: Callable, item_type: str = "doc") \
-        -> List[pd.DataFrame]:
-    """
-    Display a progress bar while iterating over a list of dataframes.
-
-    :param num_items: Number of items to iterate over
-    :param fn: A function that accepts a single integer argument -- let's
-     call it `i` -- and performs processing for document `i` and returns
-     a `pd.DataFrame` of results
-    :param item_type: Human-readable name for the items that the calling
-     code is iterating over
-
-    """
-    # Imports inline to avoid creating a hard dependency on ipywidgets/IPython
-    # for programs that don't call this funciton.
-    # noinspection PyPackageRequirements
-    import ipywidgets
-    # noinspection PyPackageRequirements
-    from IPython.display import display
-
-    _UPDATE_SEC = 0.1
-    result = []  # Type: List[pd.DataFrame]
-    last_update = time.time()
-    progress_bar = ipywidgets.IntProgress(0, 0, num_items,
-                                          description="Starting...",
-                                          layout=ipywidgets.Layout(width="100%"),
-                                          style={"description_width": "12%"})
-    display(progress_bar)
-    for i in range(num_items):
-        result.append(fn(i))
-        now = time.time()
-        if i == num_items - 1 or now - last_update >= _UPDATE_SEC:
-            progress_bar.value = i + 1
-            progress_bar.description = f"{i + 1}/{num_items} {item_type}s"
-            last_update = now
-    progress_bar.bar_style = "success"
-    return result
-
-
-def _get_sanitized_doctext(column: Union["SpanArray", "TokenSpanArray"]) -> List[str]:
-    # Subroutine of pretty_print_html() below.
-    # Should only be called for single-document span arrays.
-    if not column.is_single_document:
-        raise ValueError("Array contains spans from multiple documents. Can only "
-                         "render one document at a time.")
-
-    text = column.document_text
-
-    text_pieces = []
-    for i in range(len(text)):
-        if text[i] == "'":
-            text_pieces.append("\\'")
-        else:
-            text_pieces.append(text[i])
-    return "".join(text_pieces)
 
 # Limits the max number of displayed documents. Matches Pandas' default display.max_seq_items.
 _DOCUMENT_DISPLAY_LIMIT = 100
+
 
 def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
                       show_offsets: bool) -> str:
@@ -133,7 +73,7 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
         instance_init_script_list.append(f"""
             {{
                 const doc_spans = Span.arrayFromSpanArray([{','.join(span_array)}])
-                const doc_text = '{_get_sanitized_doctext(document_columns[column_index])}'
+                const doc_text = '{_get_escaped_doctext(document_columns[column_index])}'
                 documents.push({{doc_text: doc_text, doc_spans: doc_spans}})
             }}
         """)
@@ -175,24 +115,40 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
         {''.join(postfix_tags)}
     """)
 
+def _get_escaped_doctext(column: Union["SpanArray", "TokenSpanArray"]) -> List[str]:
+    # Subroutine of pretty_print_html() above.
+    # Should only be called for single-document span arrays.
+    if not column.is_single_document:
+        raise ValueError("Array contains spans from multiple documents. Can only "
+                         "render one document at a time.")
+
+    text = column.document_text
+
+    text_pieces = []
+    for i in range(len(text)):
+        if text[i] == "'":
+            text_pieces.append("\\'")
+        else:
+            text_pieces.append(text[i])
+    return "".join(text_pieces)
+
 def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                       show_offsets: bool) -> str:
-    # Subroutine of pretty_print_html
-    # Gets the initial static html representation of the column for notebook viewers without javascript support.
+    # Subroutine of pretty_print_html above.
+    # Gets the initial static html representation of the column for notebook viewers without JavaScript support.
+    # Iterates over each document and constructs the DOM string with template literals.
 
-    # For each document
-    #   render table
-    #   calculate relationships
-    #   get highlight regions
-    #   render context
+    # ! Text inserted into the DOM as raw HTML should always be sanitized to prevent unintended DOM manipulation
+    # and XSS attacks.
 
     documents = column.split_by_document()
     documents_html = []
 
     for column_index in range(min(_DOCUMENT_DISPLAY_LIMIT, len(documents))):
         document = documents[column_index]
+
+        # Generate the table rows DOM string from span data.
         table_rows_html = []
-        # table
         for span in document:
             table_rows_html.append(f"""
                 <tr>
@@ -205,7 +161,7 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
             """)
         spans = {}
 
-        # Get span objects & relationships
+        # Generate a dictionary to store span information, including relationships with spans occupying the same region.
         for i in range(len(document)):
 
             span_data = {}
@@ -226,7 +182,7 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
 
             spans[i] = span_data
 
-        # get mark regions
+        # Generate the regions of the document_text to highlight from span data.
         mark_regions = []
         
         i = 0
@@ -251,12 +207,15 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
 
             i = set_span["highest_id"] + 1
         
-        # generate the context segments
+        # Generate the document_text DOM string from the regions created above.
         context_html = []
         
         if len(mark_regions) == 0:
+            # There are no marked regions. Just append the sanitized text as a raw string.
             context_html.append(_get_sanitized_text(document.document_text))
         else:
+            # Iterate over each marked region and contruct the HTML for preceding text and marked text.
+            # Then, append that HTML to the list of DOM strings for the document_text.
             snippet_begin = 0
             for region in mark_regions:
                 context_html.append(f"""
@@ -271,8 +230,11 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                 elif region["type"] == "nested":
                     mark_html = []
                     nested_snippet_begin = region["begin"]
-                    # Iterate over each span nested within the root span of the mark region
-                    for nested_span in map(lambda set: spans[set["id"]], spans[region["root_id"]]["sets"]):
+                    # Iterate over each span nested within the root span of the marked region
+                    for nested_span in map( \
+                            lambda set: spans[set["id"]], 
+                            spans[region["root_id"]]["sets"]):
+
                         mark_html.append(f"""
                             {_get_sanitized_text(document.document_text[nested_snippet_begin:nested_span["begin"]])}
                             <mark>{_get_sanitized_text(document.document_text[nested_span["begin"]:nested_span["end"]])}</mark>
@@ -289,7 +251,7 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
 
                 snippet_begin = region["end"]
         
-        # Generate the document's HTML template
+        # Generate the document's DOM string
         documents_html.append(f"""
             <div class='document'>
                 <table>
@@ -310,18 +272,18 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
             </div>
         """)
 
-    # Concat and return the final HTML string
+    # Concat all documents and return the final DOM string
     return "".join(documents_html)
 
 def _get_set_span(spans: Dict, id: int) -> Dict:
-    # Subroutine of _get_initial_static_html
+    # Subroutine of _get_initial_static_html() above.
     # Recursive algorithm to get the last end and ID values of the set of spans connected to span with the given ID
     # Will raise a KeyError exception if an invalid key is given
     
     end = spans[id]["end"]
     highest_id = id
 
-    # For each span in the set of spans, get the return values and take the largest end and highest ID
+    # For each span in the set of spans, get the return values and track the greatest endpoint index and ID values.
     for set in spans[id]["sets"]:
         other = _get_set_span(spans, set["id"])
         if other["end"] > end:
@@ -332,10 +294,11 @@ def _get_set_span(spans: Dict, id: int) -> Dict:
     return {"end": end, "highest_id": highest_id}
 
 def _is_complex(spans: Dict, id: int) -> bool:
-    # Subroutine of _get_initial_static_html
-    # If any connection sets are of type:overlap or nested beyond a depth of 1, return True
+    # Subroutine of _get_initial_static_html() above.
+    # Returns True if the provided span should be considered a "Complex" span. Implementation details below.
     # Will raise a KeyError exception if an invalid key is given
 
+    # If any connection sets are of type:overlap or nested beyond a depth of 1, return True
     for set in spans[id]["sets"]:
         if set["type"] == "overlap":
             return True
@@ -345,7 +308,7 @@ def _is_complex(spans: Dict, id: int) -> bool:
     return False
 
 def _get_sanitized_text(text: str) -> str:
-    # Subroutine of _get_initial_static_html
+    # Subroutine of _get_initial_static_html() above.
     # Returns a string with HTML reserved character replacements to avoid issues while rendering text as HTML
 
     text_pieces = []
