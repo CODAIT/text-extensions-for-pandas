@@ -96,6 +96,93 @@ def identify_persons_quoted_by_name(named_entities_result,
                                        "subject", "person")
     return execs_df
 
+def perform_dependency_parsing(doc_text: str, spacy_language_model):
+    """
+    First phase of processing from the second part of the series.
+    
+    Parses a document using SpaCy's depdendency parser, then converts the
+    outputs of the parser into a Pandas DataFrame using Text Extensions for Pandas.
+    """
+    return (
+        tp.io.spacy.make_tokens_and_features(doc_text, spacy_language_model)
+        [["id", "span", "tag", "dep", "head"]])
+
+def extract_titles_of_persons(persons: pd.DataFrame, parse_features: pd.DataFrame) -> pd.DataFrame:
+    """
+    Second phase of processing from the second part of the series.
+    
+    :param persons_quoted: DataFrame of persons quoted in the target document, as
+     returned by :func:`identify_persons_quoted_by_name`.
+    :param parse_features: Dependency parse of the document, as returned by 
+     :func:`perform_dependency_parsing`.
+    """
+    def traverse_edges_once(start_nodes: pd.DataFrame, edges: pd.DataFrame,
+                    metadata_cols = ["person"]) -> pd.DataFrame:
+        return (
+            start_nodes[["person", "id"]]  # Propagate original "person" span
+            .merge(edges, left_on="id", right_on="head", 
+                   suffixes=["_head", ""])[["person", "id"]]
+            .merge(nodes)
+        )
+    
+    if len(persons.index) == 0:
+        # Special case: Empty input --> empty output
+        return pd.DataFrame({
+            "person": pd.Series([], dtype=tp.SpanDtype()),
+            "title": pd.Series([], dtype=tp.SpanDtype()),
+        })
+    
+
+    # Retrieve the document text from the person spans.
+    doc_text = persons["person"].array.document_text
+
+    # Drop the columns we won't need for this analysis.
+    tokens = parse_features[["id", "span", "tag", "dep", "head"]]
+    
+    # Split the parse tree into nodes and edges and filter the edges.
+    nodes = tokens[["id", "span", "tag"]].reset_index(drop=True)
+    edges = tokens[["id", "head", "dep"]].reset_index(drop=True)
+
+    # Start with the nodes that are inside person names.
+    person_nodes = (
+        tp.spanner.overlap_join(persons["person"], nodes["span"],
+                                "person", "span")
+        .merge(nodes)
+    )
+    
+    # Step 1: Follow `appos` edges from the person names
+    appos_targets = traverse_edges_once(person_nodes, 
+                                        edges[edges["dep"] == "appos"])
+    
+    # Step 2: Transitive closure to find all tokens in the titles
+    selected_nodes = appos_targets.copy()
+    previous_num_nodes = 0
+    while len(selected_nodes.index) > previous_num_nodes:
+
+        # Find all the nodes that are directly reachable from our selected set.
+        addl_nodes = traverse_edges_once(selected_nodes, edges)
+
+        # Merge the new nodes into the selected set
+        previous_num_nodes = len(selected_nodes.index)
+        selected_nodes = (pd.concat([selected_nodes, addl_nodes])
+                          .drop_duplicates())
+
+    # Aggregate the nodes of each title to find the span of the entire title.
+    titles = (
+        selected_nodes
+        .groupby("person")
+        .aggregate({"span": "sum"})
+        .reset_index()
+        .rename(columns={"span": "title"})
+    )
+
+    # As of Pandas 1.2.1, groupby() over extension types downgrades them to object 
+    # dtype. Cast back up to the extension type.
+    titles["person"] = titles["person"].astype(tp.SpanDtype())
+    
+    return titles
+
+
 paragraph_break_re = regex.compile(r"\n+")
 
 def find_paragraph_spans(doc_text: str) -> tp.SpanArray:
@@ -180,98 +267,6 @@ def perform_targeted_dependency_parsing(
         offset += len(paragraph_tokens.index)
     return pd.concat(to_stack)
 
-def perform_dependency_parsing(doc_text: str, spacy_language_model):
-    """
-    First phase of processing from the second part of the series.
-    
-    Parses a document using SpaCy's depdendency parser, then converts the
-    outputs of the parser into a Pandas DataFrame using Text Extensions for Pandas.
-    """
-    return (
-        tp.io.spacy.make_tokens_and_features(doc_text, spacy_language_model)
-        [["id", "span", "tag", "dep", "head"]])
-
-def extract_titles_of_persons(persons_quoted: pd.DataFrame, parse_features: pd.DataFrame) -> pd.DataFrame:
-    """
-    Second phase of processing from the second part of the series.
-    
-    :param persons_quoted: DataFrame of persons quoted in the target document, as
-     returned by :func:`identify_persons_quoted_by_name`.
-    :param parse_features: Dependency parse of the document, as returned by 
-     :func:`perform_dependency_parsing`.
-    """
-    # Identify the portion of the parse that aligns with persons_quoted["subject"]
-    phrase_tokens = (
-        tp.spanner.contain_join(persons_quoted["subject"], parse_features["span"], 
-                                "subject", "span")
-        .merge(parse_features)
-        .set_index("id", drop=False)
-    )
-    nodes = phrase_tokens[["id", "span", "tag", "subject"]].reset_index(drop=True)
-    edges = phrase_tokens[["id", "head", "dep"]].reset_index(drop=True)
-
-    # Identify the portion of the parse that aligns with persons_quoted["person"]
-    person_nodes = (
-        tp.spanner.overlap_join(persons_quoted["person"], nodes["span"],
-                                "person", "span")
-        .merge(nodes)
-    )
-    
-    # Identify the edges we want to traverse from the person nodes
-    filtered_edges = edges[edges["dep"].isin(["appos", "compound"])]
-    
-    # Transitive closure starting from our seed set of nodes and traversing 
-    # the selected set of edges.
-    selected_nodes = person_nodes.drop(columns="person").copy()
-    previous_num_nodes = 0
-
-    # Keep going as long as the previous round added nodes to our set.
-    while len(selected_nodes.index) > previous_num_nodes:
-        previous_num_nodes = len(selected_nodes.index)
-
-        # Traverse one edge out from all nodes in `selected_nodes`
-        addl_nodes = (
-            selected_nodes[["id"]]
-            .merge(filtered_edges, left_on="id", right_on="head", suffixes=["_head", ""])[["id"]]
-            .merge(nodes)
-        )
-
-        # Add any previously unselected node to `selected_nodes`
-        selected_nodes = pd.concat([selected_nodes, addl_nodes]).drop_duplicates()
-    
-    # Take the parse tree nodes we added to the seed set and generate spans of titles
-    title_nodes = selected_nodes[~selected_nodes["id"].isin(person_nodes["id"])]
-    titles_df = (
-        title_nodes
-        .groupby("subject")
-        .aggregate({"span": "sum"})
-        .reset_index()
-        .rename(columns={"span": "title"})
-    )
-    titles_df["subject"] = titles_df["subject"].astype(tp.SpanDtype())
-    
-    execs_with_titles_df = pd.merge(persons_quoted, titles_df)
-    return execs_with_titles_df
-
-# def call_nlu(doc_html: str, 
-#              natural_language_understanding: 
-#                  ibm_watson.NaturalLanguageUnderstandingV1) -> Any:
-#     """
-#     Pass a document through Natural Language Understanding, performing the 
-#     analyses we need for the current use case.
-    
-#     :param doc_html: HTML contents of the web page
-#     :param nlu: Preinitialized instance of the NLU Python API
-#     :returns: Python object encapsulating the parsed JSON response from the web service.
-#     """
-#     return natural_language_understanding.analyze(
-#                 html=doc_html,
-#                 return_analyzed_text=True,
-#                 features=nlu.Features(
-#                     entities=nlu.EntitiesOptions(mentions=True),
-#                     semantic_roles=nlu.SemanticRolesOptions()
-#                 )).get_result()
-
 
 def call_nlu_with_retry(
     doc_html: str, 
@@ -321,107 +316,6 @@ def call_nlu_with_retry(
             time.sleep(sleep_time)
 
     raise Exception(f"Exceeded limit of {MAX_RETRIES} retries.")
-
-
-
-# def extract_execs(doc_html: str, api_key: str, service_url: str) -> pd.DataFrame:
-#     """
-#     Part 1 of the blog post as a single function.
-    
-#     :param doc_html: HTML contents of the target document
-#     :api_key: API key for accessing Watson Natural Language Understanding
-#     :service_url: Web service URL for accessing Watson Natural Language Understanding
-    
-#     :returns: DataFrame containing information about executives mentioned in the 
-#      target document. The DataFrame will have two columns:
-#     """
-#     # Feed the press release through Watson Natural Language Understanding
-#     natural_language_understanding = ibm_watson.NaturalLanguageUnderstandingV1(
-#             version="2021-01-01", 
-#             authenticator=ibm_cloud_sdk_core.authenticators.IAMAuthenticator(api_key))
-#     natural_language_understanding.set_service_url(service_url)
-#     nlu_response = call_nlu(doc_html, natural_language_understanding)
-#     return nlu_result_to_execs(nlu_response)
-
-
-# def add_titles(execs_df: pd.DataFrame, parse_features: pd.DataFrame) -> pd.DataFrame:
-#     """
-#     Part 2 of the blog post as a single function.
-    
-#     :param execs_df: DataFrame of executives mentioned in the target document, as
-#      returned by :func:`extract_execs`.
-#     :param parse_features: Dependency parse of the document, as returned by a SpaCy
-#      language model and converted to a DataFrame by 
-#      :func:`tp.io.spacy.make_tokens_and_features`
-#     """
-#     # Identify the portion of the parse that aligns with execs_df["subject"]
-#     phrase_tokens = (
-#         tp.spanner.contain_join(execs_df["subject"], parse_features["span"], 
-#                                 "subject", "span")
-#         .merge(parse_features)
-#         .set_index("id", drop=False)
-#     )
-#     nodes = phrase_tokens[["id", "span", "tag", "subject"]].reset_index(drop=True)
-#     edges = phrase_tokens[["id", "head", "dep"]].reset_index(drop=True)
-
-#     # Identify the portion of the parse that aligns with execs_df["person"]
-#     person_nodes = (
-#         tp.spanner.overlap_join(execs_df["person"], nodes["span"],
-#                                 "person", "span")
-#         .merge(nodes)
-#     )
-    
-#     # Identify the edges we want to traverse from the person nodes
-#     filtered_edges = edges[edges["dep"].isin(["appos", "compound"])]
-    
-#     # Transitive closure starting from our seed set of nodes and traversing 
-#     # the selected set of edges.
-#     selected_nodes = person_nodes.drop(columns="person").copy()
-#     previous_num_nodes = 0
-
-#     # Keep going as long as the previous round added nodes to our set.
-#     while len(selected_nodes.index) > previous_num_nodes:
-#         previous_num_nodes = len(selected_nodes.index)
-
-#         # Traverse one edge out from all nodes in `selected_nodes`
-#         addl_nodes = (
-#             selected_nodes[["id"]]
-#             .merge(filtered_edges, left_on="id", right_on="head", suffixes=["_head", ""])[["id"]]
-#             .merge(nodes)
-#         )
-
-#         # Add any previously unselected node to `selected_nodes`
-#         selected_nodes = pd.concat([selected_nodes, addl_nodes]).drop_duplicates()
-    
-#     # Take the parse tree nodes we added to the seed set and generate spans of titles
-#     title_nodes = selected_nodes[~selected_nodes["id"].isin(person_nodes["id"])]
-#     titles_df = (
-#         title_nodes
-#         .groupby("subject")
-#         .aggregate({"span": "sum"})
-#         .reset_index()
-#         .rename(columns={"span": "title"})
-#     )
-#     titles_df["subject"] = titles_df["subject"].astype(tp.SpanDtype())
-    
-#     execs_with_titles_df = pd.merge(execs_df, titles_df)
-#     return execs_with_titles_df
-
-# def merge_dataframes(url_to_df: Dict[str, pd.DataFrame]) -> pd.DataFrame:
-#     """
-#     :param: url_to_df: Mapping from document URL to a DataFrame of extraction results for that document
-#     """
-#     to_stack = []
-#     for url, df in url_to_df.items():
-#         if len(df.index) > 0:
-#             to_stack.append(pd.DataFrame({
-#                 "url": url,
-#                 # Drop span location information and pass through strings
-#                 "subject": df["subject"].array.covered_text,
-#                 "person": df["person"].array.covered_text,
-#                 "title": df["title"].array.covered_text,
-#             }))
-#     return pd.concat(to_stack)
 
 
 from abc import ABC, abstractmethod
