@@ -13,18 +13,14 @@
 #  limitations under the License.
 #
 ###############################################################################
-# util.py
+# ensemble.py
 #
-# Cleaning utilities for finding errors in varied corpora
+# Cleaning utilities training and running ensembles of reduced models on BERT embeddings,
+# for use with analysis.py to identify potentially incorrect labels
 #
 
 import numpy as np
 import pandas as pd
-import sklearn.random_projection
-import sklearn.pipeline
-import sklearn.linear_model
-import sklearn.metrics
-
 import text_extensions_for_pandas as tp
 
 # Always run with the latest version of Text Extensions for Pandas
@@ -41,10 +37,11 @@ def train_reduced_model(
     n_components: int,
     seed: int,
     max_iter: int = 10000,
-) -> sklearn.base.BaseEstimator:
+):
     """
     Train a reduced-quality model by putting a Gaussian random projection in
     front of the multinomial logistic regression stage of the pipeline.
+    Requires `sklearn` and `ray` packages to run
 
     :param x_values: input embeddings for training set
     :param y_values: integer labels corresponding to embeddings
@@ -57,6 +54,10 @@ def train_reduced_model(
      input training data with the specified level of dimension reduction
      by random projection.
     """
+    import sklearn.pipeline
+    import sklearn.random_projection
+    import sklearn.linear_model
+
     reduce_pipeline = sklearn.pipeline.Pipeline(
         [
             (
@@ -89,6 +90,7 @@ def train_model_ensemble(
     Train an ensemble of reduced-quality models by putting a Gaussian
     random projection in front of the multinomial logistic regression
      stage of the pipelines for a set of models
+     requires `sklearn` and `ray` packages to run
 
     two lists are given of model sizes and seeds, and the power set
      of the two is the complete set ofparameters used to train the models
@@ -110,6 +112,7 @@ def train_model_ensemble(
     """
 
     import ray  # TODO: put a note about this in the docstring
+    import sklearn.pipeline
 
     # input logic
     if model_sizes is None:
@@ -176,6 +179,11 @@ def infer_on_df(
     :param iob: a boolean value, when set to true, additional logic for iob-formatted
      classes is activated
     :param embeddings_col: the column in `df` that contains BERT embeddings for that document
+    :returns: a Pandas DataFrame, mirroring df, and conaining three extra columns:
+        *  `'predicted_id'` with the id as predicted by the model of the categorical element
+        *  `'predicted_class'` containing the predicted categorical value corresponding to
+            predicted_id
+        *  `'raw_output'` a TensorArray containing the raw output vectors from the model
     """
     result_df = df.copy()
     raw_outputs = tp.TensorArray(predictor.predict_proba(result_df[embeddings_col]))
@@ -221,10 +229,18 @@ def infer_and_extract_raw_entites(
     :param raw_span_id_col: the name of the column of `doc` containing some identifier of the raw
       token that each bert token came from.
     :param agg_func: if specified, a function that takes in a series of tensorArrays and returns a
-      pandas-compatible type; used to aggregate the predictions of multiple subtokens when
+      Pandas-compatible type; used to aggregate the predictions of multiple subtokens when
       multiple subtokens all describe the same original token.
     :param keep_cols: any column that you wish to be carried over to the output dataframe, by default
       the column 'raw_span' is the only column to be carried over, if it exists.
+    :returns: a Pandas DataFrame containing a set of entities aligned with the orignal
+     tokenization of the document, containing the following columns:
+        * `'predicted_id'` the id number of the predicted element
+        *  `'raw_output'` a vector of prediction 'probabilities' from the model. If the
+           entity span covers multiple tokens, it is aggregated using agg_func
+        *  `'predicted_class'` the class of the entity, matching predicted_id, and converted
+            using `id_to_class_dict`
+        * any columns specified in `keep_cols`
     """
     if agg_func is None:
 
@@ -308,6 +324,12 @@ def extract_entities_iob(
      the tokens of those documents as spans.
     :param iob_col: the column containing the predicted iob values from the model
     :param entity_type_col: the column containing the predicted element types from the model
+    :returns: a Pandas DataFrame containing the extracted entities from the predicted iob
+     tags, with each iob-labelled element as its own line, and with the following columns:
+      * `'span'` containing the spans of the entities flagged by the model
+      * `'ent_type'` with the predicted type of the flagged entity
+      as well as two columns containing the fold and doc numbers for each element, using
+      the same names specified in `fold_col` and `doc_col` respecively
     """
 
     # create predicted spans using inference
@@ -330,6 +352,7 @@ def extract_entities_iob(
         pred_aligned_doc = tp.io.bert.align_bert_tokens_to_corpus_tokens(
             pred_spans, raw_docs[fold][doc_num].rename({raw_docs_span_col_name: "span"})
         )
+        pred_aligned_doc.rename(columns={"ent_type": entity_type_col})
         pred_aligned_doc[[fold_col, doc_col]] = [fold, doc_num]
         pred_dfs.append(pred_aligned_doc)
     result_df = pd.concat(pred_dfs)
@@ -369,6 +392,14 @@ def infer_and_extract_entities_iob(
     :param predict_on_col: the name of the column of `doc` containing the BERT embedding of that token
     :param raw_docs_span_col_name: the name of the column of the documents in `raw_docs` containing
      the tokens of those documents as spans.
+    :returns: a Pandas DataFrame containing the predicted entities from the model,
+      converted from iob format with each element as its own line,
+      and with the following columns:
+      * `'span'` containing the spans of the entities flagged by the model
+      * `'ent_type'` with the predicted type of the flagged entity
+      as well as two columns containing the fold and doc numbers for each element, using
+      the same names specified in `fold_col` and `doc_col` respecively
+
     """
 
     df = doc.copy()

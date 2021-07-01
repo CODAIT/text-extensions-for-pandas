@@ -15,13 +15,12 @@
 ###############################################################################
 # preprocess.py
 #
-# Cleaning utilities for finding errors in varied corpora
+# utilities for preparing a corpus for inference and cleaning using other submodules
+# of cleaning
 #
 
 import numpy as np
 import pandas as pd
-import transformers
-from transformers.file_utils import PANDAS_IMPORT_ERROR
 
 import text_extensions_for_pandas as tp
 from typing import *
@@ -43,7 +42,7 @@ def preprocess_doc_with_bert(
     iob_col=None,
 ):
     """
-    Translates a single document in the form of a pandas DataFrame from standard spans into BERT compatible spans,
+    Translates a single document in the form of a Pandas DataFrame from standard spans into BERT compatible spans,
     and calculates BERT embeddings over that text, carries over iob spans properly, as well as any additional
     information specified, on a token-by-token basis, and ensures that iob-spans are treated properly
     :param document: a PandasDataframe as produced by :func:`tp.io.conll.conll_2003_to_documents`.
@@ -56,9 +55,9 @@ def preprocess_doc_with_bert(
                        PreTrainingTokenizerFast which supports `encode_plus` with
                        return_offsets_mapping=True.
                        A default tokenizer will be used if this is `None` or not specified
-    :param token_col: the column in the each of the dataframes in `doc` containing the spans
-     for each individual token
-    :param label_col: the name of the pandas column `document` containing the label
+    :param token_col: the column in the each of the dataframes in `document` containing
+     the spans for each individual token
+    :param label_col: the name of the Pandas column `document` containing the label
      over which you wish to classify (or identify incorrect elements). If using iob format
      this should be the entity type label, not the IOB label
     :param iob_col: if in iob format this must be specified. The column containing the IOB
@@ -71,10 +70,11 @@ def preprocess_doc_with_bert(
     bert_toks = tp.io.bert.make_bert_tokens(
         document.loc[0, token_col].target_text, tokenizer
     )
-    raw_tok_spans = (
-        tp.TokenSpanArray.align_to_tokens(bert_toks["span"], document[token_col])
-        .as_frame()
-        .drop(columns=["begin", "end", "covered_text"])
+    raw_tok_span_array = tp.TokenSpanArray.align_to_tokens(
+        bert_toks["span"], document[token_col]
+    )
+    raw_tok_span_ziplist = zip(
+        raw_tok_span_array.begin_token, raw_tok_span_array.end_token
     )
     # add label and token if not already added
     carry_cols = keep_cols.copy()
@@ -87,11 +87,12 @@ def preprocess_doc_with_bert(
 
     # because bert toks already has a token column of its own we need to rename this one to differentiate it.
     carry_cols_targ = [col if col != token_col else "raw_span" for col in carry_cols]
-    raw_tok_spans[carry_cols_targ] = document[carry_cols]
-    for i, b_tok, e_tok, *carrys in raw_tok_spans.itertuples():
-        bert_toks.loc[b_tok : e_tok - 1, carry_cols_targ + ["raw_span_id"]] = carrys + [
-            i
-        ]
+    for tok_bounds, carry_vals in zip(
+        raw_tok_span_ziplist, document[carry_cols].itertuples()
+    ):
+        bert_toks.loc[
+            tok_bounds[0] : tok_bounds[1] - 1, carry_cols_targ + ["raw_span_id"]
+        ] = list(carry_vals[1:]) + [carry_vals[0]]
 
     # if we're in iob, we use inbuilt functions to handle beginnings specially
     if iob:
@@ -122,6 +123,8 @@ def preprocess_documents(
     show_jupyter_progress_bar=True,
     default_label_type=None,
     return_docs_as_dict=False,
+    classes_list=None,
+    classes_misc_val=None,
 ):
     """
     Take a dictionary of fold->list of documents as input, and run the full preprocessing
@@ -129,11 +132,12 @@ def preprocess_documents(
     format and carries over any important information regarding it.
     It converts the label_col to a categorical dtype (allowing for iob if necessary) and
     uses the mapped outputs to create an id for each category
+    Note: this function requires the `transformers` library to run.
     :param docs: Mapping from fold name ("train", "test", etc.) to
      list of per-document DataFrames as produced by :func:`tp.io.conll.conll_2003_to_documents`.
      or :func:`tp.io.conll_u_to_documents` All DataFrames must contain a column containing
      `span` elements and some form of label column, or two if IOB format is being used.
-    :param label_col: the name of the pandas column in each DataFrame containing the label
+    :param label_col: the name of the Pandas column in each DataFrame containing the label
      over which you wish to classify (or identify incorrect elements). If using iob format
      this should be the entity type label, not the in out boundary label
     :param iob_format: boolean label indicating if the labels are in iob format or not.
@@ -157,6 +161,8 @@ def preprocess_documents(
      on the specific classification task you are doing.
 
     """
+    import transformers
+
     # input logic for default label type. Defaults to 'O' for iob, and 'X' otherwise
     if default_label_type is None:
         default_label_type = "O" if iob_format else "X"
@@ -204,9 +210,10 @@ def preprocess_documents(
     # Now combine docs, into a single large dataframe
     corpus_df = tp.io.conll.combine_folds(bert_docs_by_fold)
     # and finally, translate the label column
-    classes_list = list(
-        corpus_df.loc[corpus_df[label_col].notnull(), label_col].unique()
-    )
+    if classes_list is None:
+        classes_list = list(
+            corpus_df.loc[corpus_df[label_col].notnull(), label_col].unique()
+        )
 
     if default_label_type not in classes_list and not iob_format:
         classes_list.append(default_label_type)
@@ -243,7 +250,11 @@ def preprocess_documents(
                     )
 
     else:
+        # fill in missing or not in spec values
         corpus_df[label_col].fillna(default_label_type, inplace=True)
+        if classes_misc_val is not None:
+            indexes = ~corpus_df[label_col].isin(classes_list)
+            corpus_df.loc[indexes, label_col] = classes_misc_val
         # create dtypes
         classes_dtype = pd.CategoricalDtype(categories=classes_list)
         classes_dict = {dtype: i for i, dtype in enumerate(classes_list)}

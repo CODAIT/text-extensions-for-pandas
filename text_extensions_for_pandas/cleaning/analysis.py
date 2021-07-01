@@ -13,19 +13,13 @@
 #  limitations under the License.
 #
 ###############################################################################
-# util.py
+# analysis.py
 #
-# Cleaning utilities for finding errors in varied corpora
-#
+# Cleaning utilities for analyzing model outputs and flagging potentially incorrect
+# labels
 
 import numpy as np
 import pandas as pd
-import sklearn.random_projection
-import sklearn.pipeline
-import sklearn.linear_model
-import sklearn.metrics
-import transformers
-from transformers.utils.dummy_pt_objects import torch_distributed_zero_first
 
 import text_extensions_for_pandas as tp
 
@@ -41,12 +35,12 @@ def create_f1_score_report(
     predicted_features: Dict[str, pd.DataFrame],
     corpus_label_col: str,
     predicted_label_col: str,
-    print_output: bool = False,
 ):
     """
     Takes in a set of non-IOB formatted documents such as those returned by
     `infer_and_extract_entities` as well as two column names and returns a
-    pandas DataFrame with the per-category precision, recall and F1 scores.
+    Pandas DataFrame with the per-category precision, recall and F1 scores.
+    Requires sklearn.metrics.
     if desired, a printout of the dataframe is printed as output.
     :param predicted_features: a DataFrame containing predicted outputs from
       the model, as well as the corpus labels for those same elements
@@ -54,12 +48,13 @@ def create_f1_score_report(
       contains the corpus labels for the entitity types
     :param predicted_label_col: the name of the `predicted_features` column that
       contains the predicted labels for the entitity types
-    :param print_output: if true, the dataframe will be printed.
     :returns: A dataframe containing four columns: `'precision'`, `'recall;`
       `'f1-score'` and `'support'` with one row for each entity type, as well as
       three additional rows containing accuracy, micro averaged and macro averaged
       scores.
     """
+    import sklearn.metrics
+
     df = pd.DataFrame(
         sklearn.metrics.classification_report(
             predicted_features[corpus_label_col],
@@ -68,8 +63,6 @@ def create_f1_score_report(
             zero_division=0,
         )
     ).transpose()
-    if print_output:
-        print(df)
     return df
 
 
@@ -84,10 +77,11 @@ def create_f1_score_report_iob(
     Calculates precision, recall and F1 scores for the given predicted elements and model
     entities. This function has two modes. In normal operation it calculates classs-wise
     precision, recall and accuacy figures, as well as global averaged metrics, and r
-    eturns them as a pandas DataFrame In the 'Simple' mode, calculates micro averaged
+    eturns them as a Pandas DataFrame In the 'Simple' mode, calculates micro averaged
     precision recall and F1 scorereturns them as a dictionary.
     :param predicted_ents: entities returned from the predictions of the model, in the
-     form of a pandas DataFrame, with one entity per line, and some sort of 'type' column
+     form of a Pandas DataFrame, with one entity per line, and some sort of 'type' column
+     with a name specified in `entity_type_col_name`
     :param corpus_ents: the ground truth entities from the model, with one entity per line
      and some sort of entity type columns
     :param span_id_col_names: a list of column names which by themselves will be sufficent
@@ -96,13 +90,13 @@ def create_f1_score_report_iob(
      and `infer_and_extract_entities_iob` from this module
     :param entity_type_col_name: the name of a column in both entity DataFrames that identifies
      the type of the element.
-    :param simple: by default `false`. If `false`, a pandas DataFrame is returned
+    :param simple: by default `false`. If `false`, a Pandas DataFrame is returned
       with four columns: `'precision'`, `'recall;`,`'f1-score'` and `'support'`
       with one row for each entity type, as well as two additional rows
       micro averaged and macro averaged scores.
       If  `true`, an dictionary with three elements `'precision'` `'recall'` and `'f1-score'`
       is returned.
-    :returns: If `simple` is `false`, a pandas DataFrame is returned
+    :returns: If `simple` is `false`, a Pandas DataFrame is returned
       with four columns: `'precision'`, `'recall;`,`'f1-score'` and `'support'`
       with one row for each entity type, as well as two additional rows
       micro averaged and macro averaged scores.
@@ -110,6 +104,19 @@ def create_f1_score_report_iob(
       is returned.
     """
     # use an inner join to count the number of identical elts.
+    # TODO: create a regression test to check zero-predicted-ents Behaviour
+    if predicted_ents.shape[0] == 0:
+        if simple:
+            return {"precision": 0, "recall": 0, "f1-score": 0}
+        else:
+            zero_by_rows = {name: 0 for name in ["Macro-avg", "Micro-avg"]}
+            zeros_df = pd.DataFrame(
+                {
+                    name: zero_by_rows
+                    for name in ["precision", "recall", "f1-score", "support"]
+                }
+            )
+            return zeros_df
     inner = predicted_ents.copy().merge(
         corpus_ents, on=span_id_col_names + [entity_type_col_name], how="inner"
     )
@@ -171,20 +178,20 @@ def create_f1_report_ensemble_iob(
     """
     Given an ensemble of model predictions (in the form of entities) and ground truth
     labels creates a precision-recall-f1_score report for each model, and returns the
-    output as a pandas DataFrame. The outputs are of the same form as the simple output
+    output as a Pandas DataFrame. The outputs are of the same form as the simple output
     from :func:`create_f1_score_report_iob`
     :param predicted_ents_by_model: a dictionary from model name (or other unique
      identifier) to outputs as produced by
      :func:`cleaning.ensenble.infer_and_extract_entities_iob` or analagous.
      Must have one of each column in `span_id_col_names` and some entity type column
-    :param corpus_ents: the entities given in the corpus. in the form of a pandas DataFrame
+    :param corpus_ents: the entities given in the corpus. in the form of a Pandas DataFrame
      Must have one of each column name in `span_id_col_names` and `entity_type_col_name`
      Can be produced by :func: `cleaning.preprocess.combine_raw_spans_docs`
     :param span_id_col_names: a list column names in all input dataFrames by which each
      span may be uniquely identified. By default, `["fold", "doc_num", "span"]`
     :param entity_type_col_name: the name of the column in the input DataFrames containing
      the entity type labels for each entity.
-    :returns: a pandas DataFrame with indices of the model names, and columns
+    :returns: a Pandas DataFrame with indices of the model names, and columns
      `'precision'` `'recall'` and `'f1-score'`
     """
     reports = {
@@ -216,7 +223,7 @@ def flag_suspicious_labels(
      correspond to with the respective elements in the raw corpus labels. It then
      aggregates these model results according to their values and whether or not they
      agree with the corpus.
-    :returns: two pandas DataFrames:
+    :returns: two Pandas DataFrames:
       * `in_gold`: A DataFrame listing Elements in the corpus but with low agreement
         among the models, sorted by least agreement upwards
       * `not_in_gold`: a DataFrame listing elements that are not in the corpus labels
