@@ -235,7 +235,7 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                 
                 if region["type"] == RegionType.COMPLEX:
                     context_html.append(f"""
-                        <mark class='complex-set' style='
+                        <span class='mark complex-set' style='
                             padding:0.4em;
                             border-radius:0.35em;
                             background:linear-gradient(to right, #a0c4ff, #ffadad);
@@ -249,7 +249,7 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                                 margin-left: 8px;
                                 text-transform: uppercase;
                                 '>Set</span>
-                        </mark>
+                        </span>
                     """)
 
                 elif region["type"] == RegionType.NESTED:
@@ -262,20 +262,20 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
 
                         mark_html.append(f"""
                             {_get_sanitized_text(document.document_text[nested_snippet_begin:nested_span["begin"]])}
-                            <mark style='
+                            <span class='mark' style='
                                 padding:0.2em 0.4em;
                                 border-radius:0.35em;
                                 background-color: #ffadad
-                                '>{_get_sanitized_text(document.document_text[nested_span["begin"]:nested_span["end"]])}</mark>
+                                '>{_get_sanitized_text(document.document_text[nested_span["begin"]:nested_span["end"]])}</span>
                         """)
                         nested_snippet_begin = nested_span["end"]
                     context_html.append(f"""
-                        <mark style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff'>{"".join(mark_html)}</mark>
+                        <span class='mark' style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff'>{"".join(mark_html)}</span>
                     """)
 
                 elif region["type"] == RegionType.SOLO:
                     context_html.append(f"""
-                        <mark style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff'>{_get_sanitized_text(document.document_text[region["begin"]:region["end"]])}</mark>
+                        <span class='mark' style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff'>{_get_sanitized_text(document.document_text[region["begin"]:region["end"]])}</span>
                     """)
 
                 snippet_begin = region["end"]
