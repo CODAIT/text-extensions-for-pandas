@@ -1,11 +1,11 @@
 // Increment the version to invalidate the cached script
-const VERSION = 0.76
+const VERSION = 0.75
+const global_stylesheet = document.head.querySelector("style.span-array-css")
+const local_stylesheet = document.currentScript.parentElement.querySelector("style.span-array-css")
 
 if(window.SpanArray == undefined || window.SpanArray.VERSION == undefined || window.SpanArray.VERSION < VERSION) {
 
     // Replace global SpanArray CSS with latest copy
-    const global_stylesheet = document.head.querySelector("style.span-array-css")
-    const local_stylesheet = document.currentScript.parentElement.querySelector("style.span-array-css")
     if(local_stylesheet != undefined) {
         if(global_stylesheet != undefined) {
             document.head.removeChild(global_stylesheet)
@@ -385,17 +385,18 @@ if(window.SpanArray == undefined || window.SpanArray.VERSION == undefined || win
             if(closest_tr == undefined) return
 
             const matching_span = doc_object.lookup_table[closest_tr.getAttribute("data-id")]
+            if(matching_span == undefined) return
 
             switch(closest_control_button.getAttribute("data-control")) {
                 case "visibility":
                     {
-                        if(matching_span != undefined) matching_span.visible = !matching_span.visible
+                        matching_span.visible = !matching_span.visible
                         source_spanarray.render()
                     }
                     break;
                 case "highlight":
                     {
-                        if(matching_span != undefined) matching_span.highlighted = !matching_span.highlighted
+                        matching_span.highlighted = !matching_span.highlighted
                         source_spanarray.render()
                     }
                     break;
@@ -437,9 +438,7 @@ if(window.SpanArray == undefined || window.SpanArray.VERSION == undefined || win
 } else {
     // SpanArray JS is already defined and not an outdated copy
     // Replace global SpanArray CSS with latest copy IFF global stylesheet is undefined
-
-    const global_stylesheet = document.head.querySelector("style.span-array-css")
-    const local_stylesheet = document.currentScript.parentElement.querySelector("style.span-array-css")
+    
     if(local_stylesheet != undefined) {
         if(global_stylesheet == undefined) {
             document.head.appendChild(local_stylesheet)
