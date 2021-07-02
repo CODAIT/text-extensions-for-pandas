@@ -158,21 +158,9 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
     for column_index in range(min(_DOCUMENT_DISPLAY_LIMIT, len(documents))):
         document = documents[column_index]
 
-        # Generate the table rows DOM string from span data.
-        table_rows_html = []
-        for span in document:
-            table_rows_html.append(f"""
-                <tr>
-                    <td></td>
-                    <td></td>
-                    <td>{span.begin}</td>
-                    <td>{span.end}</td>
-                    <td>{_get_sanitized_text(document.document_text[span.begin:span.end])}</td>
-                </tr>
-            """)
-        spans = {}
 
         # Generate a dictionary to store span information, including relationships with spans occupying the same region.
+        spans = {}
         for i in range(len(document)):
 
             span_data = {}
@@ -192,6 +180,21 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                         span_data["sets"].append({"type": SetType.OVERLAP, "id": j})
 
             spans[i] = span_data
+
+
+        # Generate the table rows DOM string from span data.
+        table_rows_html = []
+        for i in range(len(spans)):
+            span = spans[i]
+            table_rows_html.append(f"""
+                <tr>
+                    <td><b>{span["id"]}</b></td>
+                    <td>{span["begin"]}</td>
+                    <td>{span["end"]}</td>
+                    <td>{_get_sanitized_text(document.document_text[span["begin"]:span["end"]])}</td>
+                </tr>
+            """)
+
 
         # Generate the regions of the document_text to highlight from span data.
         mark_regions = []
@@ -235,10 +238,11 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                 
                 if region["type"] == RegionType.COMPLEX:
                     context_html.append(f"""
-                        <span class='mark complex-set' style='
+                        <span class='mark highlight complex-set' style='
                             padding:0.4em;
                             border-radius:0.35em;
                             background:linear-gradient(to right, #a0c4ff, #ffadad);
+                            color: black;
                             '>{_get_sanitized_text(document.document_text[region["begin"]:region["end"]])}
                             <span class='mark-tag' style='
                                 font-weight: bolder;
@@ -248,6 +252,7 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                                 font-variant-caps: all-small-caps;
                                 margin-left: 8px;
                                 text-transform: uppercase;
+                                color: black;
                                 '>Set</span>
                         </span>
                     """)
@@ -262,20 +267,21 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
 
                         mark_html.append(f"""
                             {_get_sanitized_text(document.document_text[nested_snippet_begin:nested_span["begin"]])}
-                            <span class='mark' style='
+                            <span class='mark highlight' style='
                                 padding:0.2em 0.4em;
                                 border-radius:0.35em;
-                                background-color: #ffadad
+                                background-color: #ffadad;
+                                color: black;
                                 '>{_get_sanitized_text(document.document_text[nested_span["begin"]:nested_span["end"]])}</span>
                         """)
                         nested_snippet_begin = nested_span["end"]
                     context_html.append(f"""
-                        <span class='mark' style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff'>{"".join(mark_html)}</span>
+                        <span class='mark highlight' style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff;color:black;'>{"".join(mark_html)}</span>
                     """)
 
                 elif region["type"] == RegionType.SOLO:
                     context_html.append(f"""
-                        <span class='mark' style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff'>{_get_sanitized_text(document.document_text[region["begin"]:region["end"]])}</span>
+                        <span class='mark highlight' style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff;color:black;'>{_get_sanitized_text(document.document_text[region["begin"]:region["end"]])}</span>
                     """)
 
                 snippet_begin = region["end"]
@@ -291,7 +297,6 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                     border-collapse: collapse;
                     '>
                     <thead style='font-variant-caps: all-petite-caps;'>
-                        <th></th>
                         <th></th>
                         <th>begin</th>
                         <th>end</th>
