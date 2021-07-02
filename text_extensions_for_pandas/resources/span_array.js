@@ -1,5 +1,5 @@
 // Increment the version to invalidate the cached script
-const VERSION = 0.75
+const VERSION = 0.76
 
 if(window.SpanArray == undefined || window.SpanArray.VERSION == undefined || window.SpanArray.VERSION < VERSION) {
 
