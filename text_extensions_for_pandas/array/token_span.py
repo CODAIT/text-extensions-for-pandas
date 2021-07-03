@@ -29,7 +29,15 @@ import pandas as pd
 from memoized_property import memoized_property
 # noinspection PyProtectedMember
 from pandas.api.types import is_bool_dtype
-from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
+from pandas.core.dtypes.generic import ABCDataFrame, ABCSeries
+try:
+    from pandas.core.dtypes.generic import ABCIndexClass
+except ImportError:
+    # ABCIndexClass changed to ABCIndex in Pandas 1.3
+    # noinspection PyUnresolvedReferences
+    from pandas.core.dtypes.generic import ABCIndex
+    ABCIndexClass = ABCIndex
+
 from pandas.core.indexers import check_array_indexer
 
 from text_extensions_for_pandas.array.span import (

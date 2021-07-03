@@ -29,7 +29,14 @@ from typing import *
 import numpy as np
 import pandas as pd
 from pandas.compat import set_function_name
-from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
+from pandas.core.dtypes.generic import ABCDataFrame, ABCSeries
+try:
+    from pandas.core.dtypes.generic import ABCIndexClass
+except ImportError:
+    # ABCIndexClass changed to ABCIndex in Pandas 1.3
+    # noinspection PyUnresolvedReferences
+    from pandas.core.dtypes.generic import ABCIndex
+    ABCIndexClass = ABCIndex
 from pandas.core.indexers import check_array_indexer, validate_indices
 
 """ Begin Patching of ExtensionArrayFormatter """
