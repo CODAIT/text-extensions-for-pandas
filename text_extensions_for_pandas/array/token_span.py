@@ -138,8 +138,12 @@ class TokenSpan(Span, TokenSpanOpMixin):
             )
         if end_token > len(tokens) + 1:
             raise ValueError(
-                f"End token offset of {begin_token} larger than "
+                f"End token offset of {end_token} larger than "
                 f"number of tokens + 1 ({len(tokens)} + 1)"
+            )
+        if len(tokens) == 0 and begin_token != TokenSpan.NULL_OFFSET_VALUE:
+            raise ValueError(
+                f"Tried to create a non-null TokenSpan over an empty list of tokens."
             )
         if TokenSpan.NULL_OFFSET_VALUE == begin_token:
             if TokenSpan.NULL_OFFSET_VALUE != end_token:
@@ -479,6 +483,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
                 ((isinstance(value, Sequence) and isinstance(value[0], TokenSpan)) or
                  isinstance(value, TokenSpanArray))):
             for k, v in zip(key, value):
+                self._tokens[k] = v.tokens
                 self._begin_tokens[k] = v.begin_token
                 self._end_tokens[k] = v.end_token
         else:
@@ -615,7 +620,8 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        return self.nulls_mask
+        # isna() of an ExtensionArray must return a copy that the caller can scribble on.
+        return self.nulls_mask.copy()
 
     def copy(self) -> "TokenSpanArray":
         """
@@ -967,6 +973,9 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         :return: True if every span in this array is over the same target text
          or if there are zero spans in this array.
         """
+        # NOTE: For legacy reasons, this method is currently inconsistent with the method
+        # by the same name in SpanArray. TokenSpanArray.is_single_document() returns
+        # True on an empty array, while SpanArray.is_single_document() returns False.
         if len(self) == 0:
             # If there are zero spans, we consider there to be one document with the
             # document text being whatever is the document text for our tokens.
@@ -974,7 +983,21 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         else:
             # More than one tokenization and at least one span. Check whether
             # every span has the same text.
-            return not np.any(self.target_text[0] != self.target_text)
+
+            # Find the first text ID that is not NA
+            first_text_id = None
+            for b, t in zip(self._begins, self._text_ids):
+                if b != Span.NULL_OFFSET_VALUE:
+                    first_text_id = t
+                    break
+            if first_text_id is None:
+                # Special case: All NAs --> Zero documents
+                return True
+            return not np.any(np.logical_and(
+                # Row is not null...
+                np.not_equal(self._begins, Span.NULL_OFFSET_VALUE),
+                # ...and is over a different text than the first row's text ID
+                np.not_equal(self._text_ids, first_text_id)))
 
     def split_by_document(self) -> List["SpanArray"]:
         """
