@@ -1051,14 +1051,23 @@ class TestPandasArithmeticOps(base.BaseArithmeticOpsTests):
         s = pd.Series(data[1:])  # Avoid zero values for div
         self.check_opname(s, op_name, s.iloc[0], exc=self.series_scalar_exc)
 
+    def test_arith_frame_with_scalar(self, data, all_arithmetic_operators):
+        """ Override to prevent div by zero warning."""
+        # frame & scalar
+        op_name = all_arithmetic_operators
+        df = pd.DataFrame({"A": data[1:]})  # Avoid zero values for div
+        self.check_opname(df, op_name, data[0], exc=self.frame_scalar_exc)
+
     def test_arith_series_with_array(self, data, all_arithmetic_operators):
-        """ Override because creates Series from list of TensorElements as dtype=object."""
+        """ Override because creates Series from list of TensorElements as
+        dtype=object."""
         # ndarray & other series
         op_name = all_arithmetic_operators
         s = pd.Series(data[1:])  # Avoid zero values for div
         self.check_opname(
             s, op_name, pd.Series([s.iloc[0]] * len(s), dtype=TensorDtype()), exc=self.series_array_exc
         )
+
 
     @pytest.mark.skip(reason="TensorArray does not error on ops")
     def test_error(self, data, all_arithmetic_operators):
