@@ -523,8 +523,8 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `Extension   Array` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        # Return scalar if single value is selected, a TensorElement for single array element,
-        # or TensorArray for slice
+        # Return scalar if single value is selected, a TensorElement for single array
+        # element, or TensorArray for slice
         if isinstance(item, int):
             value = self._tensor[item]
             if np.isscalar(value):
@@ -532,6 +532,15 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             else:
                 return TensorElement(value)
         else:
+            # BEGIN workaround for Pandas issue #42430
+            if (pd.__version__ == "1.3.0" and isinstance(item, tuple) and len(item) > 1
+                    and item[0] == Ellipsis):
+                if len(item) > 2:
+                    # Hopefully this case is not possible, but can't be sure
+                    raise ValueError(f"Workaround Pandas issue #42430 not implemented "
+                                     f"for tuple length > 2")
+                item = item[1]
+            # END workaround for issue #42430
             if isinstance(item, TensorArray):
                 item = np.asarray(item)
             item = check_array_indexer(self, item)
