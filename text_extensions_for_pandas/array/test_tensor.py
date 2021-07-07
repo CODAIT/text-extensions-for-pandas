@@ -1015,7 +1015,11 @@ class TestPandasGetitem(base.BaseGetitemTests):
 
 
 class TestPandasSetitem(base.BaseSetitemTests):
-    pass
+    # Temporarily disabled until Pandas issue #42437 is fixed
+    # See Text Extensions for Pandas issue #221 for a workaround.
+    @pytest.mark.skip(reason="See Pandas issue #42437")
+    def test_setitem_series(self, data, full_indexer):
+        super().test_setitem_series(data, full_indexer)
 
 
 class TestPandasMissing(base.BaseMissingTests):
