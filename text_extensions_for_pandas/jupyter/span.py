@@ -161,6 +161,7 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
 
         # Generate a dictionary to store span information, including relationships with spans occupying the same region.
         spans = {}
+        sorted_span_ids = []
         for i in range(len(document)):
 
             span_data = {}
@@ -168,18 +169,28 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
             span_data["begin"] = document[i].begin
             span_data["end"] = document[i].end
             span_data["sets"] = []
+            spans[i] = span_data
 
-            for j in range(i+1, len(document)):
+            sorted_span_ids.append(i)
+
+        # Sort IDs
+        sorted_span_ids.sort(key=lambda id: (spans[id]["begin"], -spans[id]["end"]))
+
+        for i in range(len(sorted_span_ids)):
+            span_data = spans[sorted_span_ids[i]]
+
+            for j in range(i+1, len(sorted_span_ids)):
+                sub_span_data = spans[sorted_span_ids[j]]
                 # If the spans do not overlap, exit the sub-loop
-                if(document[j].begin >= document[i].end):
+                if(sub_span_data["begin"] >= span_data["end"]):
                     break
                 else:
-                    if(document[j].end <= document[i].end):
-                        span_data["sets"].append({"type": SetType.NESTED, "id": j})
+                    if(sub_span_data["end"] <= span_data["end"]):
+                        span_data["sets"].append({"type": SetType.NESTED, "id": sub_span_data["id"]})
                     else:
-                        span_data["sets"].append({"type": SetType.OVERLAP, "id": j})
+                        span_data["sets"].append({"type": SetType.OVERLAP, "id": sub_span_data["id"]})
 
-            spans[i] = span_data
+            spans[sorted_span_ids[i]] = span_data
 
 
         # Generate the table rows DOM string from span data.
