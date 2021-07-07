@@ -249,7 +249,7 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                 
                 if region["type"] == RegionType.COMPLEX:
                     context_html.append(f"""
-                        <span class='mark highlight complex-set' style='
+                        <span class='mark btn-info complex-set' style='
                             padding:0.4em;
                             border-radius:0.35em;
                             background:linear-gradient(to right, #a0c4ff, #ffadad);
@@ -278,7 +278,7 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
 
                         mark_html.append(f"""
                             {_get_sanitized_text(document.document_text[nested_snippet_begin:nested_span["begin"]])}
-                            <span class='mark highlight' style='
+                            <span class='mark btn-warning' style='
                                 padding:0.2em 0.4em;
                                 border-radius:0.35em;
                                 background-color: #ffadad;
@@ -286,13 +286,14 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                                 '>{_get_sanitized_text(document.document_text[nested_span["begin"]:nested_span["end"]])}</span>
                         """)
                         nested_snippet_begin = nested_span["end"]
+                    mark_html.append(_get_sanitized_text(document.document_text[nested_snippet_begin:region["end"]]))
                     context_html.append(f"""
-                        <span class='mark highlight' style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff;color:black;'>{"".join(mark_html)}</span>
+                        <span class='mark btn-primary' style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff;color:black;'>{"".join(mark_html)}</span>
                     """)
 
                 elif region["type"] == RegionType.SOLO:
                     context_html.append(f"""
-                        <span class='mark highlight' style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff;color:black;'>{_get_sanitized_text(document.document_text[region["begin"]:region["end"]])}</span>
+                        <span class='mark btn-primary' style='padding:0.4em;border-radius:0.35em;background-color: #a0c4ff;color:black;'>{_get_sanitized_text(document.document_text[region["begin"]:region["end"]])}</span>
                     """)
 
                 snippet_begin = region["end"]
