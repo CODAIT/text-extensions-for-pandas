@@ -482,6 +482,11 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
                 return dtype.construct_array_type()._from_sequence(values, copy=False)
             else:
                 return values
+        elif pd.api.types.is_object_dtype(dtype):
+            # Interpret astype(object) as "cast to an array of numpy arrays"
+            values = np.empty(len(self), dtype=object)
+            for i in range(len(self)):
+                values[i] = self._tensor[i]
         else:
             values = self._tensor.astype(dtype, copy=copy)
         return values
