@@ -349,7 +349,12 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         for information about this method.
         """
         if self._tensor.dtype.type is np.object_:
-            return self._tensor == None
+            # Avoid comparing with __eq__ because the elements of the tensor may do
+            # something funny with that operation.
+            result_list = [
+                self._tensor[i] is None for i in range(len(self))
+            ]
+            return np.array(result_list, dtype=bool)
         elif self._tensor.dtype.type is np.str_:
             return np.all(self._tensor == "", axis=-1)
         else:
