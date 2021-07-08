@@ -31,12 +31,11 @@ from memoized_property import memoized_property
 from pandas.api.types import is_bool_dtype
 from pandas.core.dtypes.generic import ABCDataFrame, ABCSeries
 try:
-    from pandas.core.dtypes.generic import ABCIndexClass
+    from pandas.core.dtypes.generic import ABCIndex
 except ImportError:
     # ABCIndexClass changed to ABCIndex in Pandas 1.3
     # noinspection PyUnresolvedReferences
-    from pandas.core.dtypes.generic import ABCIndex
-    ABCIndexClass = ABCIndex
+    from pandas.core.dtypes.generic import ABCIndexClass as ABCIndex
 
 from pandas.core.indexers import check_array_indexer
 
@@ -504,7 +503,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
 
         :return: Returns a boolean mask indicating which rows match `other`.
         """
-        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndex)):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
         elif (isinstance(other, TokenSpanArray) and len(self) == len(other)

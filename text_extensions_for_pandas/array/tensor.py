@@ -31,12 +31,11 @@ import pandas as pd
 from pandas.compat import set_function_name
 from pandas.core.dtypes.generic import ABCDataFrame, ABCSeries
 try:
-    from pandas.core.dtypes.generic import ABCIndexClass
+    from pandas.core.dtypes.generic import ABCIndex
 except ImportError:
     # ABCIndexClass changed to ABCIndex in Pandas 1.3
     # noinspection PyUnresolvedReferences
-    from pandas.core.dtypes.generic import ABCIndex
-    ABCIndexClass = ABCIndex
+    from pandas.core.dtypes.generic import ABCIndexClass as ABCIndex
 from pandas.core.indexers import check_array_indexer, validate_indices
 
 """ Begin Patching of ExtensionArrayFormatter """
@@ -219,7 +218,7 @@ class TensorOpsMixin(pd.api.extensions.ExtensionScalarOpsMixin):
         def _binop(self, other):
             lvalues = self._tensor
 
-            if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+            if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndex)):
                 # Rely on pandas to unbox and dispatch to us.
                 return NotImplemented
 
