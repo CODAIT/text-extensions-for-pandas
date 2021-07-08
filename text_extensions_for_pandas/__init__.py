@@ -40,6 +40,7 @@ import text_extensions_for_pandas.array.accessor
 # Sub-modules
 from text_extensions_for_pandas import io
 from text_extensions_for_pandas import spanner
+from text_extensions_for_pandas import cleaning
 
 # Sphinx autodoc needs this redundant listing of public symbols to list the contents
 # of this subpackage.
@@ -47,5 +48,5 @@ __all__ = [
     "Span", "SpanDtype", "SpanArray",
     "TokenSpan", "TokenSpanDtype", "TokenSpanArray",
     "TensorElement", "TensorDtype", "TensorArray",
-    "io"
+    "io", 'cleaning'
 ]
