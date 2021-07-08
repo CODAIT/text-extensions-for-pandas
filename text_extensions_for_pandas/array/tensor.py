@@ -29,7 +29,14 @@ from typing import *
 import numpy as np
 import pandas as pd
 from pandas.compat import set_function_name
-from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
+from pandas.core.dtypes.generic import ABCDataFrame, ABCSeries
+try:
+    from pandas.core.dtypes.generic import ABCIndexClass
+except ImportError:
+    # ABCIndexClass changed to ABCIndex in Pandas 1.3
+    # noinspection PyUnresolvedReferences
+    from pandas.core.dtypes.generic import ABCIndex
+    ABCIndexClass = ABCIndex
 from pandas.core.indexers import check_array_indexer, validate_indices
 
 """ Begin Patching of ExtensionArrayFormatter """
@@ -342,7 +349,12 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         for information about this method.
         """
         if self._tensor.dtype.type is np.object_:
-            return self._tensor == None
+            # Avoid comparing with __eq__ because the elements of the tensor may do
+            # something funny with that operation.
+            result_list = [
+                self._tensor[i] is None for i in range(len(self))
+            ]
+            return np.array(result_list, dtype=bool)
         elif self._tensor.dtype.type is np.str_:
             return np.all(self._tensor == "", axis=-1)
         else:
@@ -475,6 +487,11 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
                 return dtype.construct_array_type()._from_sequence(values, copy=False)
             else:
                 return values
+        elif pd.api.types.is_object_dtype(dtype):
+            # Interpret astype(object) as "cast to an array of numpy arrays"
+            values = np.empty(len(self), dtype=object)
+            for i in range(len(self)):
+                values[i] = self._tensor[i]
         else:
             values = self._tensor.astype(dtype, copy=copy)
         return values
@@ -516,8 +533,8 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in `Extension   Array` class in `pandas/core/arrays/base.py`
         for information about this method.
         """
-        # Return scalar if single value is selected, a TensorElement for single array element,
-        # or TensorArray for slice
+        # Return scalar if single value is selected, a TensorElement for single array
+        # element, or TensorArray for slice
         if isinstance(item, int):
             value = self._tensor[item]
             if np.isscalar(value):
@@ -525,6 +542,15 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
             else:
                 return TensorElement(value)
         else:
+            # BEGIN workaround for Pandas issue #42430
+            if (pd.__version__ == "1.3.0" and isinstance(item, tuple) and len(item) > 1
+                    and item[0] == Ellipsis):
+                if len(item) > 2:
+                    # Hopefully this case is not possible, but can't be sure
+                    raise ValueError(f"Workaround Pandas issue #42430 not implemented "
+                                     f"for tuple length > 2")
+                item = item[1]
+            # END workaround for issue #42430
             if isinstance(item, TensorArray):
                 item = np.asarray(item)
             item = check_array_indexer(self, item)
