@@ -35,26 +35,11 @@
 }
 
 .span-array>.document>table thead {
-    background-color: var(--thead-background-color);
     font-variant-caps: all-petite-caps;
-    color: var(--thead-text-color);
 }
 
 .span-array>.document>table th {
     padding: 1em;
-}
-
-.span-array>.document>table>tbody>tr:nth-child(2n+1) {
-    background-color: var(--tbody-background-color-1);
-}
-
-.span-array>.document>table>tbody>tr:nth-child(2n) {
-    background-color: var(--tbody-background-color-2);
-}
-
-.span-array>.document>table td {
-    padding: 0.5em;
-    color: var(--tbody-text-color);
 }
 
 .span-array>.document>table tr>td:last-child, .span-array>.document>table tr>th:last-child {
@@ -64,10 +49,6 @@
 
 .span-array>.document>table tr>td:not(tr>td:last-child), .span-array>.document>table tr>th:not(tr>th:last-child) {
     text-align: left;
-}
-
-.span-array>.document>table tr.hover:nth-child(n), .span-array>.document>table tr.highlighted:nth-child(n) {
-    background-color: var(--tbody-background-color-hover);
 }
 
 .span-array>.document>table tr.disabled:nth-child(n), .span-array>.document>table tr.disabled.hover:nth-child(n) {
@@ -80,16 +61,16 @@
 
 /* Table control buttons */
 
-.span-array>.document>table td:first-child {
+.span-array>.document>table td.sa-table-controls-container {
     vertical-align: center;
 }
 
-.span-array>.document>table td:first-child>div.sa-table-controls {
+.span-array>.document>table div.sa-table-controls {
     display: flex;
     flex-direction: row;
 }
 
-.span-array>.document>table td:first-child button {
+.span-array>.document>table div.sa-table-controls button {
     background-color: var(--table-control-background);
     color: var(--table-control-color);
     border: var(--table-control-border);
@@ -98,26 +79,26 @@
     cursor: pointer;
 }
 
-.span-array>.document>table td:first-child button:first-child {
+.span-array>.document>table div.sa-table-controls button:first-child {
     border-radius: var(--table-control-border-radius) 0 0 var(--table-control-border-radius);
 }
 
-.span-array>.document>table td:first-child button:last-child {
+.span-array>.document>table div.sa-table-controls button:last-child {
     border-radius: 0 var(--table-control-border-radius) var(--table-control-border-radius) 0;
     border-right: var(--table-control-border);
 }
 
-.span-array>.document>table td:first-child button[data-control="visibility"]:hover {
+.span-array>.document>table div.sa-table-controls button[data-control="visibility"]:hover {
     background-color: var(--root-highlight);
     color: black;
 }
 
-.span-array>.document>table tr:not(tr.disabled) td:first-child button[data-control="highlight"]:hover {
+.span-array>.document>table tr:not(tr.disabled) div.sa-table-controls button[data-control="highlight"]:hover {
     background-color: var(--hover-highlight);
     color: black;
 }
 
-.span-array>.document>table tr.highlighted:not(tr.disabled) td:first-child button[data-control="highlight"] {
+.span-array>.document>table tr.highlighted:not(tr.disabled) div.sa-table-controls button[data-control="highlight"] {
     background-color: var(--hover-highlight);
     color: black;
 }
@@ -142,6 +123,10 @@ body[data-jp-theme-light="false"].span-array>.document>p {
     padding: 0.4em 0.4em;
     border-radius: 0.35em;
     cursor: pointer;
+}
+
+.span-array>.document>p .mark {
+    color: var(black);
 }
 
 .span-array>.document>p mark {
