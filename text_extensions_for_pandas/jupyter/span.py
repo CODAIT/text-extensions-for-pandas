@@ -139,7 +139,7 @@ def _get_escaped_doctext(column: Union["SpanArray", "TokenSpanArray"]) -> List[s
     for i in range(len(text)):
         if text[i] == "'":
             text_pieces.append("\\'")
-        if text[i] == "\n":
+        elif text[i] == "\n":
             text_pieces.append("\\n")
         else:
             text_pieces.append(text[i])
