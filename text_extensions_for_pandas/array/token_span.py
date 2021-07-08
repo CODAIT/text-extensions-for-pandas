@@ -983,20 +983,20 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
             # More than one tokenization and at least one span. Check whether
             # every span has the same text.
 
-            # Find the first text ID that is not NA
-            first_text_id = None
-            for b, t in zip(self._begins, self._text_ids):
+            # Find the first span that is not NA
+            first_target_text = None
+            for b, t in zip(self._begin_tokens, self.target_text):
                 if b != Span.NULL_OFFSET_VALUE:
-                    first_text_id = t
+                    first_target_text = t
                     break
-            if first_text_id is None:
+            if first_target_text is None:
                 # Special case: All NAs --> Zero documents
                 return True
             return not np.any(np.logical_and(
                 # Row is not null...
-                np.not_equal(self._begins, Span.NULL_OFFSET_VALUE),
+                np.not_equal(self._begin_tokens, Span.NULL_OFFSET_VALUE),
                 # ...and is over a different text than the first row's text ID
-                np.not_equal(self._text_ids, first_text_id)))
+                np.not_equal(self.target_text, first_target_text)))
 
     def split_by_document(self) -> List["SpanArray"]:
         """
