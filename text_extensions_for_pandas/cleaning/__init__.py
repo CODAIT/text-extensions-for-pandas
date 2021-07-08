@@ -14,10 +14,11 @@
 #
 
 ################################################################################
-# io module
+# cleaning module
 #
-# Functions in text_extensions_for_pandas that create DataFrames and convert
-# them to other formats.
+# Functions in text_extensions_for_pandas that allow for identification of 
+# possibly incorrect labels, and quick training of models on bert embeddings
+# of a corpus
 
 # Expose the public APIs that users should get from importing the top-level
 # library.
