@@ -127,6 +127,7 @@ fi
 # April 2021.
 conda install -y -c conda-forge jupyterlab
 conda install -y -c conda-forge/label/main nodejs
+conda install -y -c conda-forge jupyterlab-git
 
 ################################################################################
 # Install packages with pip
