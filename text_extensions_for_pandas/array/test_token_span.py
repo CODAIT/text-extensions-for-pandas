@@ -366,6 +366,19 @@ class TokenSpanArrayTest(ArrayTestBase):
         )
         self.assertEqual(len(df), len(arr))
 
+    def test_multi_doc(self):
+        arr1 = self._make_spans()
+
+        text2 = "Hello world."
+        tokens2 = SpanArray(text2, [0, 6], [5, 11])
+        arr2 = TokenSpanArray(tokens2, [0, 0], [1, 2])
+
+        series = pd.concat([pd.Series(arr1), pd.Series(arr2)])
+        self.assertFalse(series.array.is_single_document)
+        self.assertEqual(2, len(series.array.split_by_document()))
+        self._assertArrayEquals(arr1, series.array.split_by_document()[0])
+        self._assertArrayEquals(arr2, series.array.split_by_document()[1])
+
 
 @pytest.mark.skipif(LooseVersion(pa.__version__) < LooseVersion("2.0.0"),
                     reason="Nested dictionaries only supported in Arrow >= 2.0.0")
