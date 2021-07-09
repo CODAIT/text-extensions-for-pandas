@@ -139,6 +139,8 @@ def _get_escaped_doctext(column: Union["SpanArray", "TokenSpanArray"]) -> List[s
     for i in range(len(text)):
         if text[i] == "'":
             text_pieces.append("\\'")
+        elif text[i] == "\n":
+            text_pieces.append("\\n")
         else:
             text_pieces.append(text[i])
     return "".join(text_pieces)
@@ -384,6 +386,9 @@ def _get_sanitized_text(text: str) -> str:
             # Dollar sign messes up Jupyter's JavaScript UI.
             # Place dollar sign in its own sub-span to avoid being misinterpeted as a LaTeX delimiter
             text_pieces.append("<span>&#36;</span>")
+        elif text[i] == "\n" or text[i] == "\r":
+            # Support for in-document newlines by replacing with line break elements 
+            text_pieces.append("<br>")
         else:
             text_pieces.append(text[i])
     return "".join(text_pieces)

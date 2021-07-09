@@ -1,5 +1,5 @@
 // Increment the version to invalidate the cached script
-const VERSION = 0.75
+const VERSION = 0.76
 const global_stylesheet = document.head.querySelector("style.span-array-css")
 const local_stylesheet = document.currentScript.parentElement.querySelector("style.span-array-css")
 
@@ -29,11 +29,12 @@ if(window.SpanArray == undefined || window.SpanArray.VERSION == undefined || win
 
     function sanitize(input) {
         let out = input.slice();
-        out = out.replace("&", "&amp;")
-        out = out.replace("<", "&lt;")
-        out = out.replace(">", "&gt;")
-        out = out.replace("$", "&#36;")
-        out = out.replace("\"", "&quot;")
+        out = out.replace(/&/g, "&amp;")
+        out = out.replace(/</g, "&lt;")
+        out = out.replace(/>/g, "&gt;")
+        out = out.replace(/\$/g, "&#36;")
+        out = out.replace(/"/g, "&quot;")
+        out = out.replace(/(\r|\n)/g, "<br>")
         return out;
     }
 
@@ -257,7 +258,7 @@ if(window.SpanArray == undefined || window.SpanArray.VERSION == undefined || win
 
         let paragraph = document.createElement("p")
         if(highlight_regions.length == 0) {
-            paragraph.textContent = doc_text
+            paragraph.innerHTML = sanitize(doc_text)
         } else {
             let begin = 0
             highlight_regions.forEach(region => {
@@ -271,7 +272,7 @@ if(window.SpanArray == undefined || window.SpanArray.VERSION == undefined || win
                         mark.setAttribute("data-ids", mark.getAttribute("data-ids") + `#${id},`)
                         if(doc.lookup_table[id].highlighted) mark.classList.add("highlighted")
                     })
-                    mark.textContent = doc_text.substring(region.begin, region.end)
+                    mark.innerHTML = sanitize(doc_text.substring(region.begin, region.end))
                 } else {
                     mark.setAttribute("data-ids", `#${region.ids[0]},`)
                     if(doc.lookup_table[region.ids[0]].highlighted) mark.classList.add("highlighted")
@@ -282,7 +283,7 @@ if(window.SpanArray == undefined || window.SpanArray.VERSION == undefined || win
                         let nested_mark = document.createElement("mark")
                         nested_mark.setAttribute("data-ids", `#${nested_id},`)
                         if(nested_region.highlighted) nested_mark.classList.add("highlighted")
-                        nested_mark.textContent = doc_text.substring(nested_region.begin, nested_region.end)
+                        nested_mark.innerHTML = sanitize(doc_text.substring(nested_region.begin, nested_region.end))
                         nested_begin = nested_region.end
                         mark.appendChild(nested_mark)
                     })
