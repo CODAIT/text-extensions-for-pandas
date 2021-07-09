@@ -30,7 +30,13 @@ import pandas as pd
 from memoized_property import memoized_property
 # noinspection PyProtectedMember
 from pandas.api.types import is_bool_dtype
-from pandas.core.dtypes.generic import ABCDataFrame, ABCIndexClass, ABCSeries
+from pandas.core.dtypes.generic import ABCDataFrame, ABCSeries
+try:
+    from pandas.core.dtypes.generic import ABCIndex
+except ImportError:
+    # ABCIndexClass changed to ABCIndex in Pandas 1.3
+    # noinspection PyUnresolvedReferences
+    from pandas.core.dtypes.generic import ABCIndexClass as ABCIndex
 from pandas.core.indexers import check_array_indexer
 
 # Internal imports
@@ -75,7 +81,7 @@ class SpanOpMixin:
         :param other: Span or SpanArray
         :return: minimal span (or array of spans) that covers both inputs.
         """
-        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndex)):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
 
@@ -319,6 +325,7 @@ class SpanDtype(pd.api.extensions.ExtensionDtype):
         SpanArray.
         """
         from text_extensions_for_pandas.array.arrow_conversion import arrow_to_span
+
         return arrow_to_span(extension_array)
 
 
@@ -515,7 +522,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
 
         :return: Returns a boolean mask indicating which rows match `other`.
         """
-        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndex)):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
         if isinstance(other, Span):
@@ -542,7 +549,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
                              "'{}' and '{}'".format(type(self), type(other)))
 
     def __ne__(self, other):
-        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndex)):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
         return ~(self == other)
@@ -752,7 +759,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
          `other`. span1 < span2 if span1.end <= span2.begin and both spans are over
          the same target text.
         """
-        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndex)):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
         elif not isinstance(other, (Span, SpanArray)):
@@ -764,7 +771,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
             return np.logical_and(offsets_mask, text_mask)
 
     def __gt__(self, other):
-        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndexClass)):
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndex)):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
         if isinstance(other, (SpanArray, Span)):
@@ -862,15 +869,46 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         :return: True if there is at least one span in the and every span is over the
          same target text.
         """
+        # NOTE: For legacy reasons, this method is currently inconsistent with the method
+        # by the same name in TokenSpanArray. TokenSpanArray.is_single_document() returns
+        # True on an empty array, while SpanArray.is_single_document() returns false.
         if len(self) == 0:
             # If there are zero spans, then there are zero documents.
             return False
         elif self._string_table.num_things == 1:
-            return True
+            # Only one string; make sure that this array has a non-null value
+            for b in self._begins:
+                if b != Span.NULL_OFFSET_VALUE:
+                    return True
+            # All nulls --> zero spans
+            return False
         else:
-            # More than one string in the StringTable and at least one span. Check whether
-            # every span has the same text ID.
-            return not np.any(self._text_ids[0] != self._text_ids)
+            # More than one string in the StringTable and at least one span.
+            return self._is_single_document_slow_path()
+
+    def _is_single_document_slow_path(self) -> bool:
+        # Slow but reliable way to test whether everything in this SpanArray is from
+        # the same document.
+        # Checks whether every span has the same text ID.
+        # Ignores NAs when making this comparison.
+
+        # First we need to find the first text ID that is not NA
+        first_text_id = None
+        for b, t in zip(self._begins, self._text_ids):
+            if b != Span.NULL_OFFSET_VALUE:
+                first_text_id = t
+                break
+        if first_text_id is None:
+            # Special case: All NAs --> Zero documents
+            return False
+        return not np.any(
+            np.logical_and(
+                # Row is not null...
+                np.not_equal(self._begins, Span.NULL_OFFSET_VALUE),
+                # ...and is over a different text than the first row's text ID
+                np.not_equal(self._text_ids, first_text_id),
+            )
+        )
 
     def split_by_document(self) -> List["SpanArray"]:
         """
