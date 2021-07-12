@@ -20,6 +20,7 @@
 
 import numpy as np
 import pandas as pd
+from typing import *
 
 import text_extensions_for_pandas as tp
 
@@ -28,7 +29,6 @@ import importlib
 
 tp = importlib.reload(tp)
 
-from typing import *
 
 
 def create_f1_score_report(

@@ -269,7 +269,7 @@ def preprocess_documents(
         else:
             for fold in bert_docs_by_fold.keys():
                 for docnum in range(len(bert_docs_by_fold[fold])):
-                    bert_docs_by_fold[fold][docnum][iob_col].fillna(
+                    bert_docs_by_fold[fold][docnum][label_col].fillna(
                         default_label_type, inplace=True
                     )
                     bert_docs_by_fold[fold][docnum][
