@@ -1320,13 +1320,23 @@ def maybe_download_dataset_data(
     file_name = (
         alternate_name if alternate_name is not None else document_url.split("/")[-1]
     )
-    full_path = target_dir + file_name
+    full_path = target_dir +'/' + file_name
+    # if no directory exists, create one
+    if not os.path.exists(target_dir):
+        os.mkdir(target_dir)
 
     # special logic for zip files
     if document_url.split(".")[-1] == "zip" and (
         alternate_name is None or not os.path.exists(full_path)
     ):
-        with ZipFile(full_path, "r") as zipf:
+        # if we have a zip file already, don't re-download it 
+        zipPath = target_dir +'/'+ document_url.split("/")[-1]
+        if not os.path.exists(zipPath):
+            data = requests.get(document_url)
+            open(zipPath, "wb").write(data.content)
+        
+        # if need be, extract the zipfile documents 
+        with ZipFile(zipPath, "r") as zipf:
             fnames = zipf.namelist()
             if alternate_name is not None and alternate_name in fnames:
                 zipf.extract(alternate_name, target_dir)
@@ -1335,9 +1345,9 @@ def maybe_download_dataset_data(
                 if not os.path.exists(target_dir + fname):
                     zipf.extract(fname, target_dir)
         if len(fnames) == 1:
-            full_path = target_dir + fnames[0]
+            full_path = target_dir +'/'+ fnames[0]
         else:
-            return [target_dir + fname for fname in fnames]
+            return [target_dir + '/'+ fname for fname in fnames]
 
     # regular logic
     elif not os.path.exists(full_path):
