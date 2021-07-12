@@ -16,6 +16,9 @@
 import numpy as np
 import unittest
 import textwrap
+import os
+
+from pandas.core import base
 
 from text_extensions_for_pandas.io.conll import *
 from text_extensions_for_pandas.io.spacy import make_tokens_and_features
@@ -730,6 +733,43 @@ class CoNLLTest(unittest.TestCase):
                 "'precision': 0.775, 'recall': 0.775, 'F1': 0.775}"
             ),
         )
+
+    def test_maybe_download_dataset(self):
+        base_dir = "test_data/io/test_conll"
+        ewt_dir = base_dir + '/ewt'
+        conll9_dir = base_dir + '/conll9'
+        ewt_url = "https://github.com/UniversalDependencies/UD_English-EWT/blob/master/en_ewt-ud-dev.conllu"
+        conll_09_test_data_url =  'https://ufal.mff.cuni.cz/conll2009-st/trial/CoNLL2009-ST-English-trial.zip'
+        
+        #test download of file
+        val = maybe_download_dataset_data(ewt_dir,ewt_url)
+        self.assertEqual(val,ewt_dir + '/en_ewt-ud-dev.conllu')
+        self.assertTrue(os.path.isdir(ewt_dir))
+        self.assertTrue(os.path.isfile(ewt_dir + '/en_ewt-ud-dev.conllu'))
+        #test download of 
+        val = maybe_download_dataset_data(ewt_dir,ewt_url,alternate_name="dev.conllu")
+        self.assertEqual(val,ewt_dir + '/dev.conllu')
+        self.assertTrue(os.path.isdir(ewt_dir))
+        self.assertTrue(os.path.isfile(ewt_dir + '/dev.conllu'))
+        # check we didn't overwrite the last file
+        self.assertTrue(os.path.isfile(ewt_dir + '/en_ewt-ud-dev.conllu'))
+
+
+        #test zip 
+        conll_9_file = conll9_dir + '/CoNLL2009-ST-English-trial.txt'
+        val = maybe_download_dataset_data(conll9_dir,conll_09_test_data_url)
+        self.assertEqual(val,conll_9_file)
+        self.assertTrue(os.path.isdir(conll9_dir))
+        self.assertTrue(os.path.isfile(conll_9_file))
+        #verify we don't double download for zips
+        os.remove(conll9_dir + '/CoNLL2009-ST-English-trial.zip')
+        maybe_download_dataset_data(conll9_dir,
+                                    conll_09_test_data_url,
+                                    alternate_name='/CoNLL2009-ST-English-trial.txt')
+        self.assertFalse(os.path.exists(conll9_dir + 'CoNLL2009-ST-English-trial.zip'))
+
+
+        
 
 
 if __name__ == "__main__":
