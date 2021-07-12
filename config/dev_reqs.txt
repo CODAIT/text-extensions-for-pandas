@@ -13,5 +13,6 @@ sphinxcontrib-apidoc
 ipywidgets
 ibm-watson
 twine
+nltk
 
 
