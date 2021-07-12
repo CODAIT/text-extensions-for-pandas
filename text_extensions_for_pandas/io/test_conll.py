@@ -18,8 +18,6 @@ import unittest
 import textwrap
 import os
 
-from pandas.core import base
-
 from text_extensions_for_pandas.io.conll import *
 from text_extensions_for_pandas.io.spacy import make_tokens_and_features
 
