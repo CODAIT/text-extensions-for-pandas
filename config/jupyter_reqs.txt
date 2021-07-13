@@ -11,5 +11,3 @@ nodejs
 ipywidgets
 matplotlib
 
-ray
-
