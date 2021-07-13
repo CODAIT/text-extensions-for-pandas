@@ -1299,11 +1299,11 @@ def maybe_download_conll_data(target_dir: str) -> Dict[str, str]:
 
 
 def maybe_download_dataset_data(
-    target_dir: str, document_url: str, alternate_name: str = None
+    target_dir: str, document_url: str, fname: str = None
 ) -> Union[str, List[str]]:
     """
-     If the file found at the github url is not found in the target directory,
-     downloads it from the github url, and saves it to that plave in downloads.
+     If the file found at the url is not found in the target directory,
+     downloads it, and saves it to that place in downloads.
      Returns the path to the file. If a zip archive is downloaded, only files that are not already in the target
      directory will be fetched, and if an alternate_name is given only that file will be operated on.
      Note if a Zip archive is downloaded it will be unpacked so verify that the url being used is safe.
@@ -1311,14 +1311,16 @@ def maybe_download_dataset_data(
     :param target_dir: Directory where this function should write the document
     :param document_url: url from which to download the docuemnt. If no alternate name is specified,
      it is assumed that the string after the last slash is the name of the file.
-    :param alternate_name: if given, the name of the file that is checked in the target directory,
+    :param fname: if given, the name of the file that is checked in the target directory,
      as well as what is used to save the file if no such file is found. If a zip file is downloaded, and a file of this
      name exists in in the archive, only it will be extracted.
 
      :returns: the path to the file, or None if downloading was not successful
+      If the file found at the url is not found in the target directory,
+      downloads it, and saves it to that place in downloads
     """
     file_name = (
-        alternate_name if alternate_name is not None else document_url.split("/")[-1]
+        fname if fname is not None else document_url.split("/")[-1]
     )
     full_path = target_dir + "/" + file_name
     # if no directory exists, create one
@@ -1327,7 +1329,7 @@ def maybe_download_dataset_data(
 
     # special logic for zip files
     if document_url.split(".")[-1] == "zip" and (
-        alternate_name is None or not os.path.exists(full_path)
+        fname is None or not os.path.exists(full_path)
     ):
         # if we have a zip file already, don't re-download it
         zipPath = target_dir + "/" + document_url.split("/")[-1]
@@ -1338,8 +1340,8 @@ def maybe_download_dataset_data(
         # if need be, extract the zipfile documents
         with ZipFile(zipPath, "r") as zipf:
             fnames = zipf.namelist()
-            if alternate_name is not None and alternate_name in fnames:
-                zipf.extract(alternate_name, target_dir)
+            if fname is not None and fname in fnames:
+                zipf.extract(fname, target_dir)
                 return full_path
             for fname in fnames:
                 if not os.path.exists(target_dir + fname):

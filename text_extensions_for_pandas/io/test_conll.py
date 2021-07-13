@@ -17,6 +17,7 @@ import numpy as np
 import unittest
 import textwrap
 import os
+import shutil
 
 from text_extensions_for_pandas.io.conll import *
 from text_extensions_for_pandas.io.spacy import make_tokens_and_features
@@ -734,8 +735,8 @@ class CoNLLTest(unittest.TestCase):
 
     def test_maybe_download_dataset(self):
         base_dir = "test_data/io/test_conll"
-        ewt_dir = base_dir + "/ewt"
-        conll9_dir = base_dir + "/conll9"
+        ewt_dir = base_dir + "/ewt_temp"
+        conll9_dir = base_dir + "/conll9_temp"
         ewt_url = "https://github.com/UniversalDependencies/UD_English-EWT/blob/master/en_ewt-ud-dev.conllu"
         conll_09_test_data_url = (
             "https://ufal.mff.cuni.cz/conll2009-st/trial/CoNLL2009-ST-English-trial.zip"
@@ -746,13 +747,28 @@ class CoNLLTest(unittest.TestCase):
         self.assertEqual(val, ewt_dir + "/en_ewt-ud-dev.conllu")
         self.assertTrue(os.path.isdir(ewt_dir))
         self.assertTrue(os.path.isfile(ewt_dir + "/en_ewt-ud-dev.conllu"))
-        # test download of
-        val = maybe_download_dataset_data(ewt_dir, ewt_url, alternate_name="dev.conllu")
+
+        # test functionality when file already exists
+        val = maybe_download_dataset_data(ewt_dir, ewt_url)
+        self.assertEqual(val, ewt_dir + "/en_ewt-ud-dev.conllu")
+        self.assertTrue(os.path.isdir(ewt_dir))
+        self.assertTrue(os.path.isfile(ewt_dir + "/en_ewt-ud-dev.conllu"))
+
+        # test download of alternately named file
+        val = maybe_download_dataset_data(ewt_dir, ewt_url, fname="dev.conllu")
         self.assertEqual(val, ewt_dir + "/dev.conllu")
         self.assertTrue(os.path.isdir(ewt_dir))
         self.assertTrue(os.path.isfile(ewt_dir + "/dev.conllu"))
         # check we didn't overwrite the last file
         self.assertTrue(os.path.isfile(ewt_dir + "/en_ewt-ud-dev.conllu"))
+        # verify functionality when file already exists
+        val = maybe_download_dataset_data(ewt_dir, ewt_url, fname="dev.conllu")
+        self.assertEqual(val, ewt_dir + "/dev.conllu")
+        self.assertTrue(os.path.isdir(ewt_dir))
+        self.assertTrue(os.path.isfile(ewt_dir + "/dev.conllu"))
+        # check we didn't overwrite the last file
+        self.assertTrue(os.path.isfile(ewt_dir + "/en_ewt-ud-dev.conllu"))
+
 
         # test zip
         conll_9_file = conll9_dir + "/CoNLL2009-ST-English-trial.txt"
@@ -765,9 +781,13 @@ class CoNLLTest(unittest.TestCase):
         maybe_download_dataset_data(
             conll9_dir,
             conll_09_test_data_url,
-            alternate_name="/CoNLL2009-ST-English-trial.txt",
+            fname="/CoNLL2009-ST-English-trial.txt",
         )
         self.assertFalse(os.path.exists(conll9_dir + "CoNLL2009-ST-English-trial.zip"))
+
+        #clean up by removing our two temp dirs
+        shutil.rmtree(ewt_dir)
+        shutil.rmtree(conll9_dir)
 
 
 if __name__ == "__main__":
