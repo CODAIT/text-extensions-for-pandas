@@ -59,6 +59,10 @@
     color: var(--tbody-text-color-disabled);
 }
 
+.span-array>.document>table tr.hover:not(.disabled) {
+    background: var(--jp-rendermime-table-row-hover-background);
+}
+
 /* Table control buttons */
 
 .span-array>.document>table td.sa-table-controls-container {
