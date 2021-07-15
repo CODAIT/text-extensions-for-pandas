@@ -111,7 +111,7 @@ if [ -n "${ENV_NAME}" ]; then
     # Remove the detrius of any previous runs of this script
     conda env remove -n ${ENV_NAME}
 
-    conda create -y --name ${ENV_NAME} python=${PYTHON_VERSION}
+    conda create -y --name ${ENV_NAME} python=${PYTHON_VERSION} pip
 
     ################################################################################
     # All the installation steps that follow must be done from within the new
