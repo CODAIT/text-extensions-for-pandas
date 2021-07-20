@@ -13,19 +13,28 @@
 #  limitations under the License.
 #
 
-"""
-The ``jupyter`` module contains functions to support the use of Text Extensions for Pandas
- in Jupyter notebooks.
-"""
-################################################################################
-# jupyter module
 #
+# widget.py
 #
-# Functions in text_extensions_for_pandas for Jupyter notebook support.
+# Part of text_extensions_for_pandas
+#
+# Contains the base elements of the dataframe/spanarray widget
+#
 
-# Expose the public APIs that users should get from importing the top-level
-# library.
-from text_extensions_for_pandas.jupyter.span import pretty_print_html
-from text_extensions_for_pandas.jupyter.misc import run_with_progress_bar
+import idom
 
-__all__ = ["span", "misc", "widget"]
+def render(dataframe):
+    
+    # This import ensures proper idomwidget hooks are invoked
+    import idom_jupyter
+
+    return DataFrameWidget({
+        "dataframe": dataframe
+    })
+
+@idom.component
+def DataFrameWidget(props):
+    """The base component of the dataframe widget"""
+    return idom.html.div(
+        "Placeholder"
+    )
