@@ -1,0 +1,5 @@
+{
+  "packageManager": "python",
+  "packageName": "html_edit",
+  "uninstallInstructions": "Use your Python package manager (pip, conda, etc.) to uninstall the package html_edit"
+}
