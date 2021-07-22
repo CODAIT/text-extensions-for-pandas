@@ -22,9 +22,12 @@ with open("package.md", "r") as fh:
 with open('requirements.txt') as fh:
     requirements = fh.read().splitlines()
 
+resources_dir = "text_extensions_for_pandas/resources"
+
+
 setuptools.setup(
     name="text_extensions_for_pandas",
-    version="0.1",
+    version="0.1.1",
     author="IBM",
     author_email="frreiss@us.ibm.com",
     description="Natural language processing support for Pandas dataframes.",
@@ -40,4 +43,10 @@ setuptools.setup(
         "Topic :: Scientific/Engineering",
     ],
     python_requires='>=3.6',
+    package_data={"": ["LICENSE.txt", 
+                       f"{resources_dir}/*.css",
+                       f"{resources_dir}/*.js",
+                       f"{resources_dir}/*.png",
+                       f"{resources_dir}/*.svg",]},
+    include_package_data=True
 )
