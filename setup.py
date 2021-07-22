@@ -22,15 +22,17 @@ with open("package.md", "r") as fh:
 with open('requirements.txt') as fh:
     requirements = fh.read().splitlines()
 
+resources_dir = "text_extensions_for_pandas/resources"
+
+
 setuptools.setup(
     name="text_extensions_for_pandas",
-    version="0.1b4",
+    version="0.1.1",
     author="IBM",
-    author_email="frreiss@example.com",
+    author_email="frreiss@us.ibm.com",
     description="Natural language processing support for Pandas dataframes.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    # Note that this URL is where the project *will* be, not where it currently is.
     url="https://github.com/CODAIT/text-extensions-for-pandas",
     install_requires=requirements,
     packages=setuptools.find_packages(),
@@ -41,4 +43,10 @@ setuptools.setup(
         "Topic :: Scientific/Engineering",
     ],
     python_requires='>=3.6',
+    package_data={"": ["LICENSE.txt", 
+                       f"{resources_dir}/*.css",
+                       f"{resources_dir}/*.js",
+                       f"{resources_dir}/*.png",
+                       f"{resources_dir}/*.svg",]},
+    include_package_data=True
 )

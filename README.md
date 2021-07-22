@@ -130,7 +130,7 @@ $ conda activate myenv
 
 To run tests, navigate to the root of your local copy and run:
 ```
-pytest
+pytest text_extensions_for_pandas
 ```
 
 To build pip and source code packages:

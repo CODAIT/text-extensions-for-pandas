@@ -52,6 +52,19 @@ Steps to release a new version:
    (pd) freiss@fuzzy:~/pd/tep-alpha2$ 
    ```   
 
+1. Create a new Anaconda environment and install JupyterLab and the `.whl` file
+   you just created into the new environment:
+
+   ```
+   conda deactivate
+   conda create --prefix testenv python=3.8 pip jupyterlab
+   conda activate ./testenv
+   pip install dist/text_extensions_for_pandas*.whl
+   ```
+   
+1. Activate your new environment, start up JupyterLab, and verify that the 
+   notebooks under `notebooks` still run.
+
 1. (optional): Do a test upload to TestPyPI by running:
    ```
    python -m twine upload --repository testpypi dist/*
@@ -69,23 +82,24 @@ Steps to release a new version:
 These steps are from the general process described in https://conda-forge.org/docs/maintainer/updating_pkgs.html
 
 **A. Setup local repo and branch for the update**
+
    1. Fork repo https://github.com/conda-forge/text_extensions_for_pandas-feedstock
    2. Clone fork as origin and add upstream remote
    3. Fetch and rebase local master with upstream/master
    4. Make branch e.g. update_0_1_b3
 
 **B. Edit and test the recipe file**
-   5. Edit recipe/meta.yaml
-   6. Update version string
-   7. Download source code tar.gz file (link with "archive" ~ 23MB)from github release and run:
+   1. Edit recipe/meta.yaml
+   1. Update version string
+   1. Download source code tar.gz file (link with "archive" ~ 23MB)from github release and run:
       openssl sha256 path/to/text_extensions_for_pandas-0.1b3.tar.gz
       update source/sha256 hash string in recipe
-   8. Update dependency info to match requirements.txt
-   9. Bump the build number if version is unchanged, reset build number to 0 if version is changed
-   10. Test changes locally with  "python build-locally.py" (requires Docker)
+   1. Update dependency info to match requirements.txt
+   1. Bump the build number if version is unchanged, reset build number to 0 if version is changed
+   1. Test changes locally with  "python build-locally.py" (requires Docker)
 
 **C. Push changes to the forked repo and make a PR**
-   11. Follow instructions and checklist in PR
-   12. Wait for checks to pass
-   13. Merge PR to master branch, using Github interface is fine
-   14. Once merged, the conda package will be created automatically
+   1. Follow instructions and checklist in PR
+   1. Wait for checks to pass
+   1. Merge PR to master branch, using Github interface is fine
+   1. Once merged, the conda package will be created automatically

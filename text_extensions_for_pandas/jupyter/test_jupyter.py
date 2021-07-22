@@ -34,6 +34,9 @@ _TEST_TOKS = make_tokens_and_features(_TEST_TEXT, _SPACY_LANGUAGE_MODEL)
 _ALT_TEST_TEXT = "Once upon a second document"
 _ALT_TEST_TOKS = make_tokens_and_features(_ALT_TEST_TEXT, _SPACY_LANGUAGE_MODEL)
 
+_NEWLINE_TEST_TEXT = "The first of many.\nA new line segments the text.\nIt remains one string."
+_NEWLINE_TEST_TOKS = make_tokens_and_features(_NEWLINE_TEST_TEXT, _SPACY_LANGUAGE_MODEL)
+
 class JupyterTest(TestBase):
     def test_pretty_print_html(self):
         self.maxDiff = None
@@ -104,6 +107,25 @@ nArray.Span
     {
         const doc_spans = Span.arrayFromSpanArray([[0,4],[5,9],[10,11],[12,18],[19,27]])
         const doc_text = 'Once upon a second document'
+        documents.push({doc_text: doc_text, doc_spans: doc_spans})
+    }
+
+        const instance = new window.SpanArray.SpanArray(documents, false, script_context)
+        instance.render()
+    }
+</script>
+
+""")
+
+        # Multi-line document text regression test
+        html = pretty_print_html(_NEWLINE_TEST_TOKS["span"].values, False)
+        suffix = html[-500:]
+        # print(f"[[[{suffix}]]]")
+        self.assertEqual(
+            suffix,
+            """\
+onst doc_spans = Span.arrayFromSpanArray([[0,3],[4,9],[10,12],[13,17],[17,18],[18,19],[19,20],[21,24],[25,29],[30,38],[39,42],[43,47],[47,48],[48,49],[49,51],[52,59],[60,63],[64,70],[70,71]])
+        const doc_text = 'The first of many.\\nA new line segments the text.\\nIt remains one string.'
         documents.push({doc_text: doc_text, doc_spans: doc_spans})
     }
 
