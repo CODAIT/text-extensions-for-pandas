@@ -426,7 +426,7 @@ def _parse_conll_u_file(
         elif line[0] == "#":
             line_elems = line.split(" = ")
             if line_elems[0] == doc_seperator:
-                if i > 0:
+                if i > 0 and len(sentences) > 0 :
                     # End of document.  Wrap up this document and start a new one.
                     #
                     docs.append(sentences)
@@ -665,8 +665,8 @@ def _doc_to_df(
     sentence_ends_list = []  # Type: List[np.ndarray]
 
     # conll_u metadata information.
-    conll_u_ids_exsist = doc is not None and doc[0].has_conll_u_metadata
-    conll_2009_format = doc is not None and doc[0]._conll_09_format
+    conll_u_ids_exsist = doc is not None and len(doc)!=0 and doc[0].has_conll_u_metadata
+    conll_2009_format  = doc is not None and len(doc)!=0 and doc[0]._conll_09_format
     # this should be the same for all sentences so we check the first
 
     if conll_2009_format:

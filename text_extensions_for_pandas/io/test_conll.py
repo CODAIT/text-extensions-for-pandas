@@ -249,6 +249,114 @@ class CoNLLTest(unittest.TestCase):
             ),
         )
 
+    def test_conll_u_to_dataframes_split_by_sent(self):
+        dfs = conll_u_to_dataframes("test_data/io/test_conll/conll_u_test1.txt"
+                                ,separate_sentences_by_doc=True)
+        self.maxDiff = None
+        print(f"***{repr(dfs[4].drop(columns=['sentence_id','doc_id','paragraph_id']))}***")
+        self.assertEqual(
+            repr(dfs[4].drop(columns=['sentence_id','doc_id','paragraph_id'])),
+            # NOTE the escaped backslash in the string below. Be sure to put it back
+            # in when regenerating this string!
+            textwrap.dedent("""\
+                                       span      lemma upostag xpostag  \\
+                0            [0, 4): 'Bush'       Bush   PROPN     NNP   
+                1            [5, 9): 'also'       also     ADV      RB   
+                2     [10, 19): 'nominated'   nominate    VERB     VBD   
+                3            [20, 22): 'A.'         A.   PROPN     NNP   
+                4          [23, 27): 'Noel'       Noel   PROPN     NNP   
+                5      [28, 36): 'Anketell'   Anketell   PROPN     NNP   
+                6        [37, 43): 'Kramer'     Kramer   PROPN     NNP   
+                7           [44, 47): 'for'        for     ADP      IN   
+                8             [48, 49): 'a'          a     DET      DT   
+                9            [50, 52): '15'         15     NUM      CD   
+                10            [52, 53): '-'          -   PUNCT    HYPH   
+                11         [54, 58): 'year'       year    NOUN      NN   
+                12         [59, 63): 'term'       term    NOUN      NN   
+                13           [64, 66): 'as'         as     ADP      IN   
+                14    [67, 76): 'associate'  associate     ADJ      JJ   
+                15        [77, 82): 'judge'      judge    NOUN      NN   
+                16           [83, 85): 'of'         of     ADP      IN   
+                17          [86, 89): 'the'        the     DET      DT   
+                18     [90, 98): 'District'   District   PROPN     NNP   
+                19          [99, 101): 'of'         of     ADP      IN   
+                20   [102, 110): 'Columbia'   Columbia   PROPN     NNP   
+                21      [111, 116): 'Court'      Court   PROPN     NNP   
+                22         [117, 119): 'of'         of     ADP      IN   
+                23    [120, 127): 'Appeals'     Appeal   PROPN    NNPS   
+                24          [127, 128): ','          ,   PUNCT       ,   
+                25  [129, 138): 'replacing'    replace    VERB     VBG   
+                26       [139, 143): 'John'       John   PROPN     NNP   
+                27   [144, 152): 'Montague'   Montague   PROPN     NNP   
+                28   [153, 161): 'Steadman'   Steadman   PROPN     NNP   
+                29          [161, 162): '.'          .   PUNCT       .   
+
+                                            features  head    deprel         deps  \\
+                0                        Number=Sing     2     nsubj      3:nsubj   
+                1                               None     2    advmod     3:advmod   
+                2   Mood=Ind|Tense=Past|VerbForm=Fin  <NA>      root       0:root   
+                3                        Number=Sing     2       obj        3:obj   
+                4                        Number=Sing     3      flat       4:flat   
+                5                        Number=Sing     3      flat       4:flat   
+                6                        Number=Sing     3      flat       4:flat   
+                7                               None    12      case      13:case   
+                8          Definite=Ind|PronType=Art    12       det       13:det   
+                9                       NumType=Card    11    nummod    12:nummod   
+                10                              None    11     punct     12:punct   
+                11                       Number=Sing    12  compound  13:compound   
+                12                       Number=Sing     2       obl    3:obl:for   
+                13                              None    15      case      16:case   
+                14                        Degree=Pos    15      amod      16:amod   
+                15                       Number=Sing    12      nmod   13:nmod:as   
+                16                              None    18      case      19:case   
+                17         Definite=Def|PronType=Art    18       det       19:det   
+                18                       Number=Sing    15      nmod   16:nmod:of   
+                19                              None    21      case      22:case   
+                20                       Number=Sing    21  compound  22:compound   
+                21                       Number=Sing    18      nmod   19:nmod:of   
+                22                              None    23      case      24:case   
+                23                       Number=Plur    21      nmod   22:nmod:of   
+                24                              None     2     punct      3:punct   
+                25                      VerbForm=Ger     2     advcl      3:advcl   
+                26                       Number=Sing    25       obj       26:obj   
+                27                       Number=Sing    26      flat      27:flat   
+                28                       Number=Sing    26      flat      27:flat   
+                29                              None     2     punct      3:punct   
+
+                             misc                                           sentence  line_num  
+                0            None  [0, 162): 'Bush also nominated A. Noel Anketel...        73  
+                1            None  [0, 162): 'Bush also nominated A. Noel Anketel...        74  
+                2            None  [0, 162): 'Bush also nominated A. Noel Anketel...        75  
+                3            None  [0, 162): 'Bush also nominated A. Noel Anketel...        76  
+                4            None  [0, 162): 'Bush also nominated A. Noel Anketel...        77  
+                5            None  [0, 162): 'Bush also nominated A. Noel Anketel...        78  
+                6            None  [0, 162): 'Bush also nominated A. Noel Anketel...        79  
+                7            None  [0, 162): 'Bush also nominated A. Noel Anketel...        80  
+                8            None  [0, 162): 'Bush also nominated A. Noel Anketel...        81  
+                9   SpaceAfter=No  [0, 162): 'Bush also nominated A. Noel Anketel...        82  
+                10  SpaceAfter=No  [0, 162): 'Bush also nominated A. Noel Anketel...        83  
+                11           None  [0, 162): 'Bush also nominated A. Noel Anketel...        84  
+                12           None  [0, 162): 'Bush also nominated A. Noel Anketel...        85  
+                13           None  [0, 162): 'Bush also nominated A. Noel Anketel...        86  
+                14           None  [0, 162): 'Bush also nominated A. Noel Anketel...        87  
+                15           None  [0, 162): 'Bush also nominated A. Noel Anketel...        88  
+                16           None  [0, 162): 'Bush also nominated A. Noel Anketel...        89  
+                17           None  [0, 162): 'Bush also nominated A. Noel Anketel...        90  
+                18           None  [0, 162): 'Bush also nominated A. Noel Anketel...        91  
+                19           None  [0, 162): 'Bush also nominated A. Noel Anketel...        92  
+                20           None  [0, 162): 'Bush also nominated A. Noel Anketel...        93  
+                21           None  [0, 162): 'Bush also nominated A. Noel Anketel...        94  
+                22           None  [0, 162): 'Bush also nominated A. Noel Anketel...        95  
+                23  SpaceAfter=No  [0, 162): 'Bush also nominated A. Noel Anketel...        96  
+                24           None  [0, 162): 'Bush also nominated A. Noel Anketel...        97  
+                25           None  [0, 162): 'Bush also nominated A. Noel Anketel...        98  
+                26           None  [0, 162): 'Bush also nominated A. Noel Anketel...        99  
+                27           None  [0, 162): 'Bush also nominated A. Noel Anketel...       100  
+                28  SpaceAfter=No  [0, 162): 'Bush also nominated A. Noel Anketel...       101  
+                29           None  [0, 162): 'Bush also nominated A. Noel Anketel...       102  """))
+
+
+
     def test_conll_u_to_dataframes(self):
         dfs = conll_u_to_dataframes("test_data/io/test_conll/conll_u_test1.txt")
         self.maxDiff = None
