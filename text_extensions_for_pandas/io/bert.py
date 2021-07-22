@@ -216,11 +216,12 @@ def align_bert_tokens_to_corpus_tokens(
     """
     if len(spans_df.index) == 0:
         return spans_df.copy()
+    
     overlaps_df = (
         spanner
             .overlap_join(spans_df[spans_df_token_col], corpus_toks_df[corpus_df_token_col],
                           "span", "corpus_token")
-            .merge(spans_df)
+            .merge(spans_df,left_on='span',right_on=spans_df_token_col)
     )
     agg_df = (
         overlaps_df
