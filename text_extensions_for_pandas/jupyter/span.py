@@ -78,14 +78,32 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
     for column_index in range(min(_DOCUMENT_DISPLAY_LIMIT, len(document_columns))):
         # Get a javascript representation of the column
         span_array = []
+        token_span_array = []
         for e in document_columns[column_index]:
             span_array.append(f"""[{e.begin},{e.end}]""")
+            if hasattr(e, "tokens"):
+                token_span_array.append(f"""[{e.begin_token},{e.end_token}]""")
+
+        document_object_script = f"""
+            const doc_spans = [{','.join(span_array)}]
+            const doc_text = '{_get_escaped_doctext(document_columns[column_index])}'
+        """
+
+        # If the documents are a TokenSpanArray, include the start and end token indices in the document object.
+        if len(token_span_array) > 0:
+            document_object_script += f"""
+                const doc_token_spans = [{','.join(token_span_array)}]
+                documents.push({{doc_text: doc_text, doc_spans: doc_spans, doc_token_spans: doc_token_spans}})
+            """
+        else:
+            document_object_script += """
+                documents.push({doc_text: doc_text, doc_spans: doc_spans})
+            """
+
         
         instance_init_script_list.append(f"""
             {{
-                const doc_spans = Span.arrayFromSpanArray([{','.join(span_array)}])
-                const doc_text = '{_get_escaped_doctext(document_columns[column_index])}'
-                documents.push({{doc_text: doc_text, doc_spans: doc_spans}})
+                {document_object_script}
             }}
         """)
 
@@ -163,6 +181,7 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
 
         # Generate a dictionary to store span information, including relationships with spans occupying the same region.
         spans = {}
+        is_token_document = False
         sorted_span_ids = []
         for i in range(len(document)):
 
@@ -170,6 +189,10 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
             span_data["id"] = i
             span_data["begin"] = document[i].begin
             span_data["end"] = document[i].end
+            if hasattr(document[i], "tokens"):
+                is_token_document = True
+                span_data["begin_token"] = document[i].begin_token
+                span_data["end_token"] = document[i].end_token
             span_data["sets"] = []
             spans[i] = span_data
 
@@ -204,6 +227,15 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                     <td><b>{span["id"]}</b></td>
                     <td>{span["begin"]}</td>
                     <td>{span["end"]}</td>
+            """)
+
+            if is_token_document:
+                table_rows_html.append(f"""
+                    <td>{span["begin_token"]}</td>
+                    <td>{span["end_token"]}</td>
+                """)
+
+            table_rows_html.append(f"""
                     <td>{_get_sanitized_text(document.document_text[span["begin"]:span["end"]])}</td>
                 </tr>
             """)
@@ -314,6 +346,7 @@ def _get_initial_static_html(column: Union["SpanArray", "TokenSpanArray"],
                         <th></th>
                         <th>begin</th>
                         <th>end</th>
+                        {"<th>begin token</th><th>end token</th>" if is_token_document else ""}
                         <th style='text-align:right;width:100%'>context</th>
                     </tr></thead>
                     <tbody>
