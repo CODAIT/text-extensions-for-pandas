@@ -37,13 +37,15 @@ def render(dataframe):
         "dataframe": dataframe
     })
 class DataFrameWidget(HasTraits):
-    metadata = List()
     _dataframe = Dict()
     widget = None
 
     def __init__(self, props):
         dataframe = props["dataframe"]
         self._dataframe = dataframe.to_dict("split")
+        self._dataframe["columns"].insert(0, "metadata")
+        for row_index in range(len(self._dataframe["data"])):
+            self._dataframe["data"][row_index].insert(0, 0)
         self.widget = DataFrameWidgetComponent({
             "dataframe": self._dataframe
         })
@@ -62,37 +64,25 @@ def DataFrameTableComponent(props):
     """Component representing the complete table of a dataframe widget."""
     dataframe = props["dataframe"]
     # For each row in the dataframe, create a table with that data
-    table_headers = []
-    for column in dataframe["columns"]:
-        table_headers.append(f"<th>{column}</th>")
 
     table_rows = []
     for df_index in range(len(dataframe["data"])):
         df_row = dataframe["data"][df_index]
         table_rows.append(DataFrameTableRowComponent({"df_index": df_index, "df_row": df_row, "columns": dataframe["columns"]}))
     
-    table_html = f"""
-        <table>
-            <tr>
-                {"".join(table_headers)}
-            </tr>
-            {"".join(table_rows)}
-        </table>
-    """
-    return ipw.HTML(table_html)
+    return ipw.VBox(table_rows)
 
 def DataFrameTableRowComponent(props):
     """Responsible for returning the HTML representation of the single row defined in the props."""
     row = props["df_row"] # Row of the dataframe
     columns = props["columns"] # Index of dataframe columns
     # For each column, create a new table header
-    table_html_pieces = []
-    for column_index in range(len(columns)):
-        table_html_pieces.append(f"""
-            <td data-column={columns[column_index]}>{row[column_index]}</td>
-        """)
-    return f"""
-    <tr>
-        {"".join(table_html_pieces)}
-    </tr>
-    """
+    table_row_cells = []
+    table_row_cells.append(
+        ipw.Box(children=[ipw.Checkbox(value=row[0])], layout=ipw.Layout(flex='0 0 auto'))
+    )
+    for column_index in range(1, len(columns)):
+        table_row_cells.append(
+            ipw.HTML(f"{str(row[column_index])}")
+        )
+    return ipw.HBox(table_row_cells)
