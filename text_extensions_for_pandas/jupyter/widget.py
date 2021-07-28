@@ -39,15 +39,6 @@ def render(dataframe):
 
 class MetaData(HasTraits):
     selected = Bool().tag(sync=True)
-    output = None
-
-    @observe('selected')
-    def _selected_changed(self, change):
-        with self.output:
-            print(change)
-
-    def __init__(self, df_index, output):
-        self.output = output
     
     def __repr__(self):
         return f"{self.selected}"
@@ -71,24 +62,19 @@ class DataFrameWidget(HasTraits):
         self.widget.observe(self.print_change, names=All)
 
     def display(self):
-        self.print_change("Ready")
         return ipw.VBox([self.widget_output, self.widget])
     
     def to_dataframe(self):
-        # df = self._dataframe.copy(deep=True)
-        # for row_index in range(len(self._dataframe["data"])):
-        #     df["data"][row_index][0] = self._dataframe["data"][row_index][0].selected   
         return pandas.DataFrame.from_records(self._dataframe["data"], index=self._dataframe["index"], columns=self._dataframe["columns"])
 
-    def print_change(self, change):
-        with self.widget_output:
-            print(change)
-    
     def update_metadata(self, change):
         index = int(change['owner']._dom_classes[0])
         self._dataframe["data"][index][0].selected = change["new"]
+
+    # Event logging method
+    def print_change(self, change):
         with self.widget_output:
-            print(f"{index}: {change}")
+            print(change)
 
 def DataFrameWidgetComponent(props):
     """The base component of the dataframe widget"""
@@ -121,10 +107,11 @@ def DataFrameTableRowComponent(props):
     # For each column, create a new table header
     table_row_cells = []
     table_row_cells.append(
-        ipw.Box(children=[selected_cbox], layout=ipw.Layout(flex='0 0 auto'))
+        ipw.Box(children=[selected_cbox], layout=ipw.Layout(flex='0 0 fit-content', max_width='2em'))
     )
     for column_index in range(1, len(columns)):
         table_row_cells.append(
-            ipw.HTML(f"{str(row[column_index])}")
+            ipw.Box(children=[ipw.HTML(f"{str(row[column_index])}")], layout=ipw.Layout(flex='0 1 auto'))
         )
+    table_row_cells.append(ipw.Box(layout=ipw.Layout(flex='1 0 auto')))
     return ipw.HBox(table_row_cells)
