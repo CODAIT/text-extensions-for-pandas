@@ -189,17 +189,26 @@ def conll_to_bert(df: pd.DataFrame, tokenizer: Any, bert: Any,
 
 
 def align_bert_tokens_to_corpus_tokens(
-        spans_df: pd.DataFrame, corpus_toks_df: pd.DataFrame) -> pd.DataFrame:
+        spans_df: pd.DataFrame, corpus_toks_df: pd.DataFrame,
+        spans_df_token_col:str='span',corpus_df_token_col:str='span',
+        entity_type_col:str='ent_type') -> pd.DataFrame:
     """
     Expand entity matches from a BERT-based model so that they align
     with the corpus's original tokenization.
 
     :param spans_df: DataFrame of extracted entities. Must contain two
-     columns: "span" and "ent_type". Other columns ignored.
+     columns with span and entity type information respecitvely. Other columns ignored.
     :param corpus_toks_df: DataFrame of the corpus's original tokenization,
      one row per token.
-     Must contain a column "span" with character-based spans of
+     Must contain a column with character-based spans of
      the tokens.
+    :param spans_df_token_col: the name of the column in `spans_df`
+     containing its tokenization. By default, `'span'`
+    :param corpus_df_token_col: the name of the column in `corpus_toks_df`
+     that contains its tokenization. By default `'span'`
+    :param entity_type_col: the name of the column in spans_df that
+     contains the entity types of the elements
+
 
     :returns: A new DataFrame with schema ["span", "ent_type"],
      where the "span" column contains token-based spans based off
@@ -207,25 +216,26 @@ def align_bert_tokens_to_corpus_tokens(
     """
     if len(spans_df.index) == 0:
         return spans_df.copy()
+    
     overlaps_df = (
         spanner
-            .overlap_join(spans_df["span"], corpus_toks_df["span"],
+            .overlap_join(spans_df[spans_df_token_col], corpus_toks_df[corpus_df_token_col],
                           "span", "corpus_token")
-            .merge(spans_df)
+            .merge(spans_df,left_on='span',right_on=spans_df_token_col)
     )
     agg_df = (
         overlaps_df
             .groupby("span")
-            .aggregate({"corpus_token": "sum", "ent_type": "first"})
+            .aggregate({"corpus_token": "sum", entity_type_col: "first"})
             .reset_index()
     )
     cons_df = (
         spanner.consolidate(agg_df, "corpus_token")
-        [["corpus_token", "ent_type"]]
+        [["corpus_token", entity_type_col]]
             .rename(columns={"corpus_token": "span"})
     )
     cons_df["span"] = TokenSpanArray.align_to_tokens(
-        corpus_toks_df["span"], cons_df["span"])
+        corpus_toks_df[corpus_df_token_col], cons_df["span"])
     return cons_df
 
 
