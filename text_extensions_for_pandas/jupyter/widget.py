@@ -22,7 +22,11 @@
 #
 
 import idom
+import pandas
 import ipywidgets as ipw
+from pandas.core.frame import DataFrame
+from traitlets import HasTraits, List, Dict
+
 
 def render(dataframe):
     
@@ -32,8 +36,25 @@ def render(dataframe):
     return DataFrameWidget({
         "dataframe": dataframe
     })
+class DataFrameWidget(HasTraits):
+    metadata = List()
+    _dataframe = Dict()
+    widget = None
 
-def DataFrameWidget(props):
+    def __init__(self, props):
+        dataframe = props["dataframe"]
+        self._dataframe = dataframe.to_dict("split")
+        self.widget = DataFrameWidgetComponent({
+            "dataframe": self._dataframe
+        })
+
+    def display(self):
+        return self.widget
+        
+    def _repr_html_(self):
+        return "Call this object's display method to view the widget."
+
+def DataFrameWidgetComponent(props):
     """The base component of the dataframe widget"""
     return DataFrameTableComponent(props)
 
@@ -42,12 +63,13 @@ def DataFrameTableComponent(props):
     dataframe = props["dataframe"]
     # For each row in the dataframe, create a table with that data
     table_headers = []
-    for column in dataframe.columns:
+    for column in dataframe["columns"]:
         table_headers.append(f"<th>{column}</th>")
 
     table_rows = []
-    for df_index, df_row in props["dataframe"].iterrows():
-        table_rows.append(DataFrameTableRowComponent({"df_index": df_index, "df_row": df_row, "columns": dataframe.columns}))
+    for df_index in range(len(dataframe["data"])):
+        df_row = dataframe["data"][df_index]
+        table_rows.append(DataFrameTableRowComponent({"df_index": df_index, "df_row": df_row, "columns": dataframe["columns"]}))
     
     table_html = f"""
         <table>
@@ -65,9 +87,9 @@ def DataFrameTableRowComponent(props):
     columns = props["columns"] # Index of dataframe columns
     # For each column, create a new table header
     table_html_pieces = []
-    for column in columns:
+    for column_index in range(len(columns)):
         table_html_pieces.append(f"""
-            <td data-column={column}>{row[column]}</td>
+            <td data-column={columns[column_index]}>{row[column_index]}</td>
         """)
     return f"""
     <tr>
