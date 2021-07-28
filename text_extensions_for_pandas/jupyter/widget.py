@@ -55,6 +55,9 @@ class DataFrameWidget(HasTraits):
         
     def _repr_html_(self):
         return "Call this object's display method to view the widget."
+    
+    def to_dataframe(self):
+        return pandas.DataFrame.from_records(self._dataframe["data"], index=self._dataframe["index"], columns=self._dataframe["columns"])
 
 def DataFrameWidgetComponent(props):
     """The base component of the dataframe widget"""
