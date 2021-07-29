@@ -52,6 +52,19 @@ Steps to release a new version:
    (pd) freiss@fuzzy:~/pd/tep-alpha2$ 
    ```   
 
+1. Create a new Anaconda environment and install JupyterLab and the `.whl` file
+   you just created into the new environment:
+
+   ```
+   conda deactivate
+   conda create --prefix testenv python=3.8 pip jupyterlab
+   conda activate ./testenv
+   pip install dist/text_extensions_for_pandas*.whl
+   ```
+   
+1. Activate your new environment, start up JupyterLab, and verify that the 
+   notebooks under `notebooks` still run.
+
 1. (optional): Do a test upload to TestPyPI by running:
    ```
    python -m twine upload --repository testpypi dist/*
