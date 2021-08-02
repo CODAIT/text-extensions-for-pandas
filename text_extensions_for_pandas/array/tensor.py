@@ -542,8 +542,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
                 return TensorElement(value)
         else:
             # BEGIN workaround for Pandas issue #42430
-            if (pd.__version__ == "1.3.0" and isinstance(item, tuple) and len(item) > 1
-                    and item[0] == Ellipsis):
+            if isinstance(item, tuple) and len(item) > 1 and item[0] == Ellipsis:
                 if len(item) > 2:
                     # Hopefully this case is not possible, but can't be sure
                     raise ValueError(f"Workaround Pandas issue #42430 not implemented "

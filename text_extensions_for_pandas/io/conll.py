@@ -361,6 +361,7 @@ def _parse_conll_u_file(
     merge_subtokens: bool = False,
     merge_subtoken_separator: str = "|",
     metadata_fields: Dict[str, str] = _DEFAULT_EWT_METADATA,
+    doc_seperator = _EWT_DOC_SEPERATOR
 ) -> List[List[_SentenceData]]:
     """
 
@@ -424,8 +425,8 @@ def _parse_conll_u_file(
                 current_sentence.set_batch_conll_u_metadata(u_metadata)
         elif line[0] == "#":
             line_elems = line.split(" = ")
-            if line_elems[0] == _EWT_DOC_SEPERATOR:
-                if i > 0:
+            if line_elems[0] == doc_seperator:
+                if i > 0 and len(sentences) > 0 :
                     # End of document.  Wrap up this document and start a new one.
                     #
                     docs.append(sentences)
@@ -664,8 +665,8 @@ def _doc_to_df(
     sentence_ends_list = []  # Type: List[np.ndarray]
 
     # conll_u metadata information.
-    conll_u_ids_exsist = doc is not None and doc[0].has_conll_u_metadata
-    conll_2009_format = doc is not None and doc[0]._conll_09_format
+    conll_u_ids_exsist = doc is not None and len(doc)!=0 and doc[0].has_conll_u_metadata
+    conll_2009_format  = doc is not None and len(doc)!=0 and doc[0]._conll_09_format
     # this should be the same for all sentences so we check the first
 
     if conll_2009_format:
@@ -1053,6 +1054,7 @@ def conll_u_to_dataframes(
     merge_subtoken_separator: str = "|",
     numeric_cols: List[str] = _DEFAULT_CONLL_U_NUMERIC_COLS,
     metadata_fields: Dict[str, str] = _DEFAULT_EWT_METADATA,
+    separate_sentences_by_doc = False
 ) -> List[pd.DataFrame]:
     """
     Parses a file from
@@ -1094,6 +1096,9 @@ def conll_u_to_dataframes(
     if iob_columns is None:
         iob_columns = [False for i in range(len(column_names))]
         # fill with falses if not specified
+    
+    # 
+    split_doc_by = "# text" if separate_sentences_by_doc else _EWT_DOC_SEPERATOR
 
     parsed_docs = _parse_conll_u_file(
         input_file,
@@ -1103,6 +1108,7 @@ def conll_u_to_dataframes(
         merge_subtokens=merge_subtokens,
         merge_subtoken_separator=merge_subtoken_separator,
         metadata_fields=metadata_fields,
+        doc_seperator=split_doc_by
     )
     doc_dfs = [
         _doc_to_df(d, column_names, iob_columns, space_before_punct, conll_u=True)

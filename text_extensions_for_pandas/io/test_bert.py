@@ -198,6 +198,31 @@ class TestTokenize(unittest.TestCase):
             3  [15, 22): 'Failure'      PER
             4        [23, 24): '('     <NA>"""))
 
+            ## test with renamed fields
+        without_embeddings_alt = without_embeddings.rename(columns={
+                                                            'span':'span-1',
+                                                            'ent_type':'ent_type-1'})
+        first_df_alt = first_df.rename(columns={'span':'span-2'})
+        aligned_toks_alt = align_bert_tokens_to_corpus_tokens(without_embeddings_alt, 
+                                                        first_df_alt,
+                                                        spans_df_token_col='span-1',
+                                                        corpus_df_token_col='span-2',
+                                                        entity_type_col='ent_type-1'
+                                                        )
+        print(str(aligned_toks_alt.iloc[:num_rows]))                                          
+        self.assertEqual(
+            str(aligned_toks_alt.iloc[:num_rows]),
+            # NOTE: Don't forget to add both sets of double-backslashes back in if you
+            # copy-and-paste an updated version of the output below!
+            textwrap.dedent("""\
+                                  span ent_type-1
+                0        [0, 3): 'Who'       <NA>
+                1         [4, 6): 'is'       <NA>
+                2   [7, 14): 'General'        PER
+                3  [15, 22): 'Failure'        PER
+                4        [23, 24): '('       <NA>"""))
+
+
     def test_seq_to_windows(self):
         for seqlen in range(1, 20):
             seq = np.arange(1, seqlen)
