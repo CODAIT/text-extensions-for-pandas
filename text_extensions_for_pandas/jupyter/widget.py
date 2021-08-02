@@ -74,7 +74,7 @@ class DataFrameWidget(HasTraits):
 
     def update_metadata(self, change):
         index = int(change['owner']._dom_classes[0])
-        self._dataframe_dict["data"][index][0]["selected"].value = change["new"]
+        self._dataframe_dict["data"][index][0]["selected"] = change["new"]
 
     # Event logging method
     def print_change(self, change):
@@ -100,7 +100,7 @@ def DataFrameWidgetComponent(widget, dataframe, dtypes, update_metadata):
                 print(f"{column}")
 
     widget_components = [
-        DataFrameTableComponent(widget=widget, dataframe=dataframe, update_metadata=update_metadata)
+        DataFrameTableComponent(widget=widget, dataframe=widget._df, update_metadata=update_metadata)
     ]
 
     if span_column != None:
@@ -115,15 +115,35 @@ def DataFrameTableComponent(widget, dataframe, update_metadata):
     #sheet = ipysheet.sheet(rows=3, columns=4)
 
     # For each row in the dataframe, create a table with that data
-    table_rows = []
-    for df_index in range(len(dataframe["data"])):
-        df_row = dataframe["data"][df_index]
-        # for cell_index in range(len(df_row)):
-        #     cell = ipysheet.cell(row=df_index, column=cell_index, value=1)
-        table_rows.append(DataFrameTableRowComponent(row=df_row, index=df_index, columns=dataframe["columns"], update_metadata=update_metadata))
+    # table_rows = []
+    # for df_index in range(len(dataframe["data"])):
+    #     df_row = dataframe["data"][df_index]
+    #     # for cell_index in range(len(df_row)):
+    #     #     cell = ipysheet.cell(row=df_index, column=cell_index, value=1)
+    #     table_rows.append(DataFrameTableRowComponent(row=df_row, index=df_index, columns=dataframe["columns"], update_metadata=update_metadata))
     
-    return ipw.VBox([*table_rows])
+    table_columns = []
+    for column in dataframe.columns:
+        table_columns.append(DataFrameTableColumnComponent(dataframe[column]))
 
+    return ipw.HBox(table_columns)
+
+def DataFrameTableColumnComponent(column):
+    column_items = []
+    # Column Header
+    column_items.append(
+        ipw.HTML(f"<b>{column.name}</b>")
+    )
+    # Column Items
+    for item in column:
+        column_items.append(
+            ipw.HBox(children=[ipw.HTML(f"<div>{str(item)}</div>")], layout=ipw.Layout(justify_content="flex-end", border='1px solid gray', margin='0'))
+        )
+    return ipw.VBox(children=column_items, layout=ipw.Layout(border='0px solid black'))
+
+###
+# QUARANTINE ZONE -----------------------
+###
 def DataFrameTableRowComponent(row, index, columns, update_metadata):
     """Responsible for returning the HTML representation of the single row defined in the props."""
     # Create the metadata controls
@@ -142,6 +162,8 @@ def DataFrameTableRowComponent(row, index, columns, update_metadata):
         )
     table_row_cells.append(ipw.Box(layout=ipw.Layout(flex='1 0 auto')))
     return ipw.HBox(table_row_cells)
+
+### --------------------------------------
 
 def DataFrameDocumentContainerComponent(dataframe, span_column=None, tag_column=None):
     """A Component that separates a dataframe by document and generates their components."""
