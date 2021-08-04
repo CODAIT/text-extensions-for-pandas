@@ -22,7 +22,6 @@
 #
 
 import ipywidgets as ipw
-
 def DataFrameTableComponent(widget, dataframe, update_metadata):
     """Component representing the complete table of a dataframe widget."""
 
@@ -36,26 +35,54 @@ def DataFrameTableComponent(widget, dataframe, update_metadata):
     #     # for cell_index in range(len(df_row)):
     #     #     cell = ipysheet.cell(row=df_index, column=cell_index, value=1)
     #     table_rows.append(DataFrameTableRowComponent(row=df_row, index=df_index, columns=dataframe["columns"], update_metadata=update_metadata))
-    
+    def InteractHandler(data, column_name, index):
+        widget.update_dataframe(data, column_name, index)
+        return data
     table_columns = []
     for column in dataframe.columns:
-        table_columns.append(DataFrameTableColumnComponent(dataframe[column]))
-
+        is_selected = widget.selected_columns[column]
+        table_columns.append(DataFrameTableColumnComponent(is_selected, dataframe[column], InteractHandler))
     return ipw.HBox(table_columns)
 
-def DataFrameTableColumnComponent(column):
+def DataFrameTableColumnComponent(is_selected, column, InteractHandler):
     column_items = []
     # Column Header
     column_items.append(
         ipw.HTML(f"<b>{column.name}</b>")
     )
+    #Create an interactive ipywidget 
+    if(is_selected):
+        for column_index in range(len(column)):
+            #Call handler to handle columns of different data types
+            data = DataTypeHandler(column.dtypes, column[column_index])
+            column_name = ipw.Text(value = column.name, disabled = True)           
+            index = ipw.IntText(value = column_index, disabled = True) 
+            widget_ui = ipw.VBox([data])  
+            
+            #Column name and index are passed into InteractHandler as widget components that are not rendered
+            interactiveWidget = ipw.interactive_output(InteractHandler, {'data': data, 'column_name' : column_name, "index" : index})
+            
+            #Adds interactive widgets to table 
+            column_items.append(
+            ipw.HBox(children=[widget_ui], layout=ipw.Layout(justify_content="flex-end", border='1px solid gray', margin='0'))
+            )
+    else:
     # Column Items
-    for item in column:
-        column_items.append(
-            ipw.HBox(children=[ipw.HTML(f"<div>{str(item)}</div>")], layout=ipw.Layout(justify_content="flex-end", border='1px solid gray', margin='0'))
+        for item in column:
+            column_items.append(
+                ipw.HBox(children=[ipw.HTML(f"<div>{str(item)}</div>")], layout=ipw.Layout(justify_content="flex-end", border='1px solid gray', margin='0'))
         )
     return ipw.VBox(children=column_items, layout=ipw.Layout(border='0px solid black'))
-
+#Generates different interactive widget depending on data type of column    
+def DataTypeHandler(datatype, value):
+    if(str(datatype) == 'object'):
+        return ipw.Text(value = str(value))
+    elif(str(datatype) == 'int64'):
+        return ipw.IntText(value = value)
+    elif(str(datatype) == 'float64'):
+        return ipw.FloatText(value = value)
+    elif(str(datatype) == 'bool'):
+        return ipw.Checkbox(value = bool(value))
 ###
 # QUARANTINE ZONE -----------------------
 ###
