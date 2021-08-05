@@ -42,13 +42,14 @@ class DataFrameWidget(HasTraits):
     _dtypes = None
     widget = None
     widget_output = ipw.Output()
+    ###Dictionary for choosing columns to be interactive
 
-    def __init__(self, dataframe, metadata_column=None):
+    def __init__(self, dataframe, metadata_column=None, selected_columns=None):
 
         self._df = dataframe.copy(deep=True)
         self._dataframe_dict = dataframe.to_dict("split")
         self._dtypes = dataframe.dtypes
-
+        
         # Initialize Metadata
         if metadata_column:
             self._metadata_column = metadata_column
@@ -62,6 +63,13 @@ class DataFrameWidget(HasTraits):
                 # When we switch to pure dataframe, insert into dataframe instead of dict
                 self._dataframe_dict["data"][row_index].insert(0, row_metadata)
 
+        #Initialize selected_columns
+        self.selected_columns = dict()
+        for column in self._df.columns.values:
+            self.selected_columns[column] = False
+        if(selected_columns):
+            self.selected_columns.update(selected_columns)
+
         # Initialize Widget        
         self.widget = DataFrameWidgetComponent(widget=self, dataframe=self._dataframe_dict, dtypes=self._dtypes, update_metadata=self.update_metadata)
         self.widget.observe(self.print_change, names=All)
@@ -70,7 +78,7 @@ class DataFrameWidget(HasTraits):
         return ipw.VBox([self.widget_output, self.widget])
     
     def to_dataframe(self):
-        return pandas.DataFrame.from_records(self._dataframe_dict["data"], index=self._dataframe_dict["index"], columns=self._dataframe_dict["columns"])
+        return self._df.copy(deep=True)
 
     def update_metadata(self, change):
         index = int(change['owner']._dom_classes[0])
@@ -80,6 +88,9 @@ class DataFrameWidget(HasTraits):
     def print_change(self, change):
         with self.widget_output:
             print(change)
+
+    def update_dataframe(self, value, column_name, column_index):
+        self._df.at[column_index, column_name] = value
 
 def DataFrameWidgetComponent(widget, dataframe, dtypes, update_metadata):
     """The base component of the dataframe widget"""
@@ -98,7 +109,6 @@ def DataFrameWidgetComponent(widget, dataframe, dtypes, update_metadata):
             span_column = index
             with widget.widget_output:
                 print(f"{column}")
-
     widget_components = [
         tep_table.DataFrameTableComponent(widget=widget, dataframe=widget._df, update_metadata=update_metadata)
     ]
@@ -107,3 +117,5 @@ def DataFrameWidgetComponent(widget, dataframe, dtypes, update_metadata):
         widget_components.append(tep_span.DataFrameDocumentContainerComponent(dataframe=dataframe, span_column=span_column))
 
     return ipw.VBox(widget_components)
+
+    
