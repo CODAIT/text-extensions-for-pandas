@@ -43,7 +43,7 @@ class DataFrameWidget(HasTraits):
     widget = None
     widget_output = None
 
-    def __init__(self, dataframe, metadata_column=None):
+    def __init__(self, dataframe, metadata_column=None, selected_columns=None):
 
         self._df = dataframe.copy(deep=True)
         self._dataframe_dict = dataframe.to_dict("split")
@@ -70,6 +70,14 @@ class DataFrameWidget(HasTraits):
                 # When we switch to pure dataframe, insert into dataframe instead of dict
                 self._dataframe_dict["data"][row_index].insert(0, row_metadata)
 
+        #Initialize selected_columns
+        self.selected_columns = dict()
+        for column in self._df.columns.values:
+            self.selected_columns[column] = False
+        if(selected_columns):
+            self.selected_columns.update(selected_columns)
+
+        # Initialize Widget        
         self.widget = DataFrameWidgetComponent(widget=self, dataframe=self._dataframe_dict, dtypes=self._dtypes, update_metadata=self.update_metadata)
         self.widget.observe(self.print_change, names=All)
 
@@ -96,7 +104,7 @@ class DataFrameWidget(HasTraits):
             display(tep_span.DataFrameDocumentContainerComponent(self, self._df))
 
     def to_dataframe(self):
-        return pandas.DataFrame.from_records(self._dataframe_dict["data"], index=self._dataframe_dict["index"], columns=self._dataframe_dict["columns"])
+        return self._df.copy(deep=True)
 
     def update_metadata(self, change):
         index = int(change['owner']._dom_classes[0])
@@ -108,6 +116,10 @@ class DataFrameWidget(HasTraits):
             with self.widget_output:
                 print(change)
 
+    def update_dataframe(self, value, column_name, column_index):
+        """Updates the dataframe on interactive input. Interact callback."""
+        self._df.at[column_index, column_name] = value
+    
     def _update_tag(self, change):
         """Updates the tag displayed on spans in the document view. Observe callback."""
         self._tag_display = change['new']
@@ -118,7 +130,7 @@ class DataFrameWidget(HasTraits):
         self._color_mode = change['new']
         self._update_document()
 
-def DataFrameWidgetComponent(widget, dataframe, dtypes, update_metadata):
+def DataFrameWidgetComponent(widget, update_metadata):
     """The base component of the dataframe widget"""
     
     # Create the render with a table.
