@@ -53,8 +53,12 @@ def DataFrameTableColumnComponent(is_selected, column, InteractHandler):
     #Create an interactive ipywidget 
     if(is_selected):
         for column_index in range(len(column)):
-            #Call handler to handle columns of different data types
-            data = DataTypeHandler(column.dtypes, column[column_index])
+             #Call handler to handle columns of different data types
+             #Checks if column is a categorical type and passes in the list of all possible categories as an additional argument if it is
+            if(column.dtypes == 'category'):
+                data = DataTypeHandler(column.dtypes, column[column_index], categories = column.unique())
+            else:
+                data = DataTypeHandler(column.dtypes, column[column_index])
             column_name = ipw.Text(value = column.name, disabled = True)           
             index = ipw.IntText(value = column_index, disabled = True) 
             widget_ui = ipw.VBox([data])  
@@ -74,7 +78,7 @@ def DataFrameTableColumnComponent(is_selected, column, InteractHandler):
         )
     return ipw.VBox(children=column_items, layout=ipw.Layout(border='0px solid black'))
 #Generates different interactive widget depending on data type of column    
-def DataTypeHandler(datatype, value):
+def DataTypeHandler(datatype, value, categories = None):
     if(str(datatype) == 'object'):
         return ipw.Text(value = str(value))
     elif(str(datatype) == 'int64'):
@@ -83,6 +87,10 @@ def DataTypeHandler(datatype, value):
         return ipw.FloatText(value = value)
     elif(str(datatype) == 'bool'):
         return ipw.Checkbox(value = bool(value))
+    elif(str(datatype) == 'category'):
+        return ipw.Dropdown(
+            options = categories,
+            value = value)
 ###
 # QUARANTINE ZONE -----------------------
 ###
