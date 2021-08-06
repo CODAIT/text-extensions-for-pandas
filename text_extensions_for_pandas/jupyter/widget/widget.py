@@ -21,19 +21,19 @@
 # Contains the base elements of the dataframe/spanarray widget
 #
 
-import idom
+from IPython.core.display import clear_output
 import pandas
 import ipywidgets as ipw
 from pandas.core.frame import DataFrame
+from IPython.display import display, Javascript
 from traitlets import HasTraits, Dict, Int, Bool, All, default, observe
 import text_extensions_for_pandas.jupyter.widget.span as tep_span
 import text_extensions_for_pandas.jupyter.widget.table as tep_table
 
+_DEBUG_PRINTING = False
 
 def render(dataframe, **kwargs):
-    
-    # This import ensures proper idomwidget hooks are invoked
-
+    """Creates an instance of a DataFrame widget."""
     return DataFrameWidget(dataframe=dataframe, **kwargs)
 
 class DataFrameWidget(HasTraits):
@@ -41,15 +41,22 @@ class DataFrameWidget(HasTraits):
     _dataframe_dict = Dict()
     _dtypes = None
     widget = None
-    widget_output = ipw.Output()
-    ###Dictionary for choosing columns to be interactive
+    widget_output = None
 
     def __init__(self, dataframe, metadata_column=None, selected_columns=None):
 
         self._df = dataframe.copy(deep=True)
         self._dataframe_dict = dataframe.to_dict("split")
         self._dtypes = dataframe.dtypes
-        
+
+        # Refreshable Outputs
+        self.widget_output = ipw.Output()
+        self._document_output = None
+
+        # Span Visualization Globals
+        self._tag_display = None
+        self._color_mode = 'ROW'
+
         # Initialize Metadata
         if metadata_column:
             self._metadata_column = metadata_column
@@ -71,12 +78,31 @@ class DataFrameWidget(HasTraits):
             self.selected_columns.update(selected_columns)
 
         # Initialize Widget        
-        self.widget = DataFrameWidgetComponent(widget=self, dataframe=self._dataframe_dict, dtypes=self._dtypes, update_metadata=self.update_metadata)
+        self.widget = DataFrameWidgetComponent(widget=self, update_metadata=self.update_metadata)
         self.widget.observe(self.print_change, names=All)
 
+        # Display widget on root output
+        with self.widget_output:
+            display(ipw.VBox([self.widget]))
+
     def display(self):
-        return ipw.VBox([self.widget_output, self.widget])
+        """Displays the widget. Returns a reference to the root output widget."""
+        return self.widget_output
     
+    def _update(self):
+        """Refresh the entire widget from scratch."""
+        with self.widget_output:
+            clear_output(wait=True)
+            self.widget = DataFrameWidgetComponent(widget=self, update_metadata=self.update_metadata)
+            self.widget.observe(self.print_change, names=All)
+            display(ipw.VBox([self.widget]))
+    
+    def _update_document(self):
+        """Only refresh the document display below the table."""
+        with self._document_output:
+            clear_output(wait=True)
+            display(tep_span.DataFrameDocumentContainerComponent(self, self._df))
+
     def to_dataframe(self):
         return self._df.copy(deep=True)
 
@@ -84,38 +110,45 @@ class DataFrameWidget(HasTraits):
         index = int(change['owner']._dom_classes[0])
         self._dataframe_dict["data"][index][0]["selected"] = change["new"]
 
-    # Event logging method
     def print_change(self, change):
-        with self.widget_output:
-            print(change)
+        """Prints the change event to the root output widget. Useful for change callback information."""
+        if _DEBUG_PRINTING:
+            with self.widget_output:
+                print(change)
 
     def update_dataframe(self, value, column_name, column_index):
+        """Updates the dataframe on interactive input. Interact callback."""
         self._df.at[column_index, column_name] = value
+    
+    def _update_tag(self, change):
+        """Updates the tag displayed on spans in the document view. Observe callback."""
+        self._tag_display = change['new']
+        self._update_document()
 
-def DataFrameWidgetComponent(widget, dataframe, dtypes, update_metadata):
+    def _update_color_mode(self, change):
+        """Updates the color mode of span rendering. Observe callback."""
+        self._color_mode = change['new']
+        self._update_document()
+
+def DataFrameWidgetComponent(widget, update_metadata):
     """The base component of the dataframe widget"""
-
-    with widget.widget_output:
-        print("Printing widget")
-
-    span_column = None
-    # Check if any of the columns are of dtype SpanArray or TokenSpanArray
-    for index in range(1,len(dataframe["columns"])):
-        column = dataframe["columns"][index]
-        with widget.widget_output:
-            print(f"{column}: {str(dtypes[column])}")
-        
-        if span_column == None and (str(dtypes[column]) == "SpanDtype" or str(dtypes[column]) == "TokenSpanDtype"):
-            span_column = index
-            with widget.widget_output:
-                print(f"{column}")
+    
+    # Create the render with a table.
     widget_components = [
-        tep_table.DataFrameTableComponent(widget=widget, dataframe=widget._df, update_metadata=update_metadata)
+        tep_table.DataFrameTableComponent(widget=widget, dataframe=widget._df, update_metadata=update_metadata),
     ]
 
-    if span_column != None:
-        widget_components.append(tep_span.DataFrameDocumentContainerComponent(dataframe=dataframe, span_column=span_column))
-
-    return ipw.VBox(widget_components)
-
+    # Try to generate a document. Will return NoneType if there are no spans to render.
+    documents_widget = tep_span.DataFrameDocumentContainerComponent(widget=widget, dataframe=widget._df)
+    if documents_widget:
+        document_output = ipw.Output()
+        widget._document_output = document_output
+        widget_components.append(document_output)
+        with document_output:
+            display(documents_widget)
     
+    # Create and return a root widget node for all created components.
+    root_widget = ipw.VBox(children=widget_components)
+    root_widget.add_class("tep--dfwidget")
+
+    return root_widget
