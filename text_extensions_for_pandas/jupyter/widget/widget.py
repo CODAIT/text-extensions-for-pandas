@@ -78,7 +78,7 @@ class DataFrameWidget(HasTraits):
             self.selected_columns.update(selected_columns)
 
         # Initialize Widget        
-        self.widget = DataFrameWidgetComponent(widget=self, dataframe=self._dataframe_dict, dtypes=self._dtypes, update_metadata=self.update_metadata)
+        self.widget = DataFrameWidgetComponent(widget=self, update_metadata=self.update_metadata)
         self.widget.observe(self.print_change, names=All)
 
         # Display widget on root output
@@ -93,7 +93,7 @@ class DataFrameWidget(HasTraits):
         """Refresh the entire widget from scratch."""
         with self.widget_output:
             clear_output(wait=True)
-            self.widget = DataFrameWidgetComponent(widget=self, dataframe=self._dataframe_dict, dtypes=self._dtypes, update_metadata=self.update_metadata)
+            self.widget = DataFrameWidgetComponent(widget=self, update_metadata=self.update_metadata)
             self.widget.observe(self.print_change, names=All)
             display(ipw.VBox([self.widget]))
     
