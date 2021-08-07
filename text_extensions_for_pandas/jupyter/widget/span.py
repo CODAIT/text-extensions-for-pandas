@@ -163,7 +163,7 @@ def DataFrameDocumentComponent(widget, text, spans) -> ipw.Widget:
                 span_tag = _get_span_tag(widget._df, widget._tag_display, begin_stack[0])
                 span_text = text[start_index:begin_stack[0][0]]
                 span_color, _color_map, _color_index = _get_span_color(widget._color_mode, begin_stack[0], span_tag, _color_map, _color_index)
-                document_elements.append(DocumentSpan(text=text[start_index:begin_stack[0][0]], tag=span_tag, show_tag=False, bgcolor=span_color))
+                document_elements.append(DocumentSpan(text=text[start_index:begin_stack[0][0]], tag=span_tag, show_tag=False, bgcolor=span_color, span_indices=open_spans))
 
                 start_index = begin_stack[0][0]
                 # Add the span's ID to the open ID list
@@ -173,7 +173,7 @@ def DataFrameDocumentComponent(widget, text, spans) -> ipw.Widget:
             span_tag = _get_span_tag(widget._df, widget._tag_display, end_stack[0])
             span_text = text[start_index:end_stack[0][0]]
             span_color, _color_map, _color_index = _get_span_color(widget._color_mode, end_stack[0], span_tag, _color_map, _color_index)
-            document_elements.append(DocumentSpan(text=span_text, tag=span_tag, show_tag=True, bgcolor=span_color))
+            document_elements.append(DocumentSpan(text=span_text, tag=span_tag, show_tag=True, bgcolor=span_color, span_indices=open_spans))
 
             start_index = end_stack[0][0]
             open_spans.remove(end_stack[0][1])
@@ -183,7 +183,7 @@ def DataFrameDocumentComponent(widget, text, spans) -> ipw.Widget:
         span_tag = _get_span_tag(widget._df, widget._tag_display, end_stack[0])
         span_text = text[start_index:end_stack[0][0]]
         span_color, _color_map, _color_index = _get_span_color(widget._color_mode, end_stack[0], span_tag, _color_map, _color_index)
-        document_elements.append(DocumentSpan(text=span_text, tag=span_tag, show_tag=True, bgcolor=span_color))
+        document_elements.append(DocumentSpan(text=span_text, tag=span_tag, show_tag=True, bgcolor=span_color, span_indices=open_spans))
 
         start_index = end_stack[0][0]
         open_spans.remove(end_stack[0][1])
@@ -199,9 +199,9 @@ def DataFrameDocumentComponent(widget, text, spans) -> ipw.Widget:
         """
     )
 
-def DocumentSpan(text, tag, show_tag=True, bgcolor="rgba(200, 180, 255, 0.5)") -> str:
+def DocumentSpan(text, tag, show_tag=True, bgcolor="rgba(200, 180, 255, 0.5)", span_indices=[]) -> str:
     return f"""
-        <span style="line-height: 2; display: inline-block; padding: 0 0.2em; background-color: {bgcolor};">{text}{f"<span class='tep--spanvis--tag' style='margin:0 0.2em; font-size: 0.8em; font-weight: bold'>{tag}</span>" if show_tag else ""}</span>
+        <span class="tep--spanvis--span" data-ids="{" ".join(map(lambda x: str(x), span_indices))}" style="line-height: 2; display: inline-block; padding: 0 0.2em; background-color: {bgcolor};">{text}{f"<span class='tep--spanvis--tag' style='margin:0 0.2em; font-size: 0.8em; font-weight: bold'>{tag}</span>" if show_tag else ""}</span>
     """
 
 def _get_linebreak_text_array(in_text: str) -> str:

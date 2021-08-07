@@ -25,12 +25,24 @@ from IPython.core.display import clear_output
 import pandas
 import ipywidgets as ipw
 from pandas.core.frame import DataFrame
-from IPython.display import display, Javascript
+from IPython.display import display, Javascript, HTML
 from traitlets import HasTraits, Dict, Int, Bool, All, default, observe
 import text_extensions_for_pandas.jupyter.widget.span as tep_span
 import text_extensions_for_pandas.jupyter.widget.table as tep_table
 
+import text_extensions_for_pandas.resources
+
+# TODO: This try/except block is for Python 3.6 support, and should be
+# reduced to just importing importlib.resources when 3.6 support is dropped.
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    import importlib_resources as pkg_resources
+
 _DEBUG_PRINTING = False
+_WIDGET_SCRIPT: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "dataframe_widget.js")
+_WIDGET_STYLE: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "dataframe_widget.css")
+
 
 def render(dataframe, **kwargs):
     """Creates an instance of a DataFrame widget."""
@@ -51,6 +63,7 @@ class DataFrameWidget(HasTraits):
 
         # Refreshable Outputs
         self.widget_output = ipw.Output()
+        self.widget_output.add_class("tep--dfwidget--output")
         self._document_output = None
 
         # Span Visualization Globals
@@ -83,7 +96,9 @@ class DataFrameWidget(HasTraits):
 
         # Display widget on root output
         with self.widget_output:
+            display(HTML(f"<style>{_WIDGET_STYLE}</style>"))
             display(ipw.VBox([self.widget]))
+            display(HTML(f"<script>{_WIDGET_SCRIPT}</script>"))
 
     def display(self):
         """Displays the widget. Returns a reference to the root output widget."""
@@ -95,7 +110,9 @@ class DataFrameWidget(HasTraits):
             clear_output(wait=True)
             self.widget = DataFrameWidgetComponent(widget=self, update_metadata=self.update_metadata)
             self.widget.observe(self.print_change, names=All)
+            display(HTML(f"<style>{_WIDGET_STYLE}</style>"))
             display(ipw.VBox([self.widget]))
+            display(HTML(f"<script>{_WIDGET_SCRIPT}</script>"))
     
     def _update_document(self):
         """Only refresh the document display below the table."""
@@ -149,6 +166,5 @@ def DataFrameWidgetComponent(widget, update_metadata):
     
     # Create and return a root widget node for all created components.
     root_widget = ipw.VBox(children=widget_components)
-    root_widget.add_class("tep--dfwidget")
 
     return root_widget
