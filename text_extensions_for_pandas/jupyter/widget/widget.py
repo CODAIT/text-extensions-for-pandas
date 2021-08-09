@@ -22,7 +22,7 @@
 #
 
 from IPython.core.display import clear_output
-import pandas
+import pandas as pd
 import ipywidgets as ipw
 from pandas.core.frame import DataFrame
 from IPython.display import display, Javascript, HTML
@@ -54,6 +54,7 @@ class DataFrameWidget(HasTraits):
     _dtypes = None
     widget = None
     widget_output = None
+    debug_output = None
 
     def __init__(self, dataframe, metadata_column=None, selected_columns=None):
 
@@ -63,6 +64,7 @@ class DataFrameWidget(HasTraits):
 
         # Refreshable Outputs
         self.widget_output = ipw.Output()
+        self.debug_output = ipw.Output()
         self.widget_output.add_class("tep--dfwidget--output")
         self._document_output = None
 
@@ -70,18 +72,18 @@ class DataFrameWidget(HasTraits):
         self._tag_display = None
         self._color_mode = 'ROW'
 
-        # Initialize Metadata
-        if metadata_column:
-            self._metadata_column = metadata_column
+        # Initialize selected column
+        if (metadata_column):
+            md_length = len(metadata_column)
+            # Check that metadata matches the length of the index. If too short or too long, mutate
+            if (md_length < self._df.shape[0]):
+                metadata_column = metadata_column + [False for i in range(md_length, self._df.shape[0])]
+            elif (md_length > self._df.shape[0]):
+                metadata_column = metadata_column[:self._df.shape[0]]
+            # Now we have a full starting array to create a series
+            self._metadata_column = pd.Series(metadata_column, index=self._df.index)
         else:
-            self._dataframe_dict["columns"].insert(0, "metadata")
-
-            for row_index in range(len(self._dataframe_dict["data"])):
-                row_metadata = {
-                    "selected": Bool(False).tag(sync=True)
-                }
-                # When we switch to pure dataframe, insert into dataframe instead of dict
-                self._dataframe_dict["data"][row_index].insert(0, row_metadata)
+            self._metadata_column = pd.Series([False for i in range(self._df.shape[0])], index=self._df.index)
 
         #Initialize selected_columns
         self.selected_columns = dict()
@@ -96,6 +98,7 @@ class DataFrameWidget(HasTraits):
 
         # Display widget on root output
         with self.widget_output:
+            display(self.debug_output)
             display(HTML(f"<style>{_WIDGET_STYLE}</style>"))
             display(ipw.VBox([self.widget]))
             display(HTML(f"<script>{_WIDGET_SCRIPT}</script>"))
@@ -108,11 +111,13 @@ class DataFrameWidget(HasTraits):
         """Refresh the entire widget from scratch."""
         with self.widget_output:
             clear_output(wait=True)
+            with self.debug_output:
+                clear_output()
+            display(self.debug_output)
             self.widget = DataFrameWidgetComponent(widget=self, update_metadata=self.update_metadata)
             self.widget.observe(self.print_change, names=All)
             display(HTML(f"<style>{_WIDGET_STYLE}</style>"))
             display(ipw.VBox([self.widget]))
-            display(HTML(f"<script>{_WIDGET_SCRIPT}</script>"))
     
     def _update_document(self):
         """Only refresh the document display below the table."""
