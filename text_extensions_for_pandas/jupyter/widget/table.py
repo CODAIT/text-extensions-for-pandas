@@ -23,23 +23,16 @@
 
 from IPython.core.display import clear_output
 import ipywidgets as ipw
+
 def DataFrameTableComponent(widget, dataframe, update_metadata):
     """Component representing the complete table of a dataframe widget."""
     #Avoids circular import 
     from text_extensions_for_pandas.array.span import Span
-    #sheet = ipysheet.sheet(rows=len(dataframe["data"]), columns=len(dataframe["columns"]), row_headers=False, column_headers=False)
-    #sheet = ipysheet.sheet(rows=3, columns=4)
 
-    # For each row in the dataframe, create a table with that data
-    # table_rows = []
-    # for df_index in range(len(dataframe["data"])):
-    #     df_row = dataframe["data"][df_index]
-    #     # for cell_index in range(len(df_row)):
-    #     #     cell = ipysheet.cell(row=df_index, column=cell_index, value=1)
-    #     table_rows.append(DataFrameTableRowComponent(row=df_row, index=df_index, columns=dataframe["columns"], update_metadata=update_metadata))
     def InteractHandler(data, column_name, index):
         widget.update_dataframe(data, column_name, index)
         return data
+    
     #Updates span widgets on cchange in either the begin int input box or the end int input box
     def on_begin_change(change, span, text, column_name, i):
         print(span)
@@ -48,6 +41,7 @@ def DataFrameTableComponent(widget, dataframe, update_metadata):
             widget._df.get(column_name)[i] = Span(widget._df.get(column_name)[i].target_text, change['new'], span.end)
             print(span.target_text[change['new']: span.end]) 
         widget._update_document()
+    
     def on_end_change(change, span, text, column_name, i):
         print(span)
         with text:
@@ -55,18 +49,19 @@ def DataFrameTableComponent(widget, dataframe, update_metadata):
             widget._df.get(column_name)[i] = Span(widget._df.get(column_name)[i].target_text, span.begin, change['new'])
             print(span.target_text[span.begin: change['new']])
         widget._update_document()
+    
     table_columns = []
     for column in dataframe.columns:
         is_selected = widget.selected_columns[column]
         table_columns.append(DataFrameTableColumnComponent(is_selected, dataframe[column], InteractHandler, on_begin_change, on_end_change))
     button = ipw.Button(description="Add Row")
+
     def AddRow(b):
-        new_row = []
-        for column in dataframe.columns:
-            new_row.append(dataframe.get(column)[len(dataframe.get(column)) - 1])
-            #dataframe.get(column).append(dataframe.get(column)[-1])
-        dataframe.loc[len(dataframe)] = new_row
+        new_data = dataframe[len(dataframe)-1:]
+        new_data.index = [len(dataframe)]
+        widget._df = dataframe.append(new_data)
         widget._update()
+    
     button.on_click(AddRow)
     return ipw.HBox(children = [*table_columns, button])
 
@@ -100,16 +95,19 @@ def DataFrameTableColumnComponent(is_selected, column, InteractHandler, on_begin
                 interactiveWidget = ipw.interactive_output(InteractHandler, {'data': data, 'column_name' : column_name, "index" : index})
             
             #Adds interactive widgets to table 
-            column_items.append(
-            ipw.HBox(children=[widget_ui], layout=ipw.Layout(justify_content="flex-end", border='1px solid gray', margin='0'))
-            )
+            cell_widget = ipw.HBox(children=[widget_ui], layout=ipw.Layout(justify_content="flex-end", border='1px solid gray', margin='0'))
+            cell_widget.add_class(f"tep--dfwidget--row-{column_index}")
 
+            column_items.append(cell_widget)
     else:
     # Column Items
-        for item in column:
-            column_items.append(
-                ipw.HBox(children=[ipw.HTML(f"<div>{str(item)}</div>")], layout=ipw.Layout(justify_content="flex-end", border='1px solid gray', margin='0'))
-        )
+        for column_index in range(len(column)):
+            item = column[column_index]
+
+            cell_widget = ipw.HBox(children=[ipw.HTML(f"<div>{str(item)}</div>")], layout=ipw.Layout(justify_content="flex-end", border='1px solid gray', margin='0'))
+            cell_widget.add_class(f"tep--dfwidget--row-{column_index}")
+            column_items.append(cell_widget)
+    
     return ipw.VBox(children=column_items, layout=ipw.Layout(border='0px solid black'))
 #Generates different interactive widget depending on data type of column    
 def DataTypeHandler(datatype, value, categories = None, max = None):
