@@ -33,7 +33,17 @@ def DataFrameTableComponent(widget, dataframe, update_metadata):
     for column in dataframe.columns:
         is_selected = widget.selected_columns[column]
         table_columns.append(DataFrameTableColumnComponent(is_selected, dataframe[column], InteractHandler))
-    return ipw.HBox(table_columns)
+    button = ipw.Button(description="Add Row")
+    def AddRow(b):
+        new_row = []
+        for column in dataframe.columns:
+            new_row.append(dataframe.get(column)[len(dataframe.get(column)) - 1])
+            #dataframe.get(column).append(dataframe.get(column)[-1])
+        dataframe.loc[len(dataframe)] = new_row
+        widget._update()
+    button.on_click(AddRow)
+    return ipw.HBox(children = [*table_columns, button])
+
 
 def DataFrameTableColumnComponent(is_selected, column, InteractHandler):
     column_items = []
