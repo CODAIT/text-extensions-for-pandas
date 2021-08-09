@@ -1,7 +1,12 @@
 {
     let widget_root;
+    let document_root;
 
     function enterEventHandler(event) {
+
+        document_root = widget_root.querySelector(".tep--spanvis")
+        if (!document_root) return;
+
         // when a hover target is part of a tep--spanvis--span, highlight all table entries that share matching IDs
         let closest_span = event.target.closest(".tep--spanvis--span")
         if(closest_span != undefined) {
@@ -42,6 +47,10 @@
     }
 
     function leaveEventHandler(event) {
+
+        document_root = widget_root.querySelector(".tep--spanvis")
+        if (!document_root) return;
+
         // when a hover target is part of a tep--spanvis--span, highlight all table entries that share matching IDs
         let closest_span = event.target.closest(".tep--spanvis--span")
         if(closest_span != undefined) {
@@ -82,6 +91,10 @@
     }
 
     function clickEventHandler(event) {
+
+        document_root = widget_root.querySelector(".tep--spanvis")
+        if (!document_root) return;
+
         // when a hover target is part of a tep--spanvis--span, highlight all table entries that share matching IDs
         let closest_span = event.target.closest(".tep--spanvis--span")
         if(closest_span != undefined) {
@@ -143,11 +156,15 @@
             /* on load, navigate to widget */
             widget_root = currentScript.closest("div.tep--dfwidget--output")
             if (widget_root == null) return
+
+            document_root = widget_root.querySelector(".tep--spanvis")
     
-            // Attach event delegator to the root output widget
-            widget_root.addEventListener("pointerenter", enterEventHandler, true);
-            widget_root.addEventListener("pointerleave", leaveEventHandler, true);
-            widget_root.addEventListener("click", clickEventHandler, true)
+            if(document_root) {
+                // Attach event delegator to the root output widget
+                widget_root.addEventListener("pointerenter", enterEventHandler, true);
+                widget_root.addEventListener("pointerleave", leaveEventHandler, true);
+                widget_root.addEventListener("click", clickEventHandler, true)
+            }
         }, 100)
     })()
 }
