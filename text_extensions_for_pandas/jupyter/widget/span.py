@@ -75,12 +75,14 @@ def DataFrameDocumentContainerComponent(widget, dataframe):
         for text in target_texts:
             documents.append(DataFrameDocumentComponent(widget=widget, text=text, spans=spans_by_text[text]))
         
-        return ipw.VBox(
+        documents_widget = ipw.VBox(
             children=[
                 controls,
                 *documents
             ]
         )
+        documents_widget.add_class("tep--spanvis")
+        return documents_widget
 
 def DataFrameDocumentControlsComponent(widget, span_columns):
     """A widget that exposes controls for rendering spans in various ways."""
@@ -138,8 +140,9 @@ def DataFrameDocumentComponent(widget, text, spans) -> ipw.Widget:
         span = entry["span"]
         index = entry["index"] # Index in the dataframe
         column = entry["column"] # Column header
-        bisect.insort(begin_stack, (span.begin, index, column))
-        bisect.insort(end_stack, (span.end, index, column))
+        if span.begin < span.end:
+            bisect.insort(begin_stack, (span.begin, index, column))
+            bisect.insort(end_stack, (span.end, index, column))
     
     begin_stack = collections.deque(begin_stack)
     end_stack = collections.deque(end_stack)
