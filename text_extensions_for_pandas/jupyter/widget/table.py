@@ -22,6 +22,7 @@
 #
 
 import ipywidgets as ipw
+
 def DataFrameTableComponent(widget, dataframe, update_metadata):
     """Component representing the complete table of a dataframe widget."""
 
@@ -35,11 +36,9 @@ def DataFrameTableComponent(widget, dataframe, update_metadata):
         table_columns.append(DataFrameTableColumnComponent(is_selected, dataframe[column], InteractHandler))
     button = ipw.Button(description="Add Row")
     def AddRow(b):
-        new_row = []
-        for column in dataframe.columns:
-            new_row.append(dataframe.get(column)[len(dataframe.get(column)) - 1])
-            #dataframe.get(column).append(dataframe.get(column)[-1])
-        dataframe.loc[len(dataframe)] = new_row
+        new_data = dataframe[len(dataframe)-1:]
+        new_data.index = [len(dataframe)]
+        widget._df = dataframe.append(new_data)
         widget._update()
     button.on_click(AddRow)
     return ipw.HBox(children = [*table_columns, button])
