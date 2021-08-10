@@ -22,6 +22,7 @@
 #
 
 from IPython.core.display import clear_output
+from ipywidgets.widgets.interaction import interactive
 import pandas as pd
 import ipywidgets as ipw
 from pandas.core.frame import DataFrame
@@ -56,7 +57,7 @@ class DataFrameWidget(HasTraits):
     widget_output = None
     debug_output = None
 
-    def __init__(self, dataframe, metadata_column=None, selected_columns=None):
+    def __init__(self, dataframe, metadata_column=None, selected_columns=None, interactive_columns=None):
 
         self._df = dataframe.copy(deep=True)
         self._dataframe_dict = dataframe.to_dict("split")
@@ -91,6 +92,11 @@ class DataFrameWidget(HasTraits):
             self.selected_columns[column] = False
         if(selected_columns):
             self.selected_columns.update(selected_columns)
+
+        # Initialize interactive columns
+        if(interactive_columns):
+            for column in interactive_columns:
+                self.selected_columns.update({column: True})
 
         # Initialize Widget        
         self.widget = DataFrameWidgetComponent(widget=self, update_metadata=self.update_metadata)
@@ -152,7 +158,7 @@ class DataFrameWidget(HasTraits):
         self._color_mode = change['new']
         self._update_document()
 
-def DataFrameWidgetComponent(widget, update_metadata):
+def DataFrameWidgetComponent(widget, update_metadata) -> ipw.Widget:
     """The base component of the dataframe widget"""
     
     # Create the render with a table.
@@ -164,6 +170,7 @@ def DataFrameWidgetComponent(widget, update_metadata):
     documents_widget = tep_span.DataFrameDocumentContainerComponent(widget=widget, dataframe=widget._df)
     if documents_widget:
         document_output = ipw.Output()
+        document_output.add_class("tep--dfwidget--document-output")
         widget._document_output = document_output
         widget_components.append(document_output)
         with document_output:
@@ -171,5 +178,6 @@ def DataFrameWidgetComponent(widget, update_metadata):
     
     # Create and return a root widget node for all created components.
     root_widget = ipw.VBox(children=widget_components)
+    root_widget.add_class("tep--dfwidget--root-container")
 
     return root_widget
