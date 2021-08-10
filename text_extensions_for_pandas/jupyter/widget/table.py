@@ -23,6 +23,7 @@
 
 from IPython.core.display import clear_output
 import ipywidgets as ipw
+import numpy as np
 
 def DataFrameTableComponent(widget, dataframe, update_metadata):
     """Component representing the complete table of a dataframe widget."""
@@ -53,7 +54,7 @@ def DataFrameTableComponent(widget, dataframe, update_metadata):
     table_columns = []
     for column in dataframe.columns:
         is_selected = widget.selected_columns[column]
-        table_columns.append(DataFrameTableColumnComponent(is_selected, dataframe[column], InteractHandler, on_begin_change, on_end_change))
+        table_columns.append(DataFrameTableColumnComponent(widget, is_selected, dataframe[column], InteractHandler, on_begin_change, on_end_change))
     button = ipw.Button(description="Add Row")
 
     def AddRow(b):
@@ -66,7 +67,7 @@ def DataFrameTableComponent(widget, dataframe, update_metadata):
     return ipw.HBox(children = [*table_columns, button])
 
 
-def DataFrameTableColumnComponent(is_selected, column, InteractHandler, on_begin_change, on_end_change):
+def DataFrameTableColumnComponent(widget, is_selected, column, InteractHandler, on_begin_change, on_end_change):
     column_items = []
     # Column Header
     column_items.append(
@@ -77,21 +78,29 @@ def DataFrameTableColumnComponent(is_selected, column, InteractHandler, on_begin
         for column_index in range(len(column)):
              #Call handler to handle columns of different data types
              #Checks if column is a categorical type and passes in the list of all possible categories as an additional argument if it is
-            if(column.dtypes == 'category'):
-                data = DataTypeHandler(column.dtypes, column[column_index], categories = column.unique())
+            if(str(column.dtype) == "category"):
+                data = DataTypeHandler("category", column[column_index], categories = column.cat.categories)
+                data.observe(
+                    lambda change, column_index=column_index, column_name=column.name, widget=widget: (
+                        CategoricalHandler(change, column_index, column_name, widget)),
+                    names='value')
+            
             elif(str(column.dtype) == "SpanDtype"):
                 data_begin, data_end, text = SpanHandler(column, column_index, on_begin_change, on_end_change) 
+            
             else:
                 data = DataTypeHandler(column.dtypes, column[column_index])
+            
             column_name = ipw.Text(value = column.name, disabled = True)           
-            index = ipw.IntText(value = column_index, disabled = True) 
+            index = ipw.IntText(value = column_index, disabled = True)
+
             if(str(column.dtype) == "SpanDtype"):
-                widget_ui = ipw.VBox([data_begin, data_end, text])  
+                widget_ui = ipw.HBox([data_begin, data_end, text])  
             else:
-                widget_ui = ipw.VBox([data])  
+                widget_ui = ipw.HBox([data])  
             
             #Column name and index are passed into InteractHandler as widget components that are not rendered
-            if(str(column.dtype) != "SpanDtype"):
+            if(str(column.dtype) != "SpanDtype" and str(column.dtype) != "category"):
                 interactiveWidget = ipw.interactive_output(InteractHandler, {'data': data, 'column_name' : column_name, "index" : index})
             
             #Adds interactive widgets to table 
@@ -127,8 +136,10 @@ def DataTypeHandler(datatype, value, categories = None, max = None):
     elif(str(datatype) == 'bool'):
         return ipw.Checkbox(value = bool(value))
     elif(str(datatype) == 'category'):
+        if value == np.nan or value == None or str(value) == 'nan':
+            value = 'nan'
         return ipw.Dropdown(
-            options = categories,
+            options = ['nan', *categories.array],
             value = value)
 
 #Creates widgets for taking in int inputs to change span.begin and span.end and an output text widget
@@ -146,3 +157,9 @@ def SpanHandler(column, column_index, on_begin_change, on_end_change):
     data_begin.observe(lambda change, i = column_index, text = text, column_name = column.name : on_begin_change(change, column[i], text, column_name, i), names='value')
     data_end.observe(lambda change, i = column_index, text = text, column_name = column.name : on_end_change(change, column[i], text, column_name, i), names='value') 
     return data_begin, data_end, text
+
+def CategoricalHandler(change, column_index, column_name, widget):
+    if change["new"] == 'nan':
+        widget._df.get(column_name)[column_index] = np.nan
+    else:
+        widget._df.get(column_name)[column_index] = change["new"]
