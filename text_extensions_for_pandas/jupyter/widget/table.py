@@ -24,6 +24,7 @@
 from IPython.core.display import clear_output
 import ipywidgets as ipw
 import numpy as np
+import pandas as pd
 
 def DataFrameTableComponent(widget, dataframe, update_metadata):
     """Component representing the complete table of a dataframe widget."""
@@ -50,8 +51,23 @@ def DataFrameTableComponent(widget, dataframe, update_metadata):
             widget._df.get(column_name)[i] = Span(widget._df.get(column_name)[i].target_text, span.begin, change['new'])
             print(span.target_text[span.begin: change['new']])
         widget._update_document()
+
+    def on_metadata_change(change, index):
+        widget._metadata_column[index] = change["new"]
     
     table_columns = []
+    # First column is an index/select box column
+    index_column = []
+    index_column.append(ipw.HTML("<b>index</b>"))
+    for index in dataframe.index:
+        select_box = ipw.Checkbox(value=bool(widget._metadata_column[index]))
+        select_box.observe(lambda change, index=index: on_metadata_change(change, index), names='value')
+        cell = ipw.HBox([ipw.HTML(str(index)), select_box], layout=ipw.Layout(justify_content="flex-end", border='1px solid gray', margin='0'))
+        index_column.append(cell)
+    index_column_widget = ipw.VBox(index_column)
+    index_column_widget.add_class("tep--dfwidget--table-index")
+    table_columns.append(index_column_widget)
+
     for column in dataframe.columns:
         is_selected = widget.selected_columns[column]
         table_columns.append(DataFrameTableColumnComponent(widget, is_selected, dataframe[column], InteractHandler, on_begin_change, on_end_change))
@@ -60,6 +76,7 @@ def DataFrameTableComponent(widget, dataframe, update_metadata):
     def AddRow(b):
         new_data = dataframe[len(dataframe)-1:]
         new_data.index = [len(dataframe)]
+        widget._metadata_column = widget._metadata_column.append(pd.Series([False], index=[len(dataframe)]))
         widget._df = dataframe.append(new_data)
         widget._update()
     

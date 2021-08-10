@@ -158,7 +158,7 @@ class DataFrameWidget(HasTraits):
         self._color_mode = change['new']
         self._update_document()
 
-def DataFrameWidgetComponent(widget, update_metadata):
+def DataFrameWidgetComponent(widget, update_metadata) -> ipw.Widget:
     """The base component of the dataframe widget"""
     
     # Create the render with a table.

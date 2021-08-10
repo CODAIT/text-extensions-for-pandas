@@ -21,3 +21,11 @@
     width: min-content;
     flex-grow: 1;
 }
+
+.tep--dfwidget--table-index .widget-checkbox {
+    width: min-content
+}
+
+.tep--dfwidget--table-index .widget-checkbox>.widget-label {
+    width: min-content
+}
