@@ -5,3 +5,19 @@
 .tep--click--highlight {
     background-color: rgba(255, 255, 0, 0.322) !important;
 }
+
+.tep--dfwidget--root-container {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+
+}
+
+.tep--dfwidget--table-container {
+    width: max-content;
+}
+
+.tep--dfwidget--document-output {
+    width: min-content;
+    flex-grow: 1;
+}

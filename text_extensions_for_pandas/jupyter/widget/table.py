@@ -64,7 +64,14 @@ def DataFrameTableComponent(widget, dataframe, update_metadata):
         widget._update()
     
     button.on_click(AddRow)
-    return ipw.HBox(children = [*table_columns, button])
+
+    table = ipw.HBox(children=table_columns)
+    table.add_class("tep--dfwidget--table")
+
+    table_container = ipw.VBox(children = [table, button])
+    table_container.add_class("tep--dfwidget--table-container")
+
+    return table_container
 
 
 def DataFrameTableColumnComponent(widget, is_selected, column, InteractHandler, on_begin_change, on_end_change):

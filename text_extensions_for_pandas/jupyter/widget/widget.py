@@ -170,6 +170,7 @@ def DataFrameWidgetComponent(widget, update_metadata):
     documents_widget = tep_span.DataFrameDocumentContainerComponent(widget=widget, dataframe=widget._df)
     if documents_widget:
         document_output = ipw.Output()
+        document_output.add_class("tep--dfwidget--document-output")
         widget._document_output = document_output
         widget_components.append(document_output)
         with document_output:
@@ -177,5 +178,6 @@ def DataFrameWidgetComponent(widget, update_metadata):
     
     # Create and return a root widget node for all created components.
     root_widget = ipw.VBox(children=widget_components)
+    root_widget.add_class("tep--dfwidget--root-container")
 
     return root_widget
