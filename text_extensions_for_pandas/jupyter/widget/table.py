@@ -23,6 +23,8 @@
 
 from IPython.core.display import clear_output
 import ipywidgets as ipw
+import numpy as np
+import pandas as pd
 
 def DataFrameTableComponent(widget, dataframe, update_metadata):
     """Component representing the complete table of a dataframe widget."""
@@ -49,24 +51,47 @@ def DataFrameTableComponent(widget, dataframe, update_metadata):
             widget._df.get(column_name)[i] = Span(widget._df.get(column_name)[i].target_text, span.begin, change['new'])
             print(span.target_text[span.begin: change['new']])
         widget._update_document()
+
+    def on_metadata_change(change, index):
+        widget._metadata_column[index] = change["new"]
     
     table_columns = []
+    # First column is an index/select box column
+    index_column = []
+    index_column.append(ipw.HTML("<b>index</b>"))
+    for index in dataframe.index:
+        select_box = ipw.Checkbox(value=bool(widget._metadata_column[index]))
+        select_box.observe(lambda change, index=index: on_metadata_change(change, index), names='value')
+        cell = ipw.HBox([ipw.HTML(str(index)), select_box], layout=ipw.Layout(justify_content="flex-end", border='1px solid gray', margin='0'))
+        index_column.append(cell)
+    index_column_widget = ipw.VBox(index_column)
+    index_column_widget.add_class("tep--dfwidget--table-index")
+    table_columns.append(index_column_widget)
+
     for column in dataframe.columns:
         is_selected = widget.selected_columns[column]
-        table_columns.append(DataFrameTableColumnComponent(is_selected, dataframe[column], InteractHandler, on_begin_change, on_end_change))
+        table_columns.append(DataFrameTableColumnComponent(widget, is_selected, dataframe[column], InteractHandler, on_begin_change, on_end_change))
     button = ipw.Button(description="Add Row")
 
     def AddRow(b):
         new_data = dataframe[len(dataframe)-1:]
         new_data.index = [len(dataframe)]
+        widget._metadata_column = widget._metadata_column.append(pd.Series([False], index=[len(dataframe)]))
         widget._df = dataframe.append(new_data)
         widget._update()
     
     button.on_click(AddRow)
-    return ipw.HBox(children = [*table_columns, button])
+
+    table = ipw.HBox(children=table_columns)
+    table.add_class("tep--dfwidget--table")
+
+    table_container = ipw.VBox(children = [table, button])
+    table_container.add_class("tep--dfwidget--table-container")
+
+    return table_container
 
 
-def DataFrameTableColumnComponent(is_selected, column, InteractHandler, on_begin_change, on_end_change):
+def DataFrameTableColumnComponent(widget, is_selected, column, InteractHandler, on_begin_change, on_end_change):
     column_items = []
     # Column Header
     column_items.append(
@@ -77,21 +102,29 @@ def DataFrameTableColumnComponent(is_selected, column, InteractHandler, on_begin
         for column_index in range(len(column)):
              #Call handler to handle columns of different data types
              #Checks if column is a categorical type and passes in the list of all possible categories as an additional argument if it is
-            if(column.dtypes == 'category'):
-                data = DataTypeHandler(column.dtypes, column[column_index], categories = column.unique())
+            if(str(column.dtype) == "category"):
+                data = DataTypeHandler("category", column[column_index], categories = column.cat.categories)
+                data.observe(
+                    lambda change, column_index=column_index, column_name=column.name, widget=widget: (
+                        CategoricalHandler(change, column_index, column_name, widget)),
+                    names='value')
+            
             elif(str(column.dtype) == "SpanDtype"):
                 data_begin, data_end, text = SpanHandler(column, column_index, on_begin_change, on_end_change) 
+            
             else:
                 data = DataTypeHandler(column.dtypes, column[column_index])
+            
             column_name = ipw.Text(value = column.name, disabled = True)           
-            index = ipw.IntText(value = column_index, disabled = True) 
+            index = ipw.IntText(value = column_index, disabled = True)
+
             if(str(column.dtype) == "SpanDtype"):
-                widget_ui = ipw.VBox([data_begin, data_end, text])  
+                widget_ui = ipw.HBox([data_begin, data_end, text])  
             else:
-                widget_ui = ipw.VBox([data])  
+                widget_ui = ipw.HBox([data])  
             
             #Column name and index are passed into InteractHandler as widget components that are not rendered
-            if(str(column.dtype) != "SpanDtype"):
+            if(str(column.dtype) != "SpanDtype" and str(column.dtype) != "category"):
                 interactiveWidget = ipw.interactive_output(InteractHandler, {'data': data, 'column_name' : column_name, "index" : index})
             
             #Adds interactive widgets to table 
@@ -127,8 +160,10 @@ def DataTypeHandler(datatype, value, categories = None, max = None):
     elif(str(datatype) == 'bool'):
         return ipw.Checkbox(value = bool(value))
     elif(str(datatype) == 'category'):
+        if value == np.nan or value == None or str(value) == 'nan':
+            value = 'nan'
         return ipw.Dropdown(
-            options = categories,
+            options = ['nan', *categories.array],
             value = value)
 
 #Creates widgets for taking in int inputs to change span.begin and span.end and an output text widget
@@ -146,3 +181,9 @@ def SpanHandler(column, column_index, on_begin_change, on_end_change):
     data_begin.observe(lambda change, i = column_index, text = text, column_name = column.name : on_begin_change(change, column[i], text, column_name, i), names='value')
     data_end.observe(lambda change, i = column_index, text = text, column_name = column.name : on_end_change(change, column[i], text, column_name, i), names='value') 
     return data_begin, data_end, text
+
+def CategoricalHandler(change, column_index, column_name, widget):
+    if change["new"] == 'nan':
+        widget._df.get(column_name)[column_index] = np.nan
+    else:
+        widget._df.get(column_name)[column_index] = change["new"]
