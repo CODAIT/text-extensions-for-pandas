@@ -5,4 +5,5 @@ text_extensions_for_pandas
 ibm_press_release_timings.csv
 ibm_press_releases.feather
 scipy_demo_data
+outputs
 
