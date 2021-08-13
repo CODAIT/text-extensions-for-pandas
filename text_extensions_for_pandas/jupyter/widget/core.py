@@ -42,22 +42,24 @@ _WIDGET_TABLE_CONVERT_SCRIPT: str = pkg_resources.read_text(text_extensions_for_
 
 class DataFrameWidget():
 
-    def __init__(self, dataframe, metadata_column=None, interactive_columns=None):
+    def __init__(self, dataframe : pd.DataFrame, metadata_column : pd.Series = None, interactive_columns : list = None):
         """An instance of an interactive widget that will display Text Extension for Pandas types Span and TokenSpan in their document contexts beside a visualization of the backing dataframe.
         Provides interactive table elements, multiple Span coloring modes, and tools to analyze, modify, and extend DataFrame-backed datasets.
         
-        params:
-        dataframe (pandas.DataFrame): The DataFrame to visualize in the widget.
-        metadata_column (pandas.Series, optional): Series of selected values to pre-load into the index column.
-        interactive_columns (list, optional): List of column names to preset as interactive.
+        :param dataframe: The DataFrame to visualize in the widget
+        :type dataframe: pandas.DataFrame
+        :param metadata_column: Series of selected values to pre-load into the index column, defaults to None
+        :type metadata_column: pandas.Series, optional
+        :param interactive_columns: List of column names to pre-set as interactive, defaults to None
+        :type interactive_columns: list, optional
         """
 
         self._df = dataframe.copy(deep=True)
 
         # Refreshable Outputs
-        self.widget_output = ipw.Output()
-        self.debug_output = ipw.Output()
-        self.widget_output.add_class("tep--dfwidget--output")
+        self._widget_output = ipw.Output()
+        self._debug_output = ipw.Output()
+        self._widget_output.add_class("tep--dfwidget--output")
         self._document_output = None
 
         # Span Visualization Globals
@@ -90,7 +92,7 @@ class DataFrameWidget():
         self._update()
 
         # Attach the widget's script.
-        with self.widget_output:
+        with self._widget_output:
             display(HTML(f"<script>{_WIDGET_SCRIPT}</script>"))
 
     @property
@@ -100,21 +102,21 @@ class DataFrameWidget():
 
     def display(self) -> ipw.Widget:
         """Displays the widget. Returns a reference to the root output widget."""
-        return self.widget_output
+        return self._widget_output
     
     def to_dataframe(self) -> pd.DataFrame:
         """Returns a copy of the DateFrame backing the internal state of the widget data.
 
-        return:
-        pandas.DataFrame: The copy of the backing dataframe.
+        :return: A copy of the backing dataframe.
+        :rtype: pandas.DataFrame
         """
         return self._df.copy(deep=True)
 
-    def set_interactive_columns(self, columns=[]):
+    def set_interactive_columns(self, columns : list):
         """Sets the columns to appear as interactive within the displayed widget.
-            
-        params:
-        columns (list): A list of column names to appear as interactive.
+        
+        :param columns: A list of column names to appear as interactive
+        :type columns: list
         """
         # Reset the values
         self.interactive_columns = dict()
@@ -123,17 +125,17 @@ class DataFrameWidget():
         # Set the new values based on the parameter
         for column in columns:
             self.interactive_columns.update({column: True})
-
+        self._update()
 
     # Internal methods to update or refresh widget state
 
     def _update(self):
         """Refresh the entire widget from scratch."""
-        with self.widget_output:
+        with self._widget_output:
             clear_output(wait=True)
-            with self.debug_output:
+            with self._debug_output:
                 clear_output()
-            display(self.debug_output)
+            display(self._debug_output)
             display(HTML(f"<script>{_WIDGET_TABLE_CONVERT_SCRIPT}</script>"))
             display(HTML(f"<style>{_WIDGET_STYLE}</style>"))
             display(ipw.VBox([DataFrameWidgetComponent(widget=self)]))
@@ -155,13 +157,15 @@ class DataFrameWidget():
         self._color_mode = change['new']
         self._update_document()
 
-    def _update_dataframe(self, value, column_name, column_index):
+    def _update_dataframe(self, value, column_name : str, column_index : int):
         """Updates the value at the indicated posiiton in the dataframe.
         
-        params:
-        value (any): The value to insert into the DataFrame.
-        column_name (str): The name of the column to write to.
-        column_index (int): The integer index within that column to write the value to.
+        :param value: The value to insert into the DataFrame.
+        :type value: any
+        :param column_name: The name of the column to write to.
+        :type column_name: str
+        :param column_index: The integer location within that column to write the value to.
+        :type column_index: int
         """
         self._df.at[column_index, column_name] = value
 
