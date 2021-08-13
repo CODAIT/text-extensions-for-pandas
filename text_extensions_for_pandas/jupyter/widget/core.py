@@ -57,9 +57,9 @@ class DataFrameWidget():
         self._df = dataframe.copy(deep=True)
 
         # Refreshable Outputs
-        self.widget_output = ipw.Output()
-        self.debug_output = ipw.Output()
-        self.widget_output.add_class("tep--dfwidget--output")
+        self._widget_output = ipw.Output()
+        self._debug_output = ipw.Output()
+        self._widget_output.add_class("tep--dfwidget--output")
         self._document_output = None
 
         # Span Visualization Globals
@@ -92,7 +92,7 @@ class DataFrameWidget():
         self._update()
 
         # Attach the widget's script.
-        with self.widget_output:
+        with self._widget_output:
             display(HTML(f"<script>{_WIDGET_SCRIPT}</script>"))
 
     @property
@@ -102,7 +102,7 @@ class DataFrameWidget():
 
     def display(self) -> ipw.Widget:
         """Displays the widget. Returns a reference to the root output widget."""
-        return self.widget_output
+        return self._widget_output
     
     def to_dataframe(self) -> pd.DataFrame:
         """Returns a copy of the DateFrame backing the internal state of the widget data.
@@ -131,11 +131,11 @@ class DataFrameWidget():
 
     def _update(self):
         """Refresh the entire widget from scratch."""
-        with self.widget_output:
+        with self._widget_output:
             clear_output(wait=True)
-            with self.debug_output:
+            with self._debug_output:
                 clear_output()
-            display(self.debug_output)
+            display(self._debug_output)
             display(HTML(f"<script>{_WIDGET_TABLE_CONVERT_SCRIPT}</script>"))
             display(HTML(f"<style>{_WIDGET_STYLE}</style>"))
             display(ipw.VBox([DataFrameWidgetComponent(widget=self)]))
