@@ -1,0 +1,70 @@
+.tep--hover--highlight {
+    background-color: rgba(255, 255, 0, 0.322) !important;
+}
+
+.tep--click--highlight {
+    background-color: rgba(255, 255, 0, 0.322) !important;
+}
+
+.tep--dfwidget--root-container {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+
+}
+
+.tep--dfwidget--table-container {
+    width: max-content;
+}
+
+.tep--dfwidget--document-output {
+    width: min-content;
+    flex-grow: 1;
+}
+
+.tep--dfwidget--table-index .widget-checkbox {
+    width: min-content
+}
+
+.tep--dfwidget--table-index .widget-checkbox>.widget-label {
+    width: min-content
+}
+
+.tep--dfwidget--table table {
+    border-collapse: collapse;
+    border-right: 1px solid lightgray;
+    border-left: 1px solid lightgray;
+    padding-right: 5px;
+}
+
+.tep--dfwidget--table table tr {
+    border-bottom: 1px solid lightgray;
+}
+
+.tep--dfwidget--table table .widget-label {
+    width: min-content;
+}
+
+.tep--dfwidget--table table .widget-checkbox {
+    width: min-content;
+}
+
+.tep--dfwidget--table table .widget-dropdown {
+    width: min-content;
+}
+
+.tep--dfwidget--span-widget {
+    width: min-content;
+}
+
+.tep--dfwidget--span-widget > input {
+    width: 6em;
+}
+
+.tep--dfwidget--table-widget>div {
+    width: min-content;
+}
+
+.tep--dfwidget--table-widget input {
+    width: 8em;
+}
