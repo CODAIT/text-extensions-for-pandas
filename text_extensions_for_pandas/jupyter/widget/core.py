@@ -24,9 +24,8 @@
 import pandas as pd
 import ipywidgets as ipw
 from IPython.display import display, clear_output, HTML
-import text_extensions_for_pandas.jupyter.widget.span as tep_span
-import text_extensions_for_pandas.jupyter.widget.table as tep_table
-
+from . import span as tep_span
+from . import table as tep_table
 import text_extensions_for_pandas.resources
 
 # TODO: This try/except block is for Python 3.6 support, and should be
