@@ -57,15 +57,15 @@ def DataFrameDocumentContainerComponent(widget) -> ipw.Widget:
     if len(span_columns) > 0:
         # Iterate over all rows in the dataframe and add that span's text
         for span_column in span_columns:
-            for index in range(len(dataframe[span_column])):
-                item = dataframe[span_column][index]
+            for i_loc in range(len(dataframe[span_column])):
+                item = dataframe[span_column][i_loc]
                 target_text = item.target_text
                 if target_text not in target_texts:
                     target_texts.append(target_text)
                     spans_by_text[target_text] = []
 
                 spans_by_text[target_text].append(
-                    {"span": item, "index": index, "column": span_column,}
+                    {"span": item, "i_loc": i_loc, "column": span_column,}
                 )
 
         # Add the document display controls
@@ -158,11 +158,11 @@ def DataFrameDocumentComponent(widget, text, spans) -> ipw.Widget:
 
     for entry in spans:
         span = entry["span"]
-        index = entry["index"]  # Index in the dataframe
+        i_loc = entry["i_loc"]  # Index in the dataframe
         column = entry["column"]  # Column header
         if span.begin < span.end:
-            bisect.insort(begin_stack, (span.begin, index, column))
-            bisect.insort(end_stack, (span.end, index, column))
+            bisect.insort(begin_stack, (span.begin, i_loc, column))
+            bisect.insort(end_stack, (span.end, i_loc, column))
 
     begin_stack = collections.deque(begin_stack)
     end_stack = collections.deque(end_stack)
@@ -268,7 +268,13 @@ def DocumentSpan(
     span_indices=[],
 ) -> str:
     return f"""
-        <span class="tep--spanvis--span" data-ids="{" ".join(map(lambda x: str(x), span_indices))}" style="line-height: 2; display: inline-block; padding: 0 0.2em; background-color: {bgcolor};">{text}{f"<span class='tep--spanvis--tag' style='margin:0 0.2em; font-size: 0.8em; font-weight: bold'>{tag}</span>" if show_tag else ""}</span>
+        <span
+            class="tep--spanvis--span"
+            data-ids="{" ".join(map(lambda x: str(x), span_indices))}"
+            style="line-height: 2; display: inline-block; padding: 0 0.2em; background-color: {bgcolor};">
+            {text}
+            {f"<span class='tep--spanvis--tag' style='margin:0 0.2em; font-size: 0.8em; font-weight: bold'>{tag}</span>" if show_tag else ""}
+        </span>
     """
 
 
