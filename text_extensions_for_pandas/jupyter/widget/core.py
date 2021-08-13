@@ -63,7 +63,8 @@ class DataFrameWidget:
         :param interactive_columns: List of column names to pre-set as interactive, defaults to None
         :type interactive_columns: list, optional
         """
-
+        if isinstance(dataframe.index, pd.MultiIndex):
+            raise NotImplementedError("There is currently no support for the pandas MultiIndex type. Use pandas DataFrame instead.")
         self._df = dataframe.copy(deep=True)
 
         # Refreshable Outputs
