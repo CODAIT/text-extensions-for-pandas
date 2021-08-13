@@ -35,13 +35,24 @@ try:
 except ImportError:
     import importlib_resources as pkg_resources
 
-_WIDGET_SCRIPT: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "dataframe_widget.js")
-_WIDGET_STYLE: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "dataframe_widget.css")
-_WIDGET_TABLE_CONVERT_SCRIPT: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "dataframe_widget_table_converter.js")
+_WIDGET_SCRIPT: str = pkg_resources.read_text(
+    text_extensions_for_pandas.resources, "dataframe_widget.js"
+)
+_WIDGET_STYLE: str = pkg_resources.read_text(
+    text_extensions_for_pandas.resources, "dataframe_widget.css"
+)
+_WIDGET_TABLE_CONVERT_SCRIPT: str = pkg_resources.read_text(
+    text_extensions_for_pandas.resources, "dataframe_widget_table_converter.js"
+)
 
-class DataFrameWidget():
 
-    def __init__(self, dataframe : pd.DataFrame, metadata_column : pd.Series = None, interactive_columns : list = None):
+class DataFrameWidget:
+    def __init__(
+        self,
+        dataframe: pd.DataFrame,
+        metadata_column: pd.Series = None,
+        interactive_columns: list = None,
+    ):
         """An instance of an interactive widget that will display Text Extension for Pandas types Span and TokenSpan in their document contexts beside a visualization of the backing dataframe.
         Provides interactive table elements, multiple Span coloring modes, and tools to analyze, modify, and extend DataFrame-backed datasets.
         
@@ -63,27 +74,30 @@ class DataFrameWidget():
 
         # Span Visualization Globals
         self._tag_display = None
-        self._color_mode = 'ROW'
+        self._color_mode = "ROW"
 
         # Initialize selected column
-        if (metadata_column):
+        if metadata_column:
             md_length = len(metadata_column)
             # Check that metadata matches the length of the index. If too short or too long, mutate
-            if (md_length < self._df.shape[0]):
-                metadata_column = metadata_column + [False for i in range(md_length, self._df.shape[0])]
-            elif (md_length > self._df.shape[0]):
-                metadata_column = metadata_column[:self._df.shape[0]]
+            if md_length < self._df.shape[0]:
+                metadata_column = metadata_column + [
+                    False for i in range(md_length, self._df.shape[0])
+                ]
+            elif md_length > self._df.shape[0]:
+                metadata_column = metadata_column[: self._df.shape[0]]
             # Now we have a full starting array to create a series
             self._metadata_column = pd.Series(metadata_column, index=self._df.index)
         else:
-            self._metadata_column = pd.Series([False for i in range(self._df.shape[0])], index=self._df.index)
-
+            self._metadata_column = pd.Series(
+                [False for i in range(self._df.shape[0])], index=self._df.index
+            )
 
         # Initialize interactive columns
         self.interactive_columns = dict()
         for column in self._df.columns.values:
             self.interactive_columns[column] = False
-        if(interactive_columns):
+        if interactive_columns:
             for column in interactive_columns:
                 self.interactive_columns.update({column: True})
 
@@ -102,7 +116,7 @@ class DataFrameWidget():
     def display(self) -> ipw.Widget:
         """Displays the widget. Returns a reference to the root output widget."""
         return self._widget_output
-    
+
     def to_dataframe(self) -> pd.DataFrame:
         """Returns a copy of the DateFrame backing the internal state of the widget data.
 
@@ -111,7 +125,7 @@ class DataFrameWidget():
         """
         return self._df.copy(deep=True)
 
-    def set_interactive_columns(self, columns : list):
+    def set_interactive_columns(self, columns: list):
         """Sets the columns to appear as interactive within the displayed widget.
         
         :param columns: A list of column names to appear as interactive
@@ -145,18 +159,18 @@ class DataFrameWidget():
             with self._document_output:
                 clear_output(wait=True)
                 display(tep_span.DataFrameDocumentContainerComponent(self))
-    
+
     def _update_tag(self, change):
         """Updates the tag displayed on spans in the document view. Observe callback."""
-        self._tag_display = change['new']
+        self._tag_display = change["new"]
         self._update_document()
 
     def _update_color_mode(self, change):
         """Updates the color mode of span rendering. Observe callback."""
-        self._color_mode = change['new']
+        self._color_mode = change["new"]
         self._update_document()
 
-    def _update_dataframe(self, value, column_name : str, column_index : int):
+    def _update_dataframe(self, value, column_name: str, column_index: int):
         """Updates the value at the indicated posiiton in the dataframe.
         
         :param value: The value to insert into the DataFrame.
@@ -168,9 +182,10 @@ class DataFrameWidget():
         """
         self._df.at[column_index, column_name] = value
 
-def DataFrameWidgetComponent(widget : DataFrameWidget) -> ipw.Widget:
+
+def DataFrameWidgetComponent(widget: DataFrameWidget) -> ipw.Widget:
     """The base component of the dataframe widget"""
-    
+
     # Create the render with a table.
     widget_components = [
         tep_table.DataFrameTableComponent(widget=widget),
@@ -185,7 +200,7 @@ def DataFrameWidgetComponent(widget : DataFrameWidget) -> ipw.Widget:
         widget_components.append(document_output)
         with document_output:
             display(documents_widget)
-    
+
     # Create and return a root widget node for all created components.
     root_widget = ipw.VBox(children=widget_components)
     root_widget.add_class("tep--dfwidget--root-container")
