@@ -27,5 +27,6 @@ The ``jupyter`` module contains functions to support the use of Text Extensions 
 # library.
 from text_extensions_for_pandas.jupyter.span import pretty_print_html
 from text_extensions_for_pandas.jupyter.misc import run_with_progress_bar
+from text_extensions_for_pandas.jupyter.widget import DataFrameWidget
 
 __all__ = ["span", "misc", "widget"]

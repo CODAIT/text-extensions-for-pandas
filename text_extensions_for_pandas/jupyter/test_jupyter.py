@@ -46,14 +46,21 @@ class JupyterTest(TestBase):
         self.assertEqual(
             suffix,
             """\
-  const Span = window.SpanArray.Span
+>
+</div>
+<script>
+    {
+        const Span = window.SpanArray.Span
         const script_context = document.currentScript
         const documents = []
 
     {
-        const doc_spans = Span.arrayFromSpanArray([[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]])
-        const doc_text = 'Item\\'s for < $100 & change'
+
+    const doc_spans = [[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]]
+    const doc_text = 'Item\\'s for < $100 & change'
+
         documents.push({doc_text: doc_text, doc_spans: doc_spans})
+
     }
 
         const instance = new window.SpanArray.SpanArray(documents, true, script_context)
@@ -69,14 +76,21 @@ class JupyterTest(TestBase):
         self.assertEqual(
             suffix,
             """\
- const Span = window.SpanArray.Span
+
+</div>
+<script>
+    {
+        const Span = window.SpanArray.Span
         const script_context = document.currentScript
         const documents = []
 
     {
-        const doc_spans = Span.arrayFromSpanArray([[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]])
-        const doc_text = 'Item\\'s for < $100 & change'
+
+    const doc_spans = [[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]]
+    const doc_text = 'Item\\'s for < $100 & change'
+
         documents.push({doc_text: doc_text, doc_spans: doc_spans})
+
     }
 
         const instance = new window.SpanArray.SpanArray(documents, false, script_context)
@@ -94,20 +108,30 @@ class JupyterTest(TestBase):
         self.assertEqual(
             suffix,
             """\
-nArray.Span
+/span>
+</div>
+<script>
+    {
+        const Span = window.SpanArray.Span
         const script_context = document.currentScript
         const documents = []
 
     {
-        const doc_spans = Span.arrayFromSpanArray([[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]])
-        const doc_text = 'Item\\'s for < $100 & change'
+
+    const doc_spans = [[0,4],[4,6],[7,10],[11,12],[13,14],[14,17],[18,19],[20,26]]
+    const doc_text = 'Item\\'s for < $100 & change'
+
         documents.push({doc_text: doc_text, doc_spans: doc_spans})
+
     }
 
     {
-        const doc_spans = Span.arrayFromSpanArray([[0,4],[5,9],[10,11],[12,18],[19,27]])
-        const doc_text = 'Once upon a second document'
+
+    const doc_spans = [[0,4],[5,9],[10,11],[12,18],[19,27]]
+    const doc_text = 'Once upon a second document'
+
         documents.push({doc_text: doc_text, doc_spans: doc_spans})
+
     }
 
         const instance = new window.SpanArray.SpanArray(documents, false, script_context)
@@ -124,9 +148,15 @@ nArray.Span
         self.assertEqual(
             suffix,
             """\
-onst doc_spans = Span.arrayFromSpanArray([[0,3],[4,9],[10,12],[13,17],[17,18],[18,19],[19,20],[21,24],[25,29],[30,38],[39,42],[43,47],[47,48],[48,49],[49,51],[52,59],[60,63],[64,70],[70,71]])
-        const doc_text = 'The first of many.\\nA new line segments the text.\\nIt remains one string.'
+ocuments = []
+
+    {
+
+    const doc_spans = [[0,3],[4,9],[10,12],[13,17],[17,18],[18,19],[19,20],[21,24],[25,29],[30,38],[39,42],[43,47],[47,48],[48,49],[49,51],[52,59],[60,63],[64,70],[70,71]]
+    const doc_text = 'The first of many.\\nA new line segments the text.\\nIt remains one string.'
+
         documents.push({doc_text: doc_text, doc_spans: doc_spans})
+
     }
 
         const instance = new window.SpanArray.SpanArray(documents, false, script_context)
