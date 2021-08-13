@@ -27,8 +27,8 @@ import collections
 
 _COLOR_PALETTE = [
         "F6DF5F",
-        "7469AB",
-        "8B88BF",
+        "8A7CCC",
+        "9dcfaa",
         "EA878B",
         "718AF7",
         "6099E2",
@@ -37,8 +37,10 @@ _COLOR_PALETTE = [
         "87F4D3",
     ]
 
-def DataFrameDocumentContainerComponent(widget, dataframe):
+def DataFrameDocumentContainerComponent(widget) -> ipw.Widget:
     """A Component that separates a dataframe by document and generates their components."""
+
+    dataframe = widget._df
 
     target_texts = []
     spans_by_text = {}
@@ -84,7 +86,7 @@ def DataFrameDocumentContainerComponent(widget, dataframe):
         documents_widget.add_class("tep--spanvis")
         return documents_widget
 
-def DataFrameDocumentControlsComponent(widget, span_columns):
+def DataFrameDocumentControlsComponent(widget, span_columns) -> ipw.Widget:
     """A widget that exposes controls for rendering spans in various ways."""
 
     control_widgets = []
@@ -202,7 +204,7 @@ def DataFrameDocumentComponent(widget, text, spans) -> ipw.Widget:
         """
     )
 
-def DocumentSpan(text, tag, show_tag=True, bgcolor="rgba(200, 180, 255, 0.5)", span_indices=[]) -> str:
+def DocumentSpan(text: str, tag: str, show_tag=True, bgcolor="rgba(200, 180, 255, 0.5)", span_indices=[]) -> str:
     return f"""
         <span class="tep--spanvis--span" data-ids="{" ".join(map(lambda x: str(x), span_indices))}" style="line-height: 2; display: inline-block; padding: 0 0.2em; background-color: {bgcolor};">{text}{f"<span class='tep--spanvis--tag' style='margin:0 0.2em; font-size: 0.8em; font-weight: bold'>{tag}</span>" if show_tag else ""}</span>
     """

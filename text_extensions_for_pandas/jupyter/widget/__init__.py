@@ -26,4 +26,4 @@ The ``jupyter`` module contains functions to support the use of Text Extensions 
 # Expose the public APIs that users should get from importing the top-level
 # library.
 
-from text_extensions_for_pandas.jupyter.widget.widget import render
+from text_extensions_for_pandas.jupyter.widget.widget import DataFrameWidget

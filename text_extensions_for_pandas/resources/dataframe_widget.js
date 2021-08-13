@@ -7,7 +7,7 @@
         document_root = widget_root.querySelector(".tep--spanvis")
         if (!document_root) return;
 
-        // when a hover target is part of a tep--spanvis--span, highlight all table entries that share matching IDs
+        // When a hover target is part of a tep--spanvis--span, highlight all table entries that share matching IDs
         let closest_span = event.target.closest(".tep--spanvis--span")
         if(closest_span != undefined) {
             closest_span.classList.add("tep--hover--highlight")
@@ -22,6 +22,7 @@
             return // Early exit
         }
 
+        // If the closest hover target is a 'row' in the table
         let closest_table_cell = event.target.closest("[class*=tep--dfwidget--row]")
         if(closest_table_cell != undefined) {
             // Extract the row class
@@ -42,7 +43,7 @@
                     })
                 }
             }
-            return // Early-ish exit
+            return // Early exit
         }
     }
 
@@ -66,6 +67,7 @@
             return
         }
 
+        // If the closest hover target is a 'row' in the table
         let closest_table_cell = event.target.closest("[class*=tep--dfwidget--row]")
         if(closest_table_cell != undefined) {
             // Extract the row class
@@ -120,40 +122,12 @@
             return // Early exit
         }
 
-        let closest_table_cell = event.target.closest("[class*=tep--dfwidget--row]")
-        if(closest_table_cell != undefined) {
-            let was_clicked = closest_table_cell.classList.contains("tep--click--highlight")
-            console.log("Click cell", was_clicked);
-            // Extract the row class
-            let row_class = closest_table_cell.classList.value.split(" ").filter(cl => cl.includes('tep--dfwidget--row-'));
-            if(row_class.length == 1)
-            {
-                row_class = row_class[0];
-                // Query all cells from the same row
-                widget_root.querySelectorAll(`.${row_class}`).forEach(element => {
-                    (!was_clicked) ? 
-                        element.classList.add("tep--click--highlight") :
-                        element.classList.remove("tep--click--highlight")
-                })
-                // Query all spans associated to the row
-                let row = row_class.split("tep--dfwidget--row-")[1];
-                if(row != undefined)
-                {
-                    widget_root.querySelectorAll(`.tep--spanvis--span[data-ids~="${row}"]`).forEach(element => {
-                        (!was_clicked) ? 
-                            element.classList.add("tep--click--highlight") :
-                            element.classList.remove("tep--click--highlight")
-                    })
-                }
-            }
-            return // Early-ish exit
-        }
     }
 
     (() => {
         let currentScript = document.currentScript;
         setTimeout(() => {
-            /* on load, navigate to widget */
+            // On load, navigate to widget
             widget_root = currentScript.closest("div.tep--dfwidget--output")
             if (widget_root == null) return
 

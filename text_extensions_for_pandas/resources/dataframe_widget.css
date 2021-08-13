@@ -29,3 +29,42 @@
 .tep--dfwidget--table-index .widget-checkbox>.widget-label {
     width: min-content
 }
+
+.tep--dfwidget--table table {
+    border-collapse: collapse;
+    border-right: 1px solid lightgray;
+    border-left: 1px solid lightgray;
+    padding-right: 5px;
+}
+
+.tep--dfwidget--table table tr {
+    border-bottom: 1px solid lightgray;
+}
+
+.tep--dfwidget--table table .widget-label {
+    width: min-content;
+}
+
+.tep--dfwidget--table table .widget-checkbox {
+    width: min-content;
+}
+
+.tep--dfwidget--table table .widget-dropdown {
+    width: min-content;
+}
+
+.tep--dfwidget--span-widget {
+    width: min-content;
+}
+
+.tep--dfwidget--span-widget > input {
+    width: 6em;
+}
+
+.tep--dfwidget--table-widget>div {
+    width: min-content;
+}
+
+.tep--dfwidget--table-widget input {
+    width: 8em;
+}
