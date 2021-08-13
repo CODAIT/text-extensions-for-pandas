@@ -64,7 +64,9 @@ class DataFrameWidget:
         :type interactive_columns: list, optional
         """
         if isinstance(dataframe.index, pd.MultiIndex):
-            raise NotImplementedError("There is currently no support for the pandas MultiIndex type. Use pandas DataFrame instead.")
+            raise NotImplementedError(
+                "There is currently no support for the pandas MultiIndex type. Use pandas DataFrame instead."
+            )
         self._df = dataframe.copy(deep=True)
 
         # Refreshable Outputs
