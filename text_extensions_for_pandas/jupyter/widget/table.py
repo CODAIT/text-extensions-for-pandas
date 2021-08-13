@@ -129,7 +129,7 @@ def DataFrameTableColumnComponent(widget, is_interactive, column, SpanOnBeginCha
              #Call handler to handle columns of different data types
              #Checks if column is a categorical type and passes in the list of all possible categories as an additional argument if it is
             if(str(column.dtype) == "category"):
-                data = DataTypeHandler("category", column[column_index], categories = column.cat.categories)
+                data = DataTypeHandler(column, column[column_index], categories = column.cat.categories)
                 data.observe(
                     lambda change, column_index=column_index, column_name=column.name, widget=widget: (
                         CategoricalHandler(change, column_index, column_name, widget)),
@@ -142,7 +142,7 @@ def DataFrameTableColumnComponent(widget, is_interactive, column, SpanOnBeginCha
                 data_begin, data_end, text = TokenSpanHandler(column, column_index, TokenSpanOnBeginChange, TokenSpanOnEndChange) 
 
             else:
-                data = DataTypeHandler(column.dtypes, column[column_index])                
+                data = DataTypeHandler(column, column[column_index])                
                 data.observe(
                     lambda change, column_name=column.name, index=column_index, widget=widget:
                         GenericInteractHandler(widget, change["new"], column_name, index),
@@ -178,30 +178,30 @@ def GenericInteractHandler(widget, new_value, column_name, index):
     return new_value
 
 #Generates different interactive widget depending on data type of column    
-def DataTypeHandler(datatype, value, categories = None, min = None, max = None, description = None):
+def DataTypeHandler(column, value, categories = None, min = None, max = None, description = None):
     """Returns an interactive widget based on the type of objects in the column"""
-    if(str(datatype) == 'object'): # < ! DANGEROUS. Will treat multi-typed columns as strings. Requires user to be responsible with column types.
+    if(pd.api.types.is_object_dtype(column)): # < ! DANGEROUS. Will treat multi-typed columns as strings. Requires user to be responsible with column types.
         return ipw.Text(value = str(value))
-    elif(str(datatype) == 'int64' or str(datatype) == 'int32'):
+    elif(pd.api.types.is_integer_dtype(column)):
         return ipw.IntText(value = value)
+    elif(pd.api.types.is_float_dtype(column)):
+        return ipw.FloatText(value = value)
+    elif(pd.api.types.is_bool_dtype(column)):
+        return ipw.Checkbox(value = bool(value))
+    elif(pd.api.types.is_categorical_dtype(column)):
+        if value == np.nan or value == None or str(value) == 'nan':
+            value = 'nan'
+        return ipw.Dropdown(
+            options = ['nan', *categories.array],
+            value = value)
     #used for handling spans
-    elif(str(datatype) == 'bounded_int64'):
+    elif(str(column.dtype) == "SpanDtype" or str(column.dtype) == "TokenSpanDtype"):
         return ipw.BoundedIntText(
             value = value,
             min = min,
             max = max,
             description = description
         )
-    elif(str(datatype) == 'float64'):
-        return ipw.FloatText(value = value)
-    elif(str(datatype) == 'bool'):
-        return ipw.Checkbox(value = bool(value))
-    elif(str(datatype) == 'category'):
-        if value == np.nan or value == None or str(value) == 'nan':
-            value = 'nan'
-        return ipw.Dropdown(
-            options = ['nan', *categories.array],
-            value = value)
     else:
         return ipw.Text(value=str(value), disabled=True)
 
@@ -209,13 +209,13 @@ def DataTypeHandler(datatype, value, categories = None, min = None, max = None, 
 def SpanHandler(column, column_index, on_begin_change, on_end_change):
     """Creates a custom widget for the Text Extensions for Pandas Span object type."""
     #Create input bounded int boxes
-    data_begin = DataTypeHandler('bounded_int64', 
+    data_begin = DataTypeHandler(column, 
         column[column_index].begin, 
         min = 0, 
         max = len(column[column_index]._text), 
         description = "Begin: ")
 
-    data_end = DataTypeHandler('bounded_int64', 
+    data_end = DataTypeHandler(column, 
         column[column_index].end,
         min = 0, 
         max = len(column[column_index]._text), 
@@ -248,13 +248,13 @@ def SpanHandler(column, column_index, on_begin_change, on_end_change):
 def TokenSpanHandler(column, column_index, TokenSpanOnBeginChange, TokenSpanOnEndChange):
     """Creates a custom widget for the Text Extensions for Pandas TokenSpan object type."""
     #Create input bounded int boxes
-    data_begin = DataTypeHandler('bounded_int64', 
+    data_begin = DataTypeHandler(column, 
         column[column_index].begin_token, 
         min = 0, 
         max = column[column_index].end_token, 
         description = "Begin Token: ")
 
-    data_end = DataTypeHandler('bounded_int64', 
+    data_end = DataTypeHandler(column, 
         column[column_index].end_token, 
         min = column[column_index].begin_token, 
         max = len(column[column_index].tokens), 
