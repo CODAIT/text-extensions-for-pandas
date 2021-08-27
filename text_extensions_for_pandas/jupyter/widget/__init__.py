@@ -14,19 +14,16 @@
 #
 
 """
-The ``jupyter`` module contains functions to support the use of Text Extensions for Pandas
- in Jupyter notebooks.
+The ``widget`` module contains the DataFrameWidget class and all supporting
+functions for the use of the interactive DataFrame widget.
 """
 ################################################################################
-# jupyter module
+# widget module
 #
 #
-# Functions in text_extensions_for_pandas for Jupyter notebook support.
+# Class and functions for the interactive DataFrame widget.
 
 # Expose the public APIs that users should get from importing the top-level
 # library.
-from text_extensions_for_pandas.jupyter.span import pretty_print_html
-from text_extensions_for_pandas.jupyter.misc import run_with_progress_bar
-from text_extensions_for_pandas.jupyter.widget import DataFrameWidget
 
-__all__ = ["span", "misc", "widget"]
+from text_extensions_for_pandas.jupyter.widget.core import DataFrameWidget
