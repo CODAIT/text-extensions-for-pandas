@@ -563,65 +563,101 @@ class CoNLLTest(unittest.TestCase):
                 [86 rows x 14 columns]"""
             ),
         )
-        dfs = conll_u_to_dataframes("test_data/io/test_conll/conll_09_test1.conllu")
-        print(f"***{repr(dfs[0])}***")  # catch bug where first df isn't the same
+        conll_09_cols = ['lemma','upostag','xpostag','features','head','deprel','fillpred']
+        dfs = conll_u_to_dataframes("test_data/io/test_conll/conll_09_test1.conllu"
+                                    ,column_names=conll_09_cols)
+        print(f"***{repr(dfs[0].head(20))}***")  # catch bug where first df isn't the same
         self.assertEqual(
-            repr(dfs[0]),
+            repr(dfs[0].head(20)),
             textwrap.dedent(
                 """\
-                                     span   lemma upostag xpostag features  head deprel  deps  \\
-                0            [0, 2): 'No'      no      DT      DT     None     3    DEP  None   
-                1             [2, 3): ','       ,       ,       ,     None     3      P  None   
-                2            [4, 6): 'it'      it     PRP     PRP     None     3    SBJ  None   
-                3          [7, 10): 'was'      be     VBD     VBD     None  <NA>   ROOT  None   
-                4         [11, 14): 'n't'     not      RB      RB     None     3    ADV  None   
-                ..                    ...     ...     ...     ...      ...   ...    ...   ...   
-                74     [373, 377): 'both'    both      DT      DT     None    75   NMOD  None   
-                75   [378, 384): 'stocks'  stocks     NNS     NNS     None    73   PMOD  None   
-                76      [385, 388): 'and'     and      CC      CC     None    75  COORD  None   
-                77  [389, 396): 'futures'  future     NNS     NNS     None    76   CONJ  None   
-                78        [396, 397): '.'       .       .       .     None    59      P  None   
-                
-                    misc predicate pred0arg pred1arg pred2arg pred3arg pred4arg pred5arg  \\
-                0   None      None     None     None     None     None     None     None   
-                1   None      None     None     None     None     None     None     None   
-                2   None      None     None     None     None     None     None     None   
-                3   None      None     None     None     None     None     None     None   
-                4   None      None     None     None     None     None     None     None   
-                ..   ...       ...      ...      ...      ...      ...      ...      ...   
-                74  None      None     None     None     None     None     None     None   
-                75  None      None     None     None     None     None     None     None   
-                76  None      None     None     None     None     None     None     None   
-                77  None      None     None     None     None     None     None     None   
-                78  None      None     None     None     None     None     None     None   
-                
-                   pred6arg pred7arg                                           sentence  \\
-                0      None     None            [0, 28): 'No, it was n't Black Monday.'   
-                1      None     None            [0, 28): 'No, it was n't Black Monday.'   
-                2      None     None            [0, 28): 'No, it was n't Black Monday.'   
-                3      None     None            [0, 28): 'No, it was n't Black Monday.'   
-                4      None     None            [0, 28): 'No, it was n't Black Monday.'   
-                ..      ...      ...                                                ...   
-                74     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
-                75     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
-                76     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
-                77     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
-                78     None     None  [232, 397): 'Some `` circuit breakers '' insta...   
-                
-                    line_num  
-                0          1  
-                1          2  
-                2          3  
-                3          4  
-                4          5  
-                ..       ...  
-                74        79  
-                75        80  
-                76        81  
-                77        82  
-                78        83  
-                
-                [79 rows x 20 columns]"""
+                                    span     lemma upostag xpostag features  head deprel  \\
+                0           [0, 2): 'No'        no      DT      DT     None     3    DEP   
+                1            [2, 3): ','         ,       ,       ,     None     3      P   
+                2           [4, 6): 'it'        it     PRP     PRP     None     3    SBJ   
+                3         [7, 10): 'was'        be     VBD     VBD     None  <NA>   ROOT   
+                4        [11, 14): 'n't'       not      RB      RB     None     3    ADV   
+                5      [15, 20): 'Black'     black     NNP     NNP     None     6   NAME   
+                6     [21, 27): 'Monday'    monday     NNP     NNP     None     3    PRD   
+                7        [28, 31): 'but'       but      CC      CC     None     3    ADJ   
+                8          [31, 32): '.'         .       .       .     None     3      P   
+                9        [33, 36): 'But'       but      CC      CC     None    41    DEP   
+                10     [37, 42): 'while'     while      IN      IN     None    41    ADV   
+                11       [43, 46): 'the'       the      DT      DT     None    15   NMOD   
+                12       [47, 50): 'New'       new     NNP     NNP     None    13   NAME   
+                13      [51, 55): 'York'      york     NNP     NNP     None    15   NAME   
+                14     [56, 61): 'Stock'     stock     NNP     NNP     None    15   NAME   
+                15  [62, 70): 'Exchange'  exchange     NNP     NNP     None    16    SBJ   
+                16       [71, 74): 'did'        do     VBD     VBD     None    10    SUB   
+                17       [75, 78): 'n't'       not      RB      RB     None    16    ADV   
+                18      [79, 83): 'fall'      fall      VB      VB     None    16     VC   
+                19     [84, 89): 'apart'     apart      RB      RB     None    18    ADV   
+
+                   fillpred predicate pred0arg pred1arg pred2arg pred3arg pred4arg pred5arg  \\
+                0      None      None     None     None     None     None     None     None   
+                1      None      None     None     None     None     None     None     None   
+                2      None      None     None     None     None     None     None     None   
+                3      None      None     None     None     None     None     None     None   
+                4      None      None     None     None     None     None     None     None   
+                5      None      None     None     None     None     None     None     None   
+                6      None      None     None     None     None     None     None     None   
+                7      None      None     None     None     None     None     None     None   
+                8      None      None     None     None     None     None     None     None   
+                9      None      None     None     None     None     None     None     None   
+                10     None      None     None     None   AM-ADV     None     None     None   
+                11     None      None     None     None     None     None     None     None   
+                12     None      None     None     None     None     None     None     None   
+                13     None      None     None     None     None     None     None     None   
+                14     None      None     None     None     None     None     None     None   
+                15     None      None       A1     None     None     None     None     None   
+                16     None      None     None     None     None     None     None     None   
+                17     None      None   AM-NEG     None     None     None     None     None   
+                18        Y   fall.01     None     None     None     None     None     None   
+                19     None      None       A4     None     None     None     None     None   
+
+                   pred6arg pred7arg pred8arg  \\
+                0      None     None     None   
+                1      None     None     None   
+                2      None     None     None   
+                3      None     None     None   
+                4      None     None     None   
+                5      None     None     None   
+                6      None     None     None   
+                7      None     None     None   
+                8      None     None     None   
+                9      None     None     None   
+                10     None     None     None   
+                11     None     None     None   
+                12     None     None     None   
+                13     None     None     None   
+                14     None     None     None   
+                15     None     None     None   
+                16     None     None     None   
+                17     None     None     None   
+                18     None     None     None   
+                19     None     None     None   
+
+                                                             sentence  line_num  
+                0         [0, 32): 'No, it was n't Black Monday but.'         1  
+                1         [0, 32): 'No, it was n't Black Monday but.'         2  
+                2         [0, 32): 'No, it was n't Black Monday but.'         3  
+                3         [0, 32): 'No, it was n't Black Monday but.'         4  
+                4         [0, 32): 'No, it was n't Black Monday but.'         5  
+                5         [0, 32): 'No, it was n't Black Monday but.'         6  
+                6         [0, 32): 'No, it was n't Black Monday but.'         7  
+                7         [0, 32): 'No, it was n't Black Monday but.'         8  
+                8         [0, 32): 'No, it was n't Black Monday but.'         9  
+                9   [33, 235): 'But while the New York Stock Excha...        12  
+                10  [33, 235): 'But while the New York Stock Excha...        13  
+                11  [33, 235): 'But while the New York Stock Excha...        14  
+                12  [33, 235): 'But while the New York Stock Excha...        15  
+                13  [33, 235): 'But while the New York Stock Excha...        16  
+                14  [33, 235): 'But while the New York Stock Excha...        17  
+                15  [33, 235): 'But while the New York Stock Excha...        18  
+                16  [33, 235): 'But while the New York Stock Excha...        19  
+                17  [33, 235): 'But while the New York Stock Excha...        20  
+                18  [33, 235): 'But while the New York Stock Excha...        21  
+                19  [33, 235): 'But while the New York Stock Excha...        22  """
             ),
         )
 
