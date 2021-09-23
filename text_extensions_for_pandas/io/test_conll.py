@@ -579,20 +579,20 @@ class CoNLLTest(unittest.TestCase):
                 4        [11, 14): 'n't'       not      RB      RB     None     3    ADV   
                 5      [15, 20): 'Black'     black     NNP     NNP     None     6   NAME   
                 6     [21, 27): 'Monday'    monday     NNP     NNP     None     3    PRD   
-                7        [28, 31): 'but'       but      CC      CC     None     3    ADJ   
-                8          [31, 32): '.'         .       .       .     None     3      P   
-                9        [33, 36): 'But'       but      CC      CC     None    41    DEP   
-                10     [37, 42): 'while'     while      IN      IN     None    41    ADV   
-                11       [43, 46): 'the'       the      DT      DT     None    15   NMOD   
-                12       [47, 50): 'New'       new     NNP     NNP     None    13   NAME   
-                13      [51, 55): 'York'      york     NNP     NNP     None    15   NAME   
-                14     [56, 61): 'Stock'     stock     NNP     NNP     None    15   NAME   
-                15  [62, 70): 'Exchange'  exchange     NNP     NNP     None    16    SBJ   
-                16       [71, 74): 'did'        do     VBD     VBD     None    10    SUB   
-                17       [75, 78): 'n't'       not      RB      RB     None    16    ADV   
-                18      [79, 83): 'fall'      fall      VB      VB     None    16     VC   
-                19     [84, 89): 'apart'     apart      RB      RB     None    18    ADV   
-
+                7          [27, 28): '.'         .       .       .     None     3      P   
+                8        [29, 32): 'But'       but      CC      CC     None    40    DEP   
+                9      [33, 38): 'while'     while      IN      IN     None    40    ADV   
+                10       [39, 42): 'the'       the      DT      DT     None    14   NMOD   
+                11       [43, 46): 'New'       new     NNP     NNP     None    12   NAME   
+                12      [47, 51): 'York'      york     NNP     NNP     None    14   NAME   
+                13     [52, 57): 'Stock'     stock     NNP     NNP     None    14   NAME   
+                14  [58, 66): 'Exchange'  exchange     NNP     NNP     None    15    SBJ   
+                15       [67, 70): 'did'        do     VBD     VBD     None     9    SUB   
+                16       [71, 74): 'n't'       not      RB      RB     None    15    ADV   
+                17      [75, 79): 'fall'      fall      VB      VB     None    15     VC   
+                18     [80, 85): 'apart'     apart      RB      RB     None    17    ADV   
+                19    [86, 92): 'Friday'    friday     NNP     NNP     None    17    TMP   
+                
                    fillpred predicate pred0arg pred1arg pred2arg pred3arg pred4arg pred5arg  \\
                 0      None      None     None     None     None     None     None     None   
                 1      None      None     None     None     None     None     None     None   
@@ -603,18 +603,18 @@ class CoNLLTest(unittest.TestCase):
                 6      None      None     None     None     None     None     None     None   
                 7      None      None     None     None     None     None     None     None   
                 8      None      None     None     None     None     None     None     None   
-                9      None      None     None     None     None     None     None     None   
-                10     None      None     None     None   AM-ADV     None     None     None   
+                9      None      None     None     None   AM-ADV     None     None     None   
+                10     None      None     None     None     None     None     None     None   
                 11     None      None     None     None     None     None     None     None   
                 12     None      None     None     None     None     None     None     None   
                 13     None      None     None     None     None     None     None     None   
-                14     None      None     None     None     None     None     None     None   
-                15     None      None       A1     None     None     None     None     None   
-                16     None      None     None     None     None     None     None     None   
-                17     None      None   AM-NEG     None     None     None     None     None   
-                18        Y   fall.01     None     None     None     None     None     None   
-                19     None      None       A4     None     None     None     None     None   
-
+                14     None      None       A1     None     None     None     None     None   
+                15     None      None     None     None     None     None     None     None   
+                16     None      None   AM-NEG     None     None     None     None     None   
+                17        Y   fall.01     None     None     None     None     None     None   
+                18     None      None       A4     None     None     None     None     None   
+                19     None      None   AM-TMP     None     None     None     None     None   
+                
                    pred6arg pred7arg pred8arg  \\
                 0      None     None     None   
                 1      None     None     None   
@@ -636,28 +636,28 @@ class CoNLLTest(unittest.TestCase):
                 17     None     None     None   
                 18     None     None     None   
                 19     None     None     None   
-
+                
                                                              sentence  line_num  
-                0         [0, 32): 'No, it was n't Black Monday but.'         1  
-                1         [0, 32): 'No, it was n't Black Monday but.'         2  
-                2         [0, 32): 'No, it was n't Black Monday but.'         3  
-                3         [0, 32): 'No, it was n't Black Monday but.'         4  
-                4         [0, 32): 'No, it was n't Black Monday but.'         5  
-                5         [0, 32): 'No, it was n't Black Monday but.'         6  
-                6         [0, 32): 'No, it was n't Black Monday but.'         7  
-                7         [0, 32): 'No, it was n't Black Monday but.'         8  
-                8         [0, 32): 'No, it was n't Black Monday but.'         9  
-                9   [33, 235): 'But while the New York Stock Excha...        12  
-                10  [33, 235): 'But while the New York Stock Excha...        13  
-                11  [33, 235): 'But while the New York Stock Excha...        14  
-                12  [33, 235): 'But while the New York Stock Excha...        15  
-                13  [33, 235): 'But while the New York Stock Excha...        16  
-                14  [33, 235): 'But while the New York Stock Excha...        17  
-                15  [33, 235): 'But while the New York Stock Excha...        18  
-                16  [33, 235): 'But while the New York Stock Excha...        19  
-                17  [33, 235): 'But while the New York Stock Excha...        20  
-                18  [33, 235): 'But while the New York Stock Excha...        21  
-                19  [33, 235): 'But while the New York Stock Excha...        22  """
+                0             [0, 28): 'No, it was n't Black Monday.'         1  
+                1             [0, 28): 'No, it was n't Black Monday.'         2  
+                2             [0, 28): 'No, it was n't Black Monday.'         3  
+                3             [0, 28): 'No, it was n't Black Monday.'         4  
+                4             [0, 28): 'No, it was n't Black Monday.'         5  
+                5             [0, 28): 'No, it was n't Black Monday.'         6  
+                6             [0, 28): 'No, it was n't Black Monday.'         7  
+                7             [0, 28): 'No, it was n't Black Monday.'         8  
+                8   [29, 231): 'But while the New York Stock Excha...        11  
+                9   [29, 231): 'But while the New York Stock Excha...        12  
+                10  [29, 231): 'But while the New York Stock Excha...        13  
+                11  [29, 231): 'But while the New York Stock Excha...        14  
+                12  [29, 231): 'But while the New York Stock Excha...        15  
+                13  [29, 231): 'But while the New York Stock Excha...        16  
+                14  [29, 231): 'But while the New York Stock Excha...        17  
+                15  [29, 231): 'But while the New York Stock Excha...        18  
+                16  [29, 231): 'But while the New York Stock Excha...        19  
+                17  [29, 231): 'But while the New York Stock Excha...        20  
+                18  [29, 231): 'But while the New York Stock Excha...        21  
+                19  [29, 231): 'But while the New York Stock Excha...        22  """
             ),
         )
 
