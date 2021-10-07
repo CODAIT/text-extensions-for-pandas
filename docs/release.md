@@ -19,6 +19,21 @@ Steps to release a new version:
 1. Ensure Watson NLU service API tests are enabled and passing by setting 
    IBM_API_KEY and IBM_SERVICE_URL, then running unit tests with pytest.
 
+1. Make sure that the package installs and imports on a Python environment with 
+   only the packages in `requirements.txt` by running the following commands 
+   from the root of your local copy of the repository:
+   ```
+   conda create -y --prefix ./testenv python=3.8 pip
+   conda activate ./testenv
+   pip install -r requirements.txt
+   pip install .
+   python -c "import text_extensions_for_pandas as tp"
+   ```
+   The last command should succeed with no exceptions.
+   
+   You can safely deactivate and remove the Anaconda environment`./testenv` 
+   once this step is done.
+
 1. Activate your Text Extensions for Pandas build environment (usually called 
    `pd`)
 
