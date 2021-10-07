@@ -251,7 +251,7 @@ class _SentenceData:
         :param line_elems: Fields of a line, pre-split
         """
         if len(line_elems) < 2 + len(self._column_names):
-            if len(line_elems) > 2 + self._num_standard_cols:
+            if len(line_elems) >= 2 + self._num_standard_cols:
                 line_elems.extend(
                     ["_" for i in range(2 + len(self._column_names) - len(line_elems))]
                 )
@@ -262,6 +262,7 @@ class _SentenceData:
                     f"{2 + len(self._column_names)} elements, "
                     f"got {len(line_elems)} instead."
                     f" min_num: {self._num_standard_cols}"
+                    f"\nline reads: '{'    '.join(line_elems) }'"
                 )
         if (
             len(line_elems) > 2 + len(self._column_names)
