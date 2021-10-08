@@ -26,7 +26,7 @@ Steps to release a new version:
    conda create -y --prefix ./testenv python=3.8 pip
    conda activate ./testenv
    pip install -r requirements.txt
-   pip install .
+   pip install --editable .
    python -c "import text_extensions_for_pandas as tp"
    ```
    The last command should succeed with no exceptions.
