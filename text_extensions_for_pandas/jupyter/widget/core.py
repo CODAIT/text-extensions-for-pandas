@@ -14,7 +14,7 @@
 #
 
 #
-# widget.py
+# core.py
 #
 # Part of text_extensions_for_pandas
 #
@@ -22,11 +22,12 @@
 #
 
 import pandas as pd
-import ipywidgets as ipw
-from IPython.display import display, clear_output, HTML
 from . import span as tep_span
 from . import table as tep_table
 import text_extensions_for_pandas.resources
+
+from text_extensions_for_pandas.jupyter.widget.stubs import (
+    ipw, display, clear_output, HTML)
 
 # TODO: This try/except block is for Python 3.6 support, and should be
 # reduced to just importing importlib.resources when 3.6 support is dropped.
@@ -53,19 +54,25 @@ class DataFrameWidget:
         metadata_column: pd.Series = None,
         interactive_columns: list = None,
     ):
-        """An instance of an interactive widget that will display Text Extension for Pandas types Span and TokenSpan in their document contexts beside a visualization of the backing dataframe.
-        Provides interactive table elements, multiple Span coloring modes, and tools to analyze, modify, and extend DataFrame-backed datasets.
+        """An instance of an interactive widget that will display Text Extension for
+        Pandas types Span and TokenSpan in their document contexts beside a visualization
+        of the backing dataframe.
+        Provides interactive table elements, multiple Span coloring modes, and tools to
+        analyze, modify, and extend DataFrame-backed datasets.
         
         :param dataframe: The DataFrame to visualize in the widget
         :type dataframe: pandas.DataFrame
-        :param metadata_column: Series of selected values to pre-load into the index column, defaults to None
+        :param metadata_column: Series of selected values to pre-load into the index
+         column, defaults to None
         :type metadata_column: pandas.Series, optional
-        :param interactive_columns: List of column names to pre-set as interactive, defaults to None
+        :param interactive_columns: List of column names to pre-set as interactive,
+         defaults to None
         :type interactive_columns: list, optional
         """
         if isinstance(dataframe.index, pd.MultiIndex):
             raise NotImplementedError(
-                "There is currently no support for the pandas MultiIndex type. Use pandas DataFrame instead."
+                "There is currently no support for the pandas MultiIndex type. "
+                "Use pandas DataFrame instead."
             )
         self._df = dataframe.copy(deep=True)
 
@@ -85,7 +92,7 @@ class DataFrameWidget:
             # Check that metadata matches the length of the index. If too short or too long, mutate
             if md_length < self._df.shape[0]:
                 metadata_column = metadata_column + [
-                    False for i in range(md_length, self._df.shape[0])
+                    False for _ in range(md_length, self._df.shape[0])
                 ]
             elif md_length > self._df.shape[0]:
                 metadata_column = metadata_column[: self._df.shape[0]]
@@ -188,7 +195,6 @@ class DataFrameWidget:
 
 def DataFrameWidgetComponent(widget: DataFrameWidget) -> ipw.Widget:
     """The base component of the dataframe widget"""
-
     # Create the render with a table.
     widget_components = [
         tep_table.DataFrameTableComponent(widget=widget),

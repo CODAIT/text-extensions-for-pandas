@@ -21,10 +21,11 @@
 # Contains the table elements of the dataframe/spanarray widget
 #
 
-from IPython.core.display import clear_output
-import ipywidgets as ipw
 import numpy as np
 import pandas as pd
+
+from text_extensions_for_pandas.jupyter.widget.stubs import (
+    ipw, display, clear_output, HTML)
 
 
 def DataFrameTableComponent(widget) -> ipw.Widget:
@@ -148,7 +149,8 @@ def DataFrameTableColumnComponent(
     TokenSpanOnBeginChange,
     TokenSpanOnEndChange,
 ):
-    """Constructs the widget component representing a single column of data within the table."""
+    """Constructs the widget component representing a single column of data within the
+    table."""
 
     column_items = []
 
@@ -351,7 +353,8 @@ def TokenSpanHandler(
 
 
 def CategoricalHandler(change, column_index, column_name, widget):
-    """Event callback for interactive changes in a categorical column. Necessary due to the use of np.NaN for a None type."""
+    """Event callback for interactive changes in a categorical column. Necessary due
+    to the use of np.NaN for a None type."""
     if change["new"] == "nan":
         widget._df.get(column_name)[column_index] = np.nan
     else:

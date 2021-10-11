@@ -21,9 +21,11 @@
 # Contains the span elements of the dataframe/spanarray widget
 #
 
-import ipywidgets as ipw
 import bisect
 import collections
+
+from text_extensions_for_pandas.jupyter.widget.stubs import (
+    ipw, display, clear_output, HTML)
 
 _COLOR_PALETTE = [
     "F6DF5F",
@@ -38,7 +40,7 @@ _COLOR_PALETTE = [
 ]
 
 
-def DataFrameDocumentContainerComponent(widget) -> ipw.Widget:
+def DataFrameDocumentContainerComponent(widget): # -> ipw.Widget
     """A Component that separates a dataframe by document and generates their components."""
 
     dataframe = widget._df
@@ -87,14 +89,15 @@ def DataFrameDocumentContainerComponent(widget) -> ipw.Widget:
         return documents_widget
 
 
-def DataFrameDocumentControlsComponent(widget, span_columns) -> ipw.Widget:
+def DataFrameDocumentControlsComponent(widget, span_columns):  # -> ipw.Widget:
     """A widget that exposes controls for rendering spans in various ways."""
 
     control_widgets = []
 
     # Branch based on number of span columns in the dataframe
 
-    # If there's only one span column, we just want to choose the tag column from all columns
+    # If there's only one span column, we just want to choose the tag column from all
+    # columns
     if len(span_columns) == 1:
         # Tag dropdown
         tag_values = map(lambda v: (v, ("column_data", v)), widget._df.columns.values)
@@ -145,8 +148,9 @@ def DataFrameDocumentControlsComponent(widget, span_columns) -> ipw.Widget:
     return ipw.HTML("")
 
 
-def DataFrameDocumentComponent(widget, text, spans) -> ipw.Widget:
-    """A component that renders the context of a document by generating visisble highlights for a column of spans."""
+def DataFrameDocumentComponent(widget, text, spans): # -> ipw.Widget
+    """A component that renders the context of a document by generating visisble
+    highlights for a column of spans."""
 
     # Create some color tracking variables
     _color_map = {}
