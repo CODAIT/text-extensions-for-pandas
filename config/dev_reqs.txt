@@ -18,5 +18,6 @@ twine
 # but may also be called from related regression tests in the future.
 nltk
 ray[default]
+feather
 
 
