@@ -281,7 +281,7 @@ def extract_split(
 
     :returns: An ``SpanArray``  that splits the document in the specified way.
     """
-    if isinstance(split_points, (collections.Sequence, np.ndarray)):
+    if isinstance(split_points, (collections.abc.Sequence, np.ndarray)):
         # Single-integer split points ==> zero-length spans
         split_points = SpanArray(doc_text, split_points, split_points)
     elif not isinstance(split_points, SpanArray):
