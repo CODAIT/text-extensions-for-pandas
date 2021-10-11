@@ -38,24 +38,19 @@ def adjacent_join(
     considered to match if they are adjacent to each other in the text.
 
     :param first_series: Spans that appear earlier. dtype must be TokenSpanDtype.
-
     :param second_series: Spans that come after. dtype must be TokenSpanDtype.
-
     :param first_name: Name to give the column in the returned dataframe that
-    is derived from `first_series`.
-
+        is derived from `first_series`.
     :param second_name: Column name for spans from `second_series` in the
-    returned DataFrame.
-
+        returned DataFrame.
     :param min_gap: Minimum number of spans allowed between matching pairs of
-    spans, inclusive.
-
+        spans, inclusive.
     :param max_gap: Maximum number of spans allowed between matching pairs of
-    spans, inclusive.
+        spans, inclusive.
 
     :returns: a new `pd.DataFrame` containing all pairs of spans that match
-    the join predicate. Columns of the DataFrame will be named according
-    to the `first_name` and `second_name` arguments.
+        the join predicate. Columns of the DataFrame will be named according
+        to the `first_name` and `second_name` arguments.
     """
     # For now we always make the first series the outer.
     # TODO: Make the larger series the outer and adjust the join logic
@@ -101,18 +96,15 @@ def overlap_join(
     considered to match if they overlap.
 
     :param first_series: First set of spans to join, wrapped in a `pd.Series`
-
     :param second_series: Second set of spans to join.
-
     :param first_name: Name to give the column in the returned dataframe that
-    is derived from `first_series`.
-
+     is derived from `first_series`.
     :param second_name: Column name for spans from `second_series` in the
-    returned DataFrame.
+     returned DataFrame.
 
     :returns: a new `pd.DataFrame` containing all pairs of spans that match
-    the join predicate. Columns of the DataFrame will be named according
-    to the `first_name` and `second_name` arguments.
+     the join predicate. Columns of the DataFrame will be named according
+     to the `first_name` and `second_name` arguments.
     """
     # Python type checking doesn't enforce Pandas series dtypes.
     if (not isinstance(first_series.dtype, (SpanDtype, TokenSpanDtype))
@@ -190,19 +182,16 @@ def contain_join(
     considered to match if the second span is contained within the first.
 
     :param first_series: First set of spans to join, wrapped in a `pd.Series`
-
     :param second_series: Second set of spans to join. These are the ones that
-     are contained within the first set where the join predicate is satisfied.
-
+        are contained within the first set where the join predicate is satisfied.
     :param first_name: Name to give the column in the returned dataframe that
-    is derived from `first_series`.
-
+        is derived from `first_series`.
     :param second_name: Column name for spans from `second_series` in the
-    returned DataFrame.
+        returned DataFrame.
 
     :returns: a new `pd.DataFrame` containing all pairs of spans that match
-    the join predicate. Columns of the DataFrame will be named according
-    to the `first_name` and `second_name` arguments.
+        the join predicate. Columns of the DataFrame will be named according
+        to the `first_name` and `second_name` arguments.
     """
     # For now we just run overlap_join() and filter the results.
     # TODO: Factor out the blocking code so that we can avoid filtering

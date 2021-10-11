@@ -42,19 +42,16 @@ def lemmatize(spans: Union[pd.Series, SpanArray, Iterable[Span]],
     features table.
 
     :param spans: Spans to be normalized. Each may represent zero or more
-    tokens.
-
+     tokens.
     :param token_features: DataFrame of token metadata. Index must be aligned
-    with the token indices in `spans`.
-
+     with the token indices in `spans`.
     :param lemma_col_name: Optional custom name for the DataFrame column
-    containing the lemmatized form of each token.
-
+     containing the lemmatized form of each token.
     :param token_span_col_name: Optional custom name for the DataFrame column
-    containing the span of each token.
+     containing the span of each token.
 
     :return: A list containing normalized versions of the tokens
-    in `spans`, with each token separated by single space character.
+     in `spans`, with each token separated by single space character.
     """
     char_spans = SpanArray.make_array(spans)
     token_spans = TokenSpanArray.align_to_tokens(token_features[token_span_col_name],
