@@ -34,13 +34,13 @@ def consolidate(df: pd.DataFrame, on: str, how: str = "left_to_right") -> pd.Dat
     :param df: DataFrame containing spans and other attributes
     :param on: Name of column in `df` on which to perform consolidation
     :param how: What policy to use to decide what spans are considered
-     to overlap and which of an overlapping pair will remain after
-     consolidation. Available policies:
-     * `left_to_right`: Walk through the spans from left to right, keeping
-       the longest non-overlapping match at each position encountered
+        to overlap and which of an overlapping pair will remain after
+        consolidation. Available policies:
+        * ``left_to_right``: Walk through the spans from left to right, keeping \
+        the longest non-overlapping match at each position encountered
 
-    Returns the rows of `df` that remain after applying the specified
-    policy to the spans in the column specified by `on`.
+    :returns: the rows of `df` that remain after applying the specified
+     policy to the spans in the column specified by `on`.
     """
     spans = df[on].values
     if not isinstance(spans, SpanArray):
