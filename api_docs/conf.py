@@ -19,6 +19,8 @@
 import os
 import sys
 
+import sphinx_rtd_theme
+
 # This file is located one level above the root of the project. Add .. to the
 # path so we can find the Python code to be documented.
 sys.path.insert(0, os.path.abspath(".."))
@@ -28,7 +30,7 @@ print(f"sys.path is {sys.path}")
 # -- Project information -----------------------------------------------------
 
 project = "Text Extensions for Pandas"
-copyright = "2020, IBM"
+copyright = "2021, IBM"
 author = "IBM"
 
 # Front page of API docs is located at index.rst
@@ -53,6 +55,9 @@ extensions = [
     # API documentation files from code (currently we hard-code an 
     # entry point for each module and rely on autodoc)
     # "sphinxcontrib.apidoc"
+
+    # Third-party theme that provides a floating table of contents
+    "sphinx_rtd_theme"
 ]
 
 # Configure the sphinx.ext.autodoc extension
@@ -96,7 +101,11 @@ for filename in os.listdir():
 
 # -- Options for HTML output -------------------------------------------------
 
-html_theme = 'nature'
+
+html_theme = "sphinx_rtd_theme"
+html_theme_options = {
+    "sticky_navigation": True,
+}
 
 html_static_path = ['_static']
 
