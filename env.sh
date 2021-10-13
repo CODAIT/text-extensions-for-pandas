@@ -145,6 +145,14 @@ pip install -r config/jupyter_reqs.txt
 # Additional layer of large packages
 pip install -r config/big_reqs.txt
 
+# Additional layer of packages that no longer work with Python 3.6
+if ["${PYTHON_VERSION}" == "3.6"]; then
+    echo "Skipping packages in config/non_36_reqs.txt because Python version"
+    echo "is set to 3.6."
+else
+    pip install -r config/non_36_reqs.txt
+fi
+
 # The previous steps will have installed some version of Pandas.
 # Override that version if the user requested it.
 if [ -n "${PANDAS_VERSION}" ]; then
@@ -164,8 +172,9 @@ python -m spacy download en_core_web_trf
 jupyter nbextension enable --py widgetsnbextension
 jupyter labextension install --no-build @jupyter-widgets/jupyterlab-manager
 
-# Also install the table of contents extension
-jupyter labextension install --no-build @jupyterlab/toc
+# Elyra extensions to JupyterLab (enables git integration, debugger, workflow
+# editor, table of contents, and other features)
+pip install --upgrade --use-deprecated=legacy-resolver elyra
 
 # Build once after installing all the extensions, and skip minimization of the
 # JuptyerLab resources, since we'll be running from the local machine.
