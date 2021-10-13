@@ -51,6 +51,12 @@ jobs:
           $CONDA/bin/conda update -q conda
           $CONDA/bin/conda info -a
           CONDA_HOME="${CONDA}" ./env.sh --use_active_env
+      - name: Print installed packages
+        run: |
+          conda list
+          pip list
+          which python
+          which pytest
       - name: Test with pytest
         run: |
           pytest -v text_extensions_for_pandas
