@@ -12,8 +12,11 @@ ipywidgets
 ibm-watson
 twine
 
-# Documentation-related requirements:
-sphinx
+# Documentation-related requirements have moved to non_36_reqs.txt.
+#sphinx
+#sphinxcontrib-apidoc
+#sphinx_rtd_theme
+#autoclasstoc
 
 # The following libraries are currently only used in our example notebooks
 # but may also be called from related regression tests in the future.
