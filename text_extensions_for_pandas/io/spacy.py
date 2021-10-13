@@ -17,7 +17,9 @@
 # spacy.py
 #
 """
-This module contains I/O functions related to the SpaCy NLP library.
+The ``io.spacy`` module contains I/O functions related to the SpaCy_ NLP library.
+
+.. _SpaCy: https://spacy.io
 """
 
 import re
@@ -45,11 +47,11 @@ _SIMPLE_TOKENIZER = None
 
 def simple_tokenizer() -> "spacy.tokenizer.Tokenizer":
     """
-    Returns: a singleton of a SpaCy tokenizer that splits text on all whitespace
-    and all punctuation characters.
+    :returns: Singleton instance of a SpaCy tokenizer that splits text on all whitespace
+              and all punctuation characters.
 
-    This type of tokenization is recommended for dictionary and regular expression
-    matching.
+              This type of tokenization is recommended for dictionary and regular
+              expression matching.
     """
     global _SIMPLE_TOKENIZER
     if _SIMPLE_TOKENIZER is None:
@@ -76,8 +78,9 @@ def make_tokens(target_text: str, tokenizer: "spacy.tokenizer.Tokenizer" = None)
     :param target_text: Text to tokenize
     :param tokenizer: Preconfigured `spacy.tokenizer.Tokenizer` object, or None
      to use the tokenizer returned by :func:`simple_tokenizer()`
+
     :return: The tokens (and underlying text) as a Pandas Series wrapped around
-        a `SpanArray` value.
+     a :class:`SpanArray` value.
     """
     if tokenizer is None:
         tokenizer = simple_tokenizer()
@@ -92,18 +95,17 @@ def make_tokens_and_features(
 ) -> pd.DataFrame:
     """
     :param target_text: Text to analyze
-
     :param language_model: Preconfigured spaCy language model (`spacy.language.Language`)
      object
-
-    :param add_left_and_right: If `True`, add columns "left" and "right"
-    containing references to previous and next tokens.
+    :param add_left_and_right: If ``True``, add columns "left" and "right"
+     containing references to previous and next tokens.
 
     :return: A tuple of two dataframes:
-    1. The tokens of the text plus additional linguistic features that the
-       language model generates, represented as a `pd.DataFrame`.
-    2. A table of named entities identified by the language model's named entity
-       tagger, represented as a `pd.DataFrame`.
+
+             1. The tokens of the text plus additional linguistic features that the
+                language model generates, represented as a `pd.DataFrame`.
+             2. A table of named entities identified by the language model's named entity
+                tagger, represented as a `pd.DataFrame`.
     """
     spacy_doc = language_model(target_text)
 
@@ -152,16 +154,15 @@ def make_tokens_and_features(
 
 def _make_sentences_series(spacy_doc, tokens: SpanArray):
     """
-    Subroutine of `make_tokens_and_features()`
+    Subroutine of :func:`make_tokens_and_features`
 
-    :param spacy_doc: parsed document (`spacy.tokens.doc.Doc`) from a spaCy language
-     model
-
+    :param spacy_doc: parsed document (:class:`spacy.tokens.doc.Doc`) from a spaCy
+     language model
     :param tokens: Token information for the current document as a
-    `SpanArray` object. Must contain the same tokens as `spacy_doc`.
+     :class:`SpanArray` object. Must contain the same tokens as `spacy_doc`.
 
-    :return: a Pandas DataFrame Series containing the token span of the (single)
-    sentence that the token is in
+    :returns: a Pandas DataFrame Series containing the token span of the (single)
+     sentence that the token is in
     """
     num_toks = len(spacy_doc)
     # Generate the [begin, end) intervals that make up a series of spans
@@ -185,28 +186,24 @@ def token_features_to_tree(
     to the public input format of displaCy's dependency tree renderer.
 
     :param token_features: A subset of a token features DataFrame in the format
-    returned by `make_tokens_and_features()`. Must at a minimum contain the
-    `head` column and an integer index that corresponds to the ints
-    in the `head` column.
-
+        returned by `make_tokens_and_features()`. Must at a minimum contain the
+        `head` column and an integer index that corresponds to the ints
+        in the `head` column.
     :param text_col: Name of the column in `token_features` from which the
-    'covered text' label for each node of the parse tree should be extracted,
-    or `None` to leave those labels blank.
-
+        'covered text' label for each node of the parse tree should be extracted,
+        or `None` to leave those labels blank.
     :param tag_col: Name of the column in `token_features` from which the
-    'tag' label for each node of the parse tree should be extracted; or `None`
-    to leave those labels blank.
-
+        'tag' label for each node of the parse tree should be extracted; or `None`
+        to leave those labels blank.
     :param label_col: Name of the column in `token_features` from which the
-    label for each edge of the parse tree should be extracted; or `None`
-    to leave those labels blank.
-
+        label for each edge of the parse tree should be extracted; or `None`
+        to leave those labels blank.
     :param head_col: Name of the column in `token_features` from which the
-     head node of each parse tree node should be extracted.
+        head node of each parse tree node should be extracted.
 
     :returns: Native Python type representation of the parse tree in a format
-    suitable to pass to `displacy.render(manual=True ...)`
-    See https://spacy.io/usage/visualizers for the specification of this format.
+        suitable to pass to ``displacy.render(manual=True ...)``
+        See https://spacy.io/usage/visualizers for the specification of this format.
     """
 
     # displaCy expects most inputs as strings. Centralize this conversion.
@@ -266,25 +263,26 @@ def render_parse_tree(
     head_col: str = "head",
 ) -> None:
     """
-    Display a DataFrame in the format returned by `make_tokens_and_features()`
+    Display a DataFrame in the format returned by :func:`make_tokens_and_features`
     using displaCy's dependency tree renderer.
+
     See https://spacy.io/usage/visualizers for more information on displaCy.
 
     :param token_features: A subset of a token features DataFrame in the format
-    returned by `make_tokens_and_features()`. Must at a minimum contain the
-    `head` column and an integer index that corresponds to the ints
-    in the `head` column.
+        returned by `make_tokens_and_features()`. Must at a minimum contain the
+        `head` column and an integer index that corresponds to the ints
+        in the `head` column.
     :param text_col: Name of the column in `token_features` from which the
-    'covered text' label for each node of the parse tree should be extracted,
-    or `None` to leave those labels blank.
+        'covered text' label for each node of the parse tree should be extracted,
+        or `None` to leave those labels blank.
     :param tag_col: Name of the column in `token_features` from which the
-    'tag' label for each node of the parse tree should be extracted; or `None`
-    to leave those labels blank.
+        'tag' label for each node of the parse tree should be extracted; or `None`
+        to leave those labels blank.
     :param label_col: Name of the column in `token_features` from which the
-    label for each edge of the parse tree should be extracted; or `None`
-    to leave those labels blank.
+        label for each edge of the parse tree should be extracted; or `None`
+        to leave those labels blank.
     :param head_col: Name of the column in `token_features` from which the
-     head node of each parse tree node should be extracted.
+        head node of each parse tree node should be extracted.
     """
     import spacy.displacy
 

@@ -14,12 +14,12 @@
 #
 
 """
-This module contains functions for working with transformer-based embeddings
-such as BERT, including managing the special tokenization and windowing that these
-embeddings require.
+The ``io.bert`` module contains functions for working with transformer-based
+language models such as BERT, including managing the special tokenization and windowing
+that these models require.
 
 This module uses the transformers_ library to implement tokenization and
-embeddings. You will need that library in your Python path to use the
+embedding generation. You will need that library in your Python path to use the
 functions in this module.
 
 .. _transformers: https://github.com/huggingface/transformers

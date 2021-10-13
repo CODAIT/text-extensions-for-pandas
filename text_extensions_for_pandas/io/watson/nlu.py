@@ -425,6 +425,7 @@ def parse_response(response: Dict[str, Any],
     Parse a Watson NLU response as a decoded JSON string, e.g. dictionary containing
     requested features and convert into a dict of Pandas DataFrames. The following
     features in the response will be converted:
+
         * entities
         * entity_mentions (elements of the "mentions" field of `response["entities"]`)
         * keywords
@@ -459,7 +460,7 @@ def parse_response(response: Dict[str, Any],
        span part_of_speech      lemma  \
     0  [0, 5): 'Monty'          PROPN    None
     1  [6, 12): 'Python'        PROPN  python
-
+    <BLANKLINE>
                                                 sentence
     0  [0, 273): 'Monty Python and the Holy Grail is ...
     1  [0, 273): 'Monty Python and the Holy Grail is ...
@@ -469,6 +470,7 @@ def parse_response(response: Dict[str, Any],
                           look for "analyzed_text" keyword in response
     :param apply_standard_schema: Return DataFrames with a set schema, whether data
                                   was present in the response or not
+
     :return: A dictionary mapping feature name to a Pandas DataFrame
     """
     dfs = {}
