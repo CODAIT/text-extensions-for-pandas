@@ -20,8 +20,8 @@ twine
 
 # The following libraries are currently only used in our example notebooks
 # but may also be called from related regression tests in the future.
-nltk
+# nltk  # Moved to non_36_reqs.txt
 # ray[default]  # Moved to non_36_reqs.txt
-feather
+# feather  # Moved to non_36_reqs.txt
 
 

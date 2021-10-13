@@ -103,6 +103,7 @@ fi
 # END HACK
 ############################
 
+
 ################################################################################
 # Create the environment if not using active
 
@@ -136,22 +137,27 @@ conda install -y -c conda-forge jupyterlab-git
 
 # pip install with the project's requirements.txt so that any hard constraints
 # on package versions are respected in the created environment.
+echo "Installing from requirements.txt..."
 pip install -r requirements.txt
 
 # Additional layer of pip-installed stuff for running regression tests
+echo "Installing from config/dev_reqs.txt..."
 pip install -r config/dev_reqs.txt
 
 # Additional layer of pip-installed stuff for running notebooks
+echo "Installing from config/jupyter_reqs.txt..."
 pip install -r config/jupyter_reqs.txt
 
 # Additional layer of large packages
+echo "Installing from config/big_reqs.txt..."
 pip install -r config/big_reqs.txt
 
 # Additional layer of packages that no longer work with Python 3.6
-if ["${PYTHON_VERSION}" == "3.6"]; then
+if [ "${PYTHON_VERSION}" == "3.6" ]; then
     echo "Skipping packages in config/non_36_reqs.txt because Python version"
     echo "is set to 3.6."
 else
+    echo "Installing from config/non_36_reqs.txt..."
     pip install -r config/non_36_reqs.txt
 fi
 
@@ -176,7 +182,12 @@ jupyter labextension install --no-build @jupyter-widgets/jupyterlab-manager
 
 # Elyra extensions to JupyterLab (enables git integration, debugger, workflow
 # editor, table of contents, and other features)
-pip install --upgrade --use-deprecated=legacy-resolver elyra
+if [ "${PYTHON_VERSION}" == "3.6" ]; then
+    echo "Skipping Elyra extensions because Python version is set to 3.6."
+else
+    pip install --upgrade --use-deprecated=legacy-resolver elyra
+fi
+
 
 # Build once after installing all the extensions, and skip minimization of the
 # JuptyerLab resources, since we'll be running from the local machine.
