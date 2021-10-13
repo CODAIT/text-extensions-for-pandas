@@ -38,8 +38,10 @@ from text_extensions_for_pandas.io.watson import util
 
 def _make_headers_df(headers_response):
     """
-    parses the headers portion of the watson response and creates the header dataframe.
-    :param headers_response: the ``row_header`` or ``column_header`` array as returned from the watson response
+    Parses the headers portion of the watson response and creates the header dataframe.
+    :param headers_response: the ``row_header`` or ``column_header`` array as returned
+    from the Watson response,
+
     :return: the completed header dataframe
     """
 
@@ -54,6 +56,7 @@ def _make_body_cells_df(body_cells_response):
     """
     parses the body_cells portion of the watson response and creates the body_cells dataframe.
     :param body_cells_response: the "body cells" array as returned from the watson response
+
     :return: the completed body_cells dataframe
     """
     body_cells_df = util.make_dataframe(body_cells_response)
@@ -73,6 +76,7 @@ def _explode_indexes(df, axis_type, drop_original=False):
     :param df: the input dataframe of body cells
     :param axis_type: either ``"row"`` or ``"column"``, determining which axis to be operating on.
     :param drop_original: Whether or not to drop the original column. Defaults to false
+
     :return: the original dataframe, modified as expected, and the name of the column created.
     """
     df[f'{axis_type}_index'] = [list(range(r[f"{axis_type}_index_begin"], r[f"{axis_type}_index_end"] + 1)) for _, r in
@@ -260,14 +264,18 @@ def _convert_labelled_numeric_items(table, exploded_df, row_header_cols, col_hea
 def convert_cols_to_numeric(df_in: pd.DataFrame, columns=None, rows=None, decimal_pt='.',
                             cast_type=float) -> pd.DataFrame:
     """
-    converts inputted columns or rows to numeric format.
-        if none are given, it converts all elements to numeric types
-        converts to type specified, if not, defaults to ``float`` type
+    Converts inputted columns or rows to numeric format.
+
+    If no columns are given, it converts all elements to numeric types
+
+    Converts to type specified, if not, defaults to ``float`` type
+
     :param df_in:       dataframe, (table type) to convert
     :param columns:     columns to convert to numeric type, as a list of strings
     :param rows:        rows to convert to numeric type, as a list of strings
     :param decimal_pt:  what symbol is being used as the decimal point (typically ``"."`` or ``","``
     :param cast_type:   type to cast the object to, as a class. Defaults to ``float``
+
     :return:            the converted table.
     """
     # converts inputted columns or rows to numeric format.
@@ -299,6 +307,7 @@ def _order_multiindex(headers, exploded_col, spot, header_df):
     :param exploded_col: the list of columns in the exploded set to act on
     :param spot: which header to act on; used for recursion accross multiindex sets
     :param header_df: the "row_header" or "column_header" dataframe, with the subset of headers used.
+
     :return:
     """
     uniques = headers[spot].unique()
@@ -318,13 +327,13 @@ def _order_multiindex(headers, exploded_col, spot, header_df):
 
 def substitute_text_names(table_in, dfs_dict, sub_rows: bool = True, sub_cols: bool = True):
     """
-    substitutes text names
     :param table_in: Table to operate on
-    :param dfs_dict: Parsed representation from watson response
+    :param dfs_dict: Parsed representation from Watson response
     :param sub_rows: Whether or not to attempt to substitute row headers
     :param sub_cols: Whether or not to attempt to substitute column headers
-    :return: The original table, but with row and column headers that were title ID's replaced by the
-            plaintext header they actually correspond to
+
+    :returns: The original table, but with row and column headers that were title ID's
+        replaced by the plaintext header they actually correspond to
     """
     table = table_in.copy()
     if sub_rows and dfs_dict["row_headers"] is not None:
@@ -338,23 +347,28 @@ def substitute_text_names(table_in, dfs_dict, sub_rows: bool = True, sub_cols: b
 
 def parse_response(response: Dict[str, Any], select_table=None) -> Dict[str, pd.DataFrame]:
     """
-    Parse a response from Watson Tables Understanding as a decoded JSON string. e.g.
-     dictionary containing requested features and convert into a dict of Pandas DataFrames.
-     The following features will be converted from the response:
+    Parse a response from Watson Table Understanding as a decoded JSON string. e.g.
+    dictionary containing requested features and convert into a dict of Pandas DataFrames.
+
+    The following features will be converted from the response:
+
         * Row headers
         * Column headers
         * Body cells
 
     More information on using Watson Table Extraction or the Compare and Comply API, see
     https://cloud.ibm.com/docs/compare-comply?topic=compare-comply-understanding_tables
-    More infomration about available features can be found at
+    More information about available features can be found at
     https://cloud.ibm.com/apidocs/compare-comply?code=python#extract-a-document-s-tables
 
 
-    :param response: A dictionary of features returned by the IBM Watson Compare and Comply API
-    :param table_number: Defaults to analyzing the first table, input a number here to analyze the nth table
+    :param response: A dictionary of features returned by the IBM Watson Compare and
+        Comply web service API or a comparable Watson Discovery API
+    :param table_number: Defaults to analyzing the first table, input a number here to
+        analyze the nth table
+
     :return: A dictionary mapping feature names ("row_headers", "col_headers", "body_cells")
-                    to Pandas DataFrames
+        to Pandas DataFrames
     """
     return_dict = {}
     tables = response.get("tables", [])
@@ -418,6 +432,12 @@ def parse_response(response: Dict[str, Any], select_table=None) -> Dict[str, pd.
 
 
 def get_raw_html(doc_response, parsed_table):
+    """
+    :param doc_response: JSON response from the Watson Table Understanding enrichment
+    :param parsed_table: Table pulled out of the response by functions in this model
+
+    :returns: Raw HTML for the table's original document markup
+    """
     raw_html = doc_response["document"]["html"]
     given_begin = parsed_table["given_loc"]["begin"]
     given_end = parsed_table["given_loc"]["end"]

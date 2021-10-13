@@ -17,7 +17,8 @@
 # conll.py
 
 """
-This module contains I/O functions related to CoNLL-2003 file format and its derivatives.
+The ``io.conll`` module contains I/O functions related to CoNLL-2003 file format and
+its derivatives, including CoNLL-U.
 """
 
 from typing import *
@@ -68,9 +69,11 @@ _DEFAULT_CONLL_U_FORMAT = [
     "misc",
 ]
 _DEFAULT_CONLL_U_NUMERIC_COLS = ["head", "line_num"]
-# What metadata to log from conllu (especially ewt) files. This is a dict as follows: tag_in_file -> desired name
-# when the tag in the file is seen in a comment, the following value will be stored and be assumed to apply to all
-# elements in that document
+
+# What metadata to log from conllu (especially ewt) files.
+# This is a dict as follows: tag_in_file -> desired name.
+# When the tag in the file is seen in a comment, the following value will be stored
+# and be assumed to apply to all elements in that document.
 _DEFAULT_EWT_METADATA = {
     "sent_id": "sentence_id",
     "newpar id": "paragraph_id",
@@ -99,7 +102,7 @@ def _make_empty_meta_values(
 class _SentenceData:
     """
     Data structure that encapsulates one sentence's worth of data
-     from a parsed CoNLL-2003 file.
+    from a parsed CoNLL-2003 file.
 
     Not intended for use outside this file.
     """
@@ -246,7 +249,8 @@ class _SentenceData:
     def add_line_conllu(self, line_num: int, line_elems: List[str]):
         """
         Similar to add_line, but handles additional logic for conllu files.
-        This includes the additional ignored entries on the left for word indexes within ,
+        This includes the additional ignored entries on the left for word indexes within
+
         :param line_num: Location in file, for error reporting
         :param line_elems: Fields of a line, pre-split
         """
@@ -835,20 +839,24 @@ def iob_to_spans(
 ):
     """
     Convert token tags in Inside–Outside–Beginning (IOB2) format to a series of
-    `TokenSpan`s of entities. See https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)
-    for more information on IOB2 format.
+    :class:`TokenSpan` objects of entities. See See wikipedia_ for more information
+    on the IOB2 format.
+
+    .. _wikipedia: https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)
 
     :param token_features: DataFrame of token features in the format returned by
-     `make_tokens_and_features`.
-    :param iob_col_name: Name of a column in `token_features` that contains the
+     :func:`make_tokens_and_features`.
+    :param iob_col_name: Name of a column in ``token_features`` that contains the
      IOB2 tags as strings, "I", "O", or "B".
-    :param span_col_name: Name of a column in `token_features` that
-     contains the tokens as a `SpanArray`.
-    :param entity_type_col_name: Optional name of a column in `token_features`
-     that contains entity type information; or `None` if no such column exists.
-    :return: A `pd.DataFrame` with the following columns:
-    * `span`: Span (with token offsets) of each entity
-    * `<value of entity_type_col_name>`: (optional) Entity type
+    :param span_col_name: Name of a column in ``token_features`` that
+     contains the tokens as a :class:`SpanArray`.
+    :param entity_type_col_name: Optional name of a column in ``token_features``
+     that contains entity type information; or ``None`` if no such column exists.
+
+    :returns: A :class:`pd.DataFrame` with the following columns:
+
+        * ``span``: Span (with token offsets) of each entity
+        * ``<value of entity_type_col_name>``: (optional) Entity type
     """
     # Start out with 1-token prefixes of all entities.
     begin_mask = token_features[iob_col_name] == "B"
@@ -917,20 +925,23 @@ def spans_to_iob(
     span_ent_types: Union[str, Iterable, np.ndarray, pd.Series] = None,
 ) -> pd.DataFrame:
     """
-    Convert a series of `TokenSpan`s of entities to token tags in
-    Inside–Outside–Beginning (IOB2) format. See
-    https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)
-    for more information on IOB2 format.
+    Convert a series of :class:`TokenSpan` objects of entities to token tags in
+    Inside–Outside–Beginning (IOB2) format. See wikipedia_ for more information
+    on the IOB2 format.
 
-    :param token_spans: An object that can be converted to a `TokenSpanArray` via
-        `TokenSpanArray.make_array()`. Should contain `TokenSpan`s aligned with the
-        target tokenization. All spans must be from the same docuemnt.
-        Usually you create this array by calling `TokenSpanArray.align_to_tokens()`.
+    .. _wikipedia: https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)
+
+    :param token_spans: An object that can be converted to a :class:`TokenSpanArray` via
+        :func:`TokenSpanArray.make_array`. Should contain :class:`TokenSpan` objects
+        aligned with the target tokenization. All spans must be from the same document.
+        Usually you create this array by calling :func:`TokenSpanArray.align_to_tokens`.
     :param span_ent_types: List of entity type strings corresponding to each of the
-        elements of `token_spans`, or `None` to indicate null entity tags.
-    :return: A `pd.DataFrame` with two columns:
+        elements of ``token_spans``, or ``None`` to indicate null entity tags.
+
+    :returns: A :class:`pd.DataFrame` with two columns:
+
       * "ent_iob": IOB2 tags as strings "ent_iob"
-      * "ent_type": Entity type strings (or NaN values if `ent_types` is `None`)
+      * "ent_type": Entity type strings (or NaN values if ``ent_types`` is ``None``)
     """
     # Normalize inputs
     token_spans = TokenSpanArray.make_array(token_spans)
@@ -1001,22 +1012,22 @@ def conll_2003_to_dataframes(
     """
     Parse a file in CoNLL-2003 training/test format into a DataFrame.
 
-    CoNLL-2003 training/test format looks like this:
-    ```
-    -DOCSTART- -X- -X- O
+    CoNLL-2003 training/test format looks like this::
 
-    CRICKET NNP I-NP O
-    - : O O
-    LEICESTERSHIRE NNP I-NP I-ORG
-    TAKE NNP I-NP O
-    OVER IN I-PP O
-    AT NNP I-NP O
-    ```
+        -DOCSTART- -X- -X- O
+
+        CRICKET NNP I-NP O
+        - : O O
+        LEICESTERSHIRE NNP I-NP I-ORG
+        TAKE NNP I-NP O
+        OVER IN I-PP O
+        AT NNP I-NP O
+
     Note the presence of the surface forms of tokens at the beginning
     of the lines.
 
     :param input_file: Location of input file to read.
-    :param space_before_punct: If `True`, add whitespace before
+    :param space_before_punct: If ``True``, add whitespace before
      punctuation characters when reconstructing the text of the document.
     :param column_names: Names for the metadata columns that come after the
      token text. These names will be used to generate the names of the dataframe
@@ -1028,14 +1039,15 @@ def conll_2003_to_dataframes(
      output columns "ent_iob" and "ent_type".
 
     :returns: A list containing, for each document in the input file,
-    a separate `pd.DataFrame` of four columns:
-    * `span`: Span of each token, with character offsets.
-      Backed by the concatenation of the tokens in the document into
-      a single string with one sentence per line.
-    * `ent_iob`: IOB2-format tags of tokens, corrected so that every
-      entity begins with a "B" tag.
-    * `ent_type`: Entity type names for tokens tagged "I" or "B" in
-      the `ent_iob` column; `None` everywhere else.
+     a separate :class:`pd.DataFrame` of four columns:
+
+        * **span**: Span of each token, with character offsets.
+          Backed by the concatenation of the tokens in the document into
+          a single string with one sentence per line.
+        * **ent_iob** IOB2-format tags of tokens, corrected so that every
+          entity begins with a "B" tag.
+        * **ent_type**: Entity type names for tokens tagged "I" or "B" in
+          the `ent_iob` column; `None` everywhere else.
     """
     parsed_docs = _parse_conll_file(input_file, column_names, iob_columns)
     doc_dfs = [
@@ -1081,17 +1093,18 @@ def conll_u_to_dataframes(
     :param merge_subtoken_separator: If merge subtokens is selected, concatenate the attributes with this
      separator, by default '|'
     :param metadata_fields: the types of metadata fields you want to store from the docuement. in the form of a
-    dictionary: tag_in_text -> "pretty" tag (i.e. what you want to show in the output)
+     dictionary: tag_in_text -> "pretty" tag (i.e. what you want to show in the output)
 
     :returns: A list containing, for each document in the input file,
-    a separate `pd.DataFrame` of four columns:
-    * `span`: Span of each token, with character offsets.
-      Backed by the concatenation of the tokens in the document into
-      a single string with one sentence per line.
-    * `ent_iob`: IOB2-format tags of tokens, corrected so that every
-      entity begins with a "B" tag.
-    * `ent_type`: Entity type names for tokens tagged "I" or "B" in
-      the `ent_iob` column; `None` everywhere else.
+     a separate `pd.DataFrame` of four columns:
+
+        * `span`: Span of each token, with character offsets.
+          Backed by the concatenation of the tokens in the document into
+          a single string with one sentence per line.
+        * `ent_iob`: IOB2-format tags of tokens, corrected so that every
+          entity begins with a "B" tag.
+        * `ent_type`: Entity type names for tokens tagged "I" or "B" in
+          the `ent_iob` column; `None` everywhere else.
 
     """
     if iob_columns is None:
@@ -1131,43 +1144,43 @@ def conll_2003_output_to_dataframes(
     """
     Parse a file in CoNLL-2003 output format into a DataFrame.
 
-    CoNLL-2003 output format looks like this:
-    ```
-    O
-    O
-    I-LOC
-    O
-    O
+    CoNLL-2003 output format looks like this::
+        O
+        O
+        I-LOC
+        O
+        O
 
-    I-PER
-    I-PER
-    ```
+        I-PER
+        I-PER
+
     Note the lack of any information about the tokens themselves. Note
     also the lack of any information about document boundaries.
 
-    :param doc_dfs: List of `pd.DataFrame`s of token information, as
-     returned by `conll_2003_to_dataframes`. This is needed because
+    :param doc_dfs: List of :class:`pd.DataFrame`s of token information, as
+     returned by :func:`conll_2003_to_dataframes`. This is needed because
      CoNLL-2003 output format does not include any information about
      document boundaries.
     :param input_file: Location of input file to read.
     :param column_name: Name for the metadata value that the IOB-tagged data
-     in `input_file` encodes. If this name is present in `doc_dfs`, its value
-     will be replaced with the data from `input_file`; otherwise a new column
+     in ``input_file`` encodes. If this name is present in ``doc_dfs``, its value
+     will be replaced with the data from ``input_file``; otherwise a new column
      will be added to each dataframe.
-    :param copy_tokens: If True, deep-copy token series from the
+    :param copy_tokens: If ``True``, deep-copy token series from the
      elements of `doc_dfs` instead of using pointers.
 
-    :return: A list containing, for each document in the input file,
-    a separate `pd.DataFrame` of four columns:
-    * `span`: Span of each token, with character offsets.
-      Backed by the concatenation of the tokens in the document into
-      a single string with one sentence per line.
-    * `token_span`: Span of each token, with token offsets.
-      Backed by the contents of the `span` column.
-    * `<column_name>_iob`: IOB2-format tags of tokens, corrected so that every
-      entity begins with a "B" tag.
-    * `<column_name>_type`: Entity type names for tokens tagged "I" or "B" in
-      the `<column_name>_iob` column; `None` everywhere else.
+    :returns: A list containing, for each document in the input file,
+        a separate :class:`pd.DataFrame` of four columns:
+
+        * **span**: Span of each token, with character offsets.
+          Backed by the concatenation of the tokens in the document into
+          a single string with one sentence per line.
+        * **token_span**: Span of each token, with token offsets.
+          Backed by the contents of the `span` column.
+        * **<column_name>_iob**: IOB2-format tags of tokens, corrected so that every
+          entity begins with a "B" tag.
+        * **<column_name>_type**: Entity type names for tokens tagged "I" or "B" in
+          the ``<column_name>_iob`` column; ``None`` everywhere else.
     """
     docs_list = _parse_conll_output_file(doc_dfs, input_file)
 
@@ -1186,11 +1199,13 @@ def make_iob_tag_categories(
 ) -> Tuple[pd.CategoricalDtype, List[str], Dict[str, int]]:
     """
     Enumerate all the possible token categories for combinations of
-    IOB tags and entity types (for example, I + "PER" ==> "I-PER").
+    IOB tags and entity types (for example, ``I + "PER" ==> "I-PER"``).
     Generate a consistent mapping from these strings to integers.
 
     :param entity_types: Allowable entity type strings for the corpus
+
     :returns: A triple of:
+
      * Pandas CategoricalDtype
      * mapping from integer to string label, as a list. This mapping is guaranteed
        to be consistent with the mapping in the Pandas CategoricalDtype in the first
@@ -1322,7 +1337,7 @@ def maybe_download_dataset_data(
      as well as what is used to save the file if no such file is found. If a zip file is downloaded, and a file of this
      name exists in in the archive, only it will be extracted.
 
-     :returns: the path to the file, or None if downloading was not successful
+    :returns: the path to the file, or None if downloading was not successful
       If the file found at the url is not found in the target directory,
       downloads it, and saves it to that place in downloads
     """
@@ -1413,13 +1428,14 @@ def compute_accuracy_by_document(
     Compute precision, recall, and F1 scores by document.
 
     :param corpus_dfs: Gold-standard span/entity type pairs, as either:
+
      * a dictionary of DataFrames, one DataFrames per document, indexed by
        tuples of (collection name, offset into collection)
      * a list of DataFrames, one per document
        as returned by :func:`conll_2003_output_to_dataframes()`
     :param output_dfs: Model outputs, in the same format as `gold_dfs`
-       (i.e. exactly the same column names). This is the format that
-      produces.
+        (i.e. exactly the same column names). This is the format that
+        produces.
     """
     if isinstance(corpus_dfs, list):
         if not isinstance(output_dfs, list):

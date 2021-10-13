@@ -177,7 +177,7 @@ class TensorDtype(pd.api.extensions.ExtensionDtype):
     @classmethod
     def construct_from_string(cls, string: str):
         """
-        See docstring in `ExtensionDType` class in `pandas/core/dtypes/base.py`
+        See docstring in :class:`ExtensionDType` class in ``pandas/core/dtypes/base.py``
         for information about this method.
         """
         if not isinstance(string, str):
@@ -195,7 +195,7 @@ class TensorDtype(pd.api.extensions.ExtensionDtype):
     @classmethod
     def construct_array_type(cls):
         """
-        See docstring in `ExtensionDType` class in `pandas/core/dtypes/base.py`
+        See docstring in :class:`ExtensionDType` class in ``pandas/core/dtypes/base.py``
         for information about this method.
         """
         return TensorArray
@@ -256,6 +256,7 @@ class TensorElement(TensorOpsMixin):
     def __init__(self, values: np.ndarray):
         """
         Construct a TensorElement from an numpy.ndarray.
+
         :param values: tensor values for this instance.
         """
         self._tensor = values
@@ -269,6 +270,7 @@ class TensorElement(TensorOpsMixin):
     def to_numpy(self):
         """
         Return the values of this element as a numpy.ndarray
+
         :return: numpy.ndarray
         """
         return np.asarray(self._tensor)
@@ -279,15 +281,16 @@ class TensorElement(TensorOpsMixin):
 
 class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     """
-    A Pandas `ExtensionArray` that represents a column of `numpy.ndarray`s,
-    or tensors, where the outer dimension is the count of tensors in the column.
+    A Pandas :class:`ExtensionArray` that represents a column of :class:`numpy.ndarray`
+    objects, or tensors, where the outer dimension is the count of tensors in the column.
     Each tensor must have the same shape.
     """
 
     def __init__(self, values: Union[np.ndarray, Sequence[Union[np.ndarray, TensorElement]],
                                      TensorElement, Any]):
         """
-        :param values: A `numpy.ndarray` or sequence of `numpy.ndarray`s of equal shape.
+        :param values: A :class:`numpy.ndarray` or sequence of
+            :class:`numpy.ndarray` objects of equal shape.
         """
         if isinstance(values, np.ndarray):
             if values.dtype.type is np.object_ and len(values) > 0 and \
@@ -315,7 +318,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         if copy and isinstance(scalars, np.ndarray):
@@ -327,7 +330,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     @classmethod
     def _from_factorized(cls, values, original):
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         raise NotImplementedError
@@ -337,14 +340,14 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         cls, to_concat: Sequence["TensorArray"]
     ) -> "TensorArray":
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         return TensorArray(np.concatenate([a._tensor for a in to_concat]))
 
     def isna(self) -> np.array:
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         if self._tensor.dtype.type is np.object_:
@@ -361,7 +364,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
 
     def copy(self) -> "TensorArray":
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         ret = TensorArray(
@@ -375,7 +378,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         fill_value: Any = None
     ) -> "TensorArray":
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         if allow_fill:
@@ -406,7 +409,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     @property
     def dtype(self) -> pd.api.extensions.ExtensionDtype:
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         return TensorDtype()
@@ -415,7 +418,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     def inferred_type(self) -> str:
         """
         Return string describing type of TensorArray. Delegates to
-        `pandas.api.types.infer_dtype`. See docstring for more information.
+        :func:`pandas.api.types.infer_dtype`. See docstring for more information.
 
         :return: string describing numpy type of this TensorArray
         """
@@ -424,14 +427,14 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     @property
     def nbytes(self) -> int:
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         return self._tensor.nbytes
 
     def to_numpy(self, dtype=None, copy=False, na_value=pd.api.extensions.no_default):
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         if dtype is not None:
@@ -450,6 +453,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     def numpy_dtype(self):
         """
         Get the dtype of the tensor.
+
         :return: The numpy dtype of the backing ndarray
         """
         return self._tensor.dtype
@@ -458,6 +462,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     def numpy_ndim(self):
         """
         Get the number of tensor dimensions.
+
         :return: integer for the number of dimensions
         """
         return self._tensor.ndim
@@ -466,13 +471,14 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     def numpy_shape(self):
         """
         Get the shape of the tensor.
+
         :return: A tuple of integers for the numpy shape of the backing ndarray
         """
         return self._tensor.shape
 
     def astype(self, dtype, copy=True):
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         dtype = pd.api.types.pandas_dtype(dtype)
@@ -497,7 +503,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
 
     def any(self, axis=None, out=None, keepdims=False):
         """
-        Test whether any array element along a given axis evaluates to True.
+        Test whether any array element along a given axis evaluates to ``True``.
 
         See numpy.any() documentation for more information
         https://numpy.org/doc/stable/reference/generated/numpy.any.html#numpy.any
@@ -505,21 +511,23 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         :param axis: Axis or axes along which a logical OR reduction is performed.
         :param out: Alternate output array in which to place the result.
         :param keepdims: If this is set to True, the axes which are reduced are left in the
-        result as dimensions with size one.
-        :return: single boolean unless axis is not None else TensorArray
+         result as dimensions with size one.
+
+        :return: single boolean unless ``axis``is not ``None``; else :class:`TensorArray`
         """
         result = self._tensor.any(axis=axis, out=out, keepdims=keepdims)
         return result if axis is None else TensorArray(result)
 
     def all(self, axis=None, out=None, keepdims=False):
         """
-        Test whether all array elements along a given axis evaluate to True.
+        Test whether all array elements along a given axis evaluate to ``True``.
 
         :param axis: Axis or axes along which a logical AND reduction is performed.
         :param out: Alternate output array in which to place the result.
         :param keepdims: If this is set to True, the axes which are reduced are left in the
-        result as dimensions with size one.
-        :return: single boolean unless axis is not None else TensorArray
+         result as dimensions with size one.
+
+        :return: single boolean unless ``axis`` is not ``None``; else :class:`TensorArray`
         """
         result = self._tensor.all(axis=axis, out=out, keepdims=keepdims)
         return result if axis is None else TensorArray(result)
@@ -529,7 +537,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
 
     def __getitem__(self, item) -> Union["TensorArray", "TensorElement"]:
         """
-        See docstring in `Extension   Array` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         # Return scalar if single value is selected, a TensorElement for single array
@@ -556,7 +564,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
 
     def __setitem__(self, key: Union[int, np.ndarray], value: Any) -> None:
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         key = check_array_indexer(self, key)
@@ -584,7 +592,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
 
     def __repr__(self):
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         return self._tensor.__repr__()
@@ -594,7 +602,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
 
     def _values_for_factorize(self) -> Tuple[np.ndarray, Any]:
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         # TODO return self._tensor, np.nan
@@ -602,7 +610,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
 
     def _reduce(self, name, skipna=True, **kwargs):
         """
-        See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
+        See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
         if name == "sum":
@@ -617,14 +625,15 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     def __array__(self, dtype=None):
         """
         Interface to return the backing tensor as a numpy array with optional dtype.
-        If dtype is not None, then the tensor will be casted to that type, otherwise this is a no-op.
+        If dtype is not None, then the tensor will be cast to that type, otherwise
+        this is a no-op.
         """
         return np.asarray(self._tensor, dtype=dtype)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         """
-        Interface to handle numpy ufuncs that will accept TensorArray as input, and wrap the output
-        back as another TensorArray.
+        Interface to handle numpy ufuncs that will accept TensorArray as input, and wrap
+        the output back as another TensorArray.
         """
         out = kwargs.get('out', ())
         for x in inputs + out:

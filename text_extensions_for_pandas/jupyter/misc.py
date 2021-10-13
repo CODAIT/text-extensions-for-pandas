@@ -25,6 +25,7 @@ import pandas as pd
 import time
 from typing import *
 
+
 def run_with_progress_bar(num_items: int, fn: Callable, item_type: str = "doc") \
         -> List[pd.DataFrame]:
     """
