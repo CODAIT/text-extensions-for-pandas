@@ -5,3 +5,7 @@
 !_templates
 !_static 
 !_build
+!arrays.rst
+!io.rst
+!jupyter.rst
+!spanner.rst

@@ -50,6 +50,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.viewcode",
 
     # Uncomment the following line to enable full automatic generation of
     # API documentation files from code (currently we hard-code an 
@@ -57,7 +58,11 @@ extensions = [
     # "sphinxcontrib.apidoc"
 
     # Third-party theme that provides a floating table of contents
-    "sphinx_rtd_theme"
+    "sphinx_rtd_theme",
+
+    # Third-party plugin that creates tables of contents for classes.
+    # Used to generate TOC entries for our extension array types.
+    "autoclasstoc"
 ]
 
 # Configure the sphinx.ext.autodoc extension
@@ -80,7 +85,12 @@ apidoc_separate_modules = True
 templates_path = ['_templates']
 
 
-
+# Sections to include in class tables of contents from the ``autoclasstoc``
+# plugin.
+autoclasstoc_sections = [
+    "public-attrs",
+    "public-methods",
+]
 
 
 
@@ -104,8 +114,12 @@ for filename in os.listdir():
 
 html_theme = "sphinx_rtd_theme"
 html_theme_options = {
+    # Toc options
+    "collapse_navigation": False,
     "sticky_navigation": True,
+    "navigation_depth": -1,
 }
+print(f"{html_theme_options}")
 
 html_static_path = ['_static']
 
