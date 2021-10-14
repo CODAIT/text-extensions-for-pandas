@@ -23,4 +23,5 @@ python:
   install:
     - requirements: requirements.txt
     - requirements: config/dev_reqs.txt
+    - requirements: config/non_36_reqs.txt
 
