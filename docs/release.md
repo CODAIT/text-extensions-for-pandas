@@ -77,8 +77,8 @@ Steps to release a new version:
    pip install dist/text_extensions_for_pandas*.whl
    ```
    
-1. Activate your new environment, start up JupyterLab, and verify that the 
-   notebooks under `notebooks` still run.
+1. Navigate to the `notebooks` directory, ctivate your new environment, start up 
+   JupyterLab, and verify that the notebooks under `notebooks` still run.
 
 1. (optional): Do a test upload to TestPyPI by running:
    ```
