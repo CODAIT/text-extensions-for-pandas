@@ -35,7 +35,7 @@ Steps to release a new version:
    once this step is done.
 
 1. Activate your Text Extensions for Pandas build environment (usually called 
-   `pd`)
+   `pd`). **All steps that follow assume you have done this step first!**
 
 1. Ensure that all the notebooks under the `notebooks` directory run and
    produce substantially the same output as before. This step only needs to be
