@@ -1,0 +1,15 @@
+# non_36_reqs.txt
+# Pip requirements file containing libraries needed for development and
+# testing of this project that no longer work with Python 3.6
+# This list will probably grow as libraries drop support.
+
+nltk
+ray[default]
+feather
+
+sphinx
+sphinxcontrib-apidoc
+sphinx_rtd_theme
+autoclasstoc
+
+

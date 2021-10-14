@@ -49,5 +49,5 @@ __all__ = [
     "Span", "SpanDtype", "SpanArray",
     "TokenSpan", "TokenSpanDtype", "TokenSpanArray",
     "TensorElement", "TensorDtype", "TensorArray",
-    "io", 'cleaning', "jupyter"
+    "io", "cleaning", "jupyter"
 ]

@@ -570,10 +570,11 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
 
     def equals(self, other: "SpanArray"):
         """
-        :param other: A second `SpanArray`
-        :return: True if both arrays have the same target texts (can be a
-        different string object with the same contents) and the same spans
-        in the same order.
+        :param other: A second :class:`SpanArray`
+
+        :return: ``True`` if both arrays have the same target texts (can be a
+            different string object with the same contents) and the same spans
+            in the same order.
         """
         if not isinstance(other, SpanArray):
             raise TypeError(f"equals() not defined for arguments of type "
@@ -820,14 +821,14 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
     @classmethod
     def make_array(cls, o) -> "SpanArray":
         """
-        Make a `SpanArray` object out of any of several types of input.
+        Make a :class:`SpanArray` object out of any of several types of input.
 
-        :param o: a SpanArray object represented as a `pd.Series`, a list
-        of `TokenSpan` objects, or maybe just an actual `SpanArray`
-        (or `TokenSpanArray`) object.
+        :param o: a :class:`SpanArray` object represented as a :class:`pd.Series`,
+            a list of :class:`Span` objects, or maybe just an actual :class:`SpanArray`
+            (or :class:`TokenSpanArray`) object.
 
-        :return: SpanArray version of `o`, which may be a pointer to `o` or
-        one of its fields.
+        :return: :class:`SpanArray` version of ``o``, which may be a pointer to ``o`` or
+            one of its fields.
         """
         if isinstance(o, SpanArray):
             return o
@@ -851,8 +852,8 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         """
         :return: if all spans in this array cover the same document, text of that
          document.
-         Raises a `ValueError` if the array is empty or if the Spans in this
-          array cover more than one document.
+         Raises a :class:`ValueError` if the array is empty or if the Spans in this
+         array cover more than one document.
         """
         if len(self._text_ids) == 0:
             raise ValueError("An empty array has no document text")

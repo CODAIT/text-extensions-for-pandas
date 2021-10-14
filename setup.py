@@ -27,7 +27,7 @@ resources_dir = "text_extensions_for_pandas/resources"
 
 setuptools.setup(
     name="text_extensions_for_pandas",
-    version="0.1.1",
+    version="0.2.0",
     author="IBM",
     author_email="frreiss@us.ibm.com",
     description="Natural language processing support for Pandas dataframes.",

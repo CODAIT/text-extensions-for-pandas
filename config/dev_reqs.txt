@@ -8,15 +8,20 @@ pyyaml
 transformers>=3.0.0
 # SpaCy models aren't stable across point releases
 spacy==3.0.5
-sphinx
-sphinxcontrib-apidoc
 ipywidgets
 ibm-watson
 twine
 
+# Documentation-related requirements have moved to non_36_reqs.txt.
+#sphinx
+#sphinxcontrib-apidoc
+#sphinx_rtd_theme
+#autoclasstoc
+
 # The following libraries are currently only used in our example notebooks
 # but may also be called from related regression tests in the future.
-nltk
-ray[default]
+# nltk  # Moved to non_36_reqs.txt
+# ray[default]  # Moved to non_36_reqs.txt
+# feather  # Moved to non_36_reqs.txt
 
 

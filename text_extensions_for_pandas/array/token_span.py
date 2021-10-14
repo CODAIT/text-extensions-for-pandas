@@ -292,25 +292,26 @@ _EMPTY_INT_ARRAY = np.zeros(0, dtype=int)
 
 class TokenSpanArray(SpanArray, TokenSpanOpMixin):
     """
-    A Pandas `ExtensionArray` that represents a column of token-based spans
+    A Pandas :class:`ExtensionArray` that represents a column of token-based spans
     over a single target text.
 
-    Spans are represented internaly as `[begin_token, end_token)` intervals, where
-    the properties `begin_token` and `end_token` are *token* offsets into the target
-    text. As with the parent class `SpanArray`, the properties `begin` and `end`
-    of a `TokenSpanArray` return *character* offsets.
+    Spans are represented internally as ``[begin_token, end_token)`` intervals, where
+    the properties ``begin_token`` and ``end_token`` are *token* offsets into the target
+    text. As with the parent class :class:`SpanArray`, the properties ``begin`` and
+    ``end`` of a :class:`TokenSpanArray` return *character* offsets.
 
     Null values are encoded with begin and end offsets of
-    `TokenSpan.NULL_OFFSET_VALUE`.
+    ``TokenSpan.NULL_OFFSET_VALUE``.
 
     Fields:
-    * `self._tokens`: Reference to the target string's tokens as a
-        `SpanArray`. For now, references to different `SpanArray`
-        objects are treated as different even if the arrays have the same
-        contents.
-    * `self._begin_tokens`: Numpy array of integer offsets in tokens. An offset
-       of TokenSpan.NULL_OFFSET_VALUE here indicates a null value.
-    * `self._end_tokens`: Numpy array of end offsets (1 + last token in span).
+
+    * ``self._tokens``: Reference to the target string's tokens as a
+      `SpanArray`. For now, references to different `SpanArray`
+      objects are treated as different even if the arrays have the same
+      contents.
+    * ``self._begin_tokens``: Numpy array of integer offsets in tokens. An offset
+      of TokenSpan.NULL_OFFSET_VALUE here indicates a null value.
+    * ``self._end_tokens``: Numpy array of end offsets (1 + last token in span).
     """
 
     def __init__(self, tokens: Union[SpanArray, Sequence[SpanArray]],
@@ -381,10 +382,10 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         series of tokens into single-token token-based spans.
 
         :param tokens: character-based offsets of the tokens, as any type that
-         :func:`SpanArray.make_array()` understands.
+         :func:`SpanArray.make_array` understands.
 
-        :return: A TokenSpanArray containing single-token spans for each of the
-        tokens in `tokens`.
+        :return: A :class:`TokenSpanArray` containing single-token spans for each of the
+         tokens in ``tokens``.
         """
         begin_tokens = np.arange(len(tokens))
         tokens_array = SpanArray.make_array(tokens)
@@ -686,13 +687,14 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
     @classmethod
     def make_array(cls, o) -> "TokenSpanArray":
         """
-        Make a `TokenSpanArray` object out of any of several types of input.
+        Make a :class:`TokenSpanArray` object out of any of several types of input.
 
-        :param o: a TokenSpanArray object represented as a `pd.Series`, a list
-        of `TokenSpan` objects, or maybe just an actual `TokenSpanArray` object.
+        :param o: a :class:`TokenSpanArray` object represented as a :class:`pd.Series`,
+            a list of :class:`TokenSpan` objects, or an actual :class:`TokenSpanArray`
+            object.
 
-        :return: TokenSpanArray version of `o`, which may be a pointer to `o` or
-        one of its fields.
+        :return: :class:`TokenSpanArray` version of ``o``, which may be a pointer to ``o`` or
+            one of its fields.
         """
         if isinstance(o, TokenSpanArray):
             return o
@@ -710,12 +712,14 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         tokenization, producing a `TokenSpanArray` of token-based spans.
 
         :param tokens: The tokens to align to, as any type that
-         `SpanArray.make_array()` accepts.
+         :func:`SpanArray.make_array` accepts.
         :param spans: The spans to align. These spans must all target the same text
-         as `tokens`.
-        :return: An array of `TokenSpan`s aligned to the tokens of `tokens`.
-         Raises `ValueError` if any of the spans in `spans` doesn't start and
-         end on a token boundary.
+         as ``tokens``.
+
+        :return: An array of :class:`TokenSpan` objects aligned to the tokens of
+            ``tokens``.
+            Raises :class:`ValueError` if any of the spans in ``spans`` doesn't start and
+            end on a token boundary.
         """
         tokens = SpanArray.make_array(tokens)
         spans = SpanArray.make_array(spans)
@@ -802,9 +806,9 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
     def document_text(self) -> Union[str, None]:
         """
         :return: if all spans in this array cover the same document, text of that
-         document.
-         Raises a `ValueError` if the array is empty or if the Spans in this
-          array cover more than one document.
+             document.
+             Raises a :class:`ValueError` if the array is empty or if the Spans in this
+             array cover more than one document.
         """
         # Checks for zero-length array and multiple docs are in document_tokens()
         return self.document_tokens.document_text

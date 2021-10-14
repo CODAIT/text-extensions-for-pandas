@@ -14,15 +14,15 @@
 #
 
 """
-This module contains functions for working with transformer-based embeddings
-such as BERT, including managing the special tokenization and windowing that these
-embeddings require.
+The ``io.bert`` module contains functions for working with transformer-based
+language models such as BERT, including managing the special tokenization and windowing
+that these models require.
 
-This module uses the ``transformers``_ library to implement tokenization and
-embeddings. You will need that library in your Python path to use the
+This module uses the transformers_ library to implement tokenization and
+embedding generation. You will need that library in your Python path to use the
 functions in this module.
 
-.. _``transformers``: https://github.com/huggingface/transformers
+.. _transformers: https://github.com/huggingface/transformers
 """
 
 ################################################################################
@@ -58,15 +58,17 @@ def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
                        PreTrainingTokenizerFast which supports `encode_plus` with
                        return_offsets_mapping=True.
 
-    :returns: A `pd.DataFrame` with the following columns:
-     * "id": unique integer ID for each token
-     * "span": span of the token (with offsets measured in characters)
-     * "input_id": integer ID suitable for input to a BERT embedding model
-     * "token_type_id": list of token type ids to be fed to a model
-     * "attention_mask": list of indices specifying which tokens should be
-                         attended to by the model
-     * "special_tokens_mask": `True` if the token is a zero-length special token
-       such as "start of document"
+    :returns: ``pd.DataFrame`` with following columns:
+
+              * "id": unique integer ID for each token
+              * "span": span of the token (with offsets measured in characters)
+              * "input_id": integer ID suitable for input to a BERT embedding model
+              * "token_type_id": list of token type ids to be fed to a model
+              * "attention_mask": list of indices specifying which tokens should be
+                attended to by the model
+              * "special_tokens_mask": `True` if the token is a zero-length special token
+                such as "start of document"
+
     """
     # noinspection PyPackageRequirements
     from transformers import PreTrainedTokenizerFast
@@ -118,46 +120,54 @@ def make_bert_tokens(target_text: str, tokenizer) -> pd.DataFrame:
     return token_features
 
 
-def add_embeddings(df: pd.DataFrame, bert: Any,
-                   overlap: int = 32, non_overlap: int = 64) -> pd.DataFrame:
+def add_embeddings(
+    df: pd.DataFrame, bert: Any, overlap: int = 32, non_overlap: int = 64
+) -> pd.DataFrame:
     """
     Add BERT embeddings to a DataFrame of BERT tokens.
 
     :param df: DataFrame containing BERT tokens, as returned by
       :func:`make_bert_tokens` Must contain a column
-      `input_id` containing token IDs.
-    :param bert: PyTorch-based BERT model from the `transformers` library
+      ``input_id`` containing token IDs.
+    :param bert: PyTorch-based BERT model from the ``transformers`` library
     :param overlap: (optional) how much overlap there should be between adjacent windows
     :param non_overlap: (optional) how much non-overlapping content between the
      overlapping regions there should be at the middle of each window?
-    :returns: A copy of `df` with a new column, "embedding" containing
-     BERT embeddings as a `TensorArray`.
+    :returns: A copy of ``df`` with a new column, "embedding", containing
+     BERT embeddings as a ``TensorArray``.
 
     .. note:: PyTorch must be installed to run this function.
     """
     # Import torch inline so that the rest of this library will function without it.
     # noinspection PyPackageRequirements
     import torch
+
     flat_input_ids = df["input_id"].values
     windows = seq_to_windows(flat_input_ids, overlap, non_overlap)
     bert_result = bert(
         input_ids=torch.tensor(windows["input_ids"]),
-        attention_mask=torch.tensor(windows["attention_masks"]))
-    hidden_states = windows_to_seq(flat_input_ids,
-                                   bert_result[0].detach().numpy(),
-                                   overlap, non_overlap)
+        attention_mask=torch.tensor(windows["attention_masks"]),
+    )
+    hidden_states = windows_to_seq(
+        flat_input_ids, bert_result[0].detach().numpy(), overlap, non_overlap
+    )
     embeddings = TensorArray(hidden_states)
     ret = df.copy()
     ret["embedding"] = embeddings
     return ret
 
 
-def conll_to_bert(df: pd.DataFrame, tokenizer: Any, bert: Any,
-                  token_class_dtype: pd.CategoricalDtype,
-                  compute_embeddings: bool = True,
-                  overlap: int = 32, non_overlap: int = 64) -> pd.DataFrame:
+def conll_to_bert(
+    df: pd.DataFrame,
+    tokenizer: Any,
+    bert: Any,
+    token_class_dtype: pd.CategoricalDtype,
+    compute_embeddings: bool = True,
+    overlap: int = 32,
+    non_overlap: int = 64,
+) -> pd.DataFrame:
     """
-    :param df: One DataFrame from the conll_2003_to_dataframes() function,
+    :param df: One DataFrame from the :func:`conll_2003_to_dataframes` function,
      representing the tokens of a single document in the original tokenization.
     :param tokenizer: BERT tokenizer instance from the `transformers` library
     :param bert: PyTorch-based BERT model from the `transformers` library
@@ -172,16 +182,17 @@ def conll_to_bert(df: pd.DataFrame, tokenizer: Any, bert: Any,
      overlapping regions there should be at the middle of each window?
 
     :returns: A version of the same DataFrame, but with BERT tokens, BERT
-     embeddings for each token (if `compute_embeddings` is `True`),
+     embeddings for each token (if ``compute_embeddings`` is ``True``),
      and token class labels.
     """
     spans_df = conll.iob_to_spans(df)
-    bert_toks_df = make_bert_tokens(df["span"].values[0].target_text,
-                                    tokenizer)
-    bert_token_spans = TokenSpanArray.align_to_tokens(bert_toks_df["span"],
-                                                      spans_df["span"])
-    bert_toks_df[["ent_iob", "ent_type"]] = conll.spans_to_iob(bert_token_spans,
-                                                               spans_df["ent_type"])
+    bert_toks_df = make_bert_tokens(df["span"].values[0].target_text, tokenizer)
+    bert_token_spans = TokenSpanArray.align_to_tokens(
+        bert_toks_df["span"], spans_df["span"]
+    )
+    bert_toks_df[["ent_iob", "ent_type"]] = conll.spans_to_iob(
+        bert_token_spans, spans_df["ent_type"]
+    )
     bert_toks_df = conll.add_token_classes(bert_toks_df, token_class_dtype)
     if compute_embeddings:
         bert_toks_df = add_embeddings(bert_toks_df, bert, overlap, non_overlap)
@@ -189,53 +200,54 @@ def conll_to_bert(df: pd.DataFrame, tokenizer: Any, bert: Any,
 
 
 def align_bert_tokens_to_corpus_tokens(
-        spans_df: pd.DataFrame, corpus_toks_df: pd.DataFrame,
-        spans_df_token_col:str='span',corpus_df_token_col:str='span',
-        entity_type_col:str='ent_type') -> pd.DataFrame:
+    spans_df: pd.DataFrame,
+    corpus_toks_df: pd.DataFrame,
+    spans_df_token_col: str = "span",
+    corpus_df_token_col: str = "span",
+    entity_type_col: str = "ent_type",
+) -> pd.DataFrame:
     """
     Expand entity matches from a BERT-based model so that they align
     with the corpus's original tokenization.
 
     :param spans_df: DataFrame of extracted entities. Must contain two
-     columns with span and entity type information respecitvely. Other columns ignored.
+     columns with span and entity type information, respectively. Other columns ignored.
     :param corpus_toks_df: DataFrame of the corpus's original tokenization,
      one row per token.
      Must contain a column with character-based spans of
      the tokens.
-    :param spans_df_token_col: the name of the column in `spans_df`
-     containing its tokenization. By default, `'span'`
-    :param corpus_df_token_col: the name of the column in `corpus_toks_df`
-     that contains its tokenization. By default `'span'`
+    :param spans_df_token_col: the name of the column in ``spans_df``
+     containing its tokenization. By default, ``'span'``
+    :param corpus_df_token_col: the name of the column in ``corpus_toks_df``
+     that contains its tokenization. By default ```'span'``
     :param entity_type_col: the name of the column in spans_df that
      contains the entity types of the elements
 
 
-    :returns: A new DataFrame with schema ["span", "ent_type"],
+    :returns: A new DataFrame with schema ``["span", "ent_type"]``,
      where the "span" column contains token-based spans based off
-     the *corpus* tokenization in `corpus_toks_df["span"]`.
+     the *corpus* tokenization in ``corpus_toks_df["span"]``.
     """
     if len(spans_df.index) == 0:
         return spans_df.copy()
-    
-    overlaps_df = (
-        spanner
-            .overlap_join(spans_df[spans_df_token_col], corpus_toks_df[corpus_df_token_col],
-                          "span", "corpus_token")
-            .merge(spans_df,left_on='span',right_on=spans_df_token_col)
-    )
+
+    overlaps_df = spanner.overlap_join(
+        spans_df[spans_df_token_col],
+        corpus_toks_df[corpus_df_token_col],
+        "span",
+        "corpus_token",
+    ).merge(spans_df, left_on="span", right_on=spans_df_token_col)
     agg_df = (
-        overlaps_df
-            .groupby("span")
-            .aggregate({"corpus_token": "sum", entity_type_col: "first"})
-            .reset_index()
+        overlaps_df.groupby("span")
+        .aggregate({"corpus_token": "sum", entity_type_col: "first"})
+        .reset_index()
     )
-    cons_df = (
-        spanner.consolidate(agg_df, "corpus_token")
-        [["corpus_token", entity_type_col]]
-            .rename(columns={"corpus_token": "span"})
-    )
+    cons_df = spanner.consolidate(agg_df, "corpus_token")[
+        ["corpus_token", entity_type_col]
+    ].rename(columns={"corpus_token": "span"})
     cons_df["span"] = TokenSpanArray.align_to_tokens(
-        corpus_toks_df[corpus_df_token_col], cons_df["span"])
+        corpus_toks_df[corpus_df_token_col], cons_df["span"]
+    )
     return cons_df
 
 
@@ -254,11 +266,16 @@ def seq_to_windows(
     :param non_overlap: How much non-overlapping content between the overlapping
      regions there should be at the middle of each window?
 
-    :returns: A dictionary with two entries:
-      * `input_ids`: 2D `np.ndarray` of fixed-length windows
-      * `attention_masks`: 2D `np.ndarray` of attention masks (1 for
-        tokens that are NOT masked, 0 for tokens that are masked)
-        to feed into your favorite BERT-like embedding generator.
+    :returns: Dictionary with the keys "input_ids" and "attention_masks" mapped
+              to NumPy arrays as described below.
+
+              * "input_ids" (where ``d`` is the returned dictionary):
+                2D ``np.ndarray`` of fixed-length windows
+              * "attention_masks": 2D ``np.ndarray`` of attention masks (1 for
+                tokens that are NOT masked, 0 for tokens that are masked)
+                to feed into your favorite BERT-like embedding generator.
+
+
     """
     if len(seq.shape) != 1:
         raise ValueError(f"Input array must be 1D; got shape {seq.shape}")
@@ -289,7 +306,7 @@ def windows_to_seq(
     seq: np.ndarray, windows: np.ndarray, overlap: int, non_overlap: int
 ) -> np.ndarray:
     """
-    Inverse of `seq_to_windows()`.
+    Inverse of :func:`seq_to_windows`.
     Convert fixed length windows with padding to a variable-length sequence
     that matches up with the original sequence from which the windows were
     computed.
@@ -301,13 +318,13 @@ def windows_to_seq(
       as a 1D numpy array
     :param windows: Windowed data to align with the original sequence.
       Usually this data is the result of applying a transformation to the
-      output of `seq_to_windows()`
+      output of ``seq_to_windows()```
     :param overlap: How much overlap there is between adjacent windows
     :param non_overlap: How much non-overlapping content between the overlapping
      regions there should be at the middle of each window?
 
-    :returns: A 1D `np.ndarray` containing the contents of `windows` that
-     correspond to the elements of `seq`.
+    :returns: A 1D ``np.ndarray`` containing the contents of ``windows`` that
+     correspond to the elements of ``seq``.
     """
     if len(seq.shape) != 1:
         raise ValueError(f"Input array must be 1D; got shape {seq.shape}")
@@ -351,7 +368,7 @@ def _compute_padding(
     seq_len: int, overlap: int, non_overlap: int
 ) -> Tuple[int, int, int]:
     """
-    Shared padding computation for seq_to_windows() and windows_to_seq()
+    Shared padding computation for :func:`seq_to_windows` and :func:`windows_to_seq`
 
     :param seq_len: Length of original sequence
     :param overlap: How much overlap there should be between adjacent window

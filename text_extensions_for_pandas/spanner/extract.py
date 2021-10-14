@@ -118,13 +118,11 @@ def extract_dict(
     Identify all matches of a dictionary on a sequence of tokens.
 
     :param tokens: `SpanArray` of token information, optionally wrapped in a
-    `pd.Series`.
-
+     `pd.Series`.
     :param dictionary: The dictionary to match, encoded as a `pd.DataFrame` in
-    the format returned by `load_dict()`
-
+     the format returned by `load_dict()`
     :param output_col_name: (optional) name of column of matching spans in the
-    returned DataFrame
+     returned DataFrame
 
     :return: a single-column DataFrame of token ID spans of dictionary matches
     """
@@ -205,19 +203,15 @@ def extract_regex_tok(
     that start and end on token boundaries.
 
     :param tokens: ``SpanArray`` of token information, optionally wrapped in a
-    `pd.Series`.
-
+     `pd.Series`.
     :param compiled_regex: Regular expression to evaluate.
-
     :param min_len: Minimum match length in tokens
-
     :param max_len: Maximum match length (inclusive) in tokens
-
     :param output_col_name: (optional) name of column of matching spans in the
-    returned DataFrame
+     returned DataFrame
 
     :returns: A single-column DataFrame containing a span for each match of the
-    regex.
+     regex.
     """
     tokens = SpanArray.make_array(tokens)
 
@@ -281,7 +275,7 @@ def extract_split(
 
     :returns: An ``SpanArray``  that splits the document in the specified way.
     """
-    if isinstance(split_points, (collections.Sequence, np.ndarray)):
+    if isinstance(split_points, (collections.abc.Sequence, np.ndarray)):
         # Single-integer split points ==> zero-length spans
         split_points = SpanArray(doc_text, split_points, split_points)
     elif not isinstance(split_points, SpanArray):

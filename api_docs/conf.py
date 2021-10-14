@@ -19,6 +19,8 @@
 import os
 import sys
 
+import sphinx_rtd_theme
+
 # This file is located one level above the root of the project. Add .. to the
 # path so we can find the Python code to be documented.
 sys.path.insert(0, os.path.abspath(".."))
@@ -28,7 +30,7 @@ print(f"sys.path is {sys.path}")
 # -- Project information -----------------------------------------------------
 
 project = "Text Extensions for Pandas"
-copyright = "2020, IBM"
+copyright = "2021, IBM"
 author = "IBM"
 
 # Front page of API docs is located at index.rst
@@ -48,11 +50,19 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.viewcode",
 
     # Uncomment the following line to enable full automatic generation of
     # API documentation files from code (currently we hard-code an 
     # entry point for each module and rely on autodoc)
     # "sphinxcontrib.apidoc"
+
+    # Third-party theme that provides a floating table of contents
+    "sphinx_rtd_theme",
+
+    # Third-party plugin that creates tables of contents for classes.
+    # Used to generate TOC entries for our extension array types.
+    "autoclasstoc"
 ]
 
 # Configure the sphinx.ext.autodoc extension
@@ -75,7 +85,12 @@ apidoc_separate_modules = True
 templates_path = ['_templates']
 
 
-
+# Sections to include in class tables of contents from the ``autoclasstoc``
+# plugin.
+autoclasstoc_sections = [
+    "public-attrs",
+    "public-methods",
+]
 
 
 
@@ -96,7 +111,15 @@ for filename in os.listdir():
 
 # -- Options for HTML output -------------------------------------------------
 
-html_theme = 'nature'
+
+html_theme = "sphinx_rtd_theme"
+html_theme_options = {
+    # Toc options
+    "collapse_navigation": False,
+    "sticky_navigation": True,
+    "navigation_depth": -1,
+}
+print(f"{html_theme_options}")
 
 html_static_path = ['_static']
 

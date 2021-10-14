@@ -1,3 +1,4 @@
+# NOTE: This configuration is NOT CURRENTLY USED. CI/CI is run via Github Actions.
 language: python
 
 jobs:
