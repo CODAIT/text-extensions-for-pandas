@@ -35,7 +35,7 @@ Steps to release a new version:
    once this step is done.
 
 1. Activate your Text Extensions for Pandas build environment (usually called 
-   `pd`). **All steps that follow assume you have done this step first!**
+   `pd`).
 
 1. Ensure that all the notebooks under the `notebooks` directory run and
    produce substantially the same output as before. This step only needs to be
@@ -53,7 +53,8 @@ Steps to release a new version:
 1. Create and merge a pull request against master that increments the version 
    number.
 
-1. Remove the `dist` directory if present and run 
+1. Make sure that your build environment (usually `pd`) is still active.
+   Remove the `dist` directory if present and run 
    ```
    python setup.py sdist bdist_wheel
    ```
