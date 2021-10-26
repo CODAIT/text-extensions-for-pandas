@@ -30,7 +30,7 @@ import requests
 import os
 from zipfile import ZipFile
 
-from text_extensions_for_pandas.array.span import SpanArray, SpanDtype
+from text_extensions_for_pandas.array.span import SpanArray
 from text_extensions_for_pandas.array.token_span import (
     TokenSpan,
     TokenSpanArray,
@@ -58,27 +58,44 @@ _SPACE_BEFORE_MATCH_FN = np.vectorize(
 _SPACE_AFTER_MATCH_FN = np.vectorize(
     lambda s: _LEFT_PAREN_REGEX.fullmatch(s) is not None
 )
-_DEFAULT_CONLL_U_FORMAT = [
-    "lemma",
-    "upostag",
-    "xpostag",
-    "features",
-    "head",
-    "deprel",
-    "deps",
-    "misc",
-]
-_DEFAULT_CONLL_U_NUMERIC_COLS = ["head", "line_num"]
 
-# What metadata to log from conllu (especially ewt) files.
-# This is a dict as follows: tag_in_file -> desired name.
-# When the tag in the file is seen in a comment, the following value will be stored
-# and be assumed to apply to all elements in that document.
-_DEFAULT_EWT_METADATA = {
-    "sent_id": "sentence_id",
-    "newpar id": "paragraph_id",
-    "newdoc id": "doc_id",
-}
+
+def default_conll_u_field_names() -> List[str]:
+    """
+    :returns: The default set of field names (not including the required first
+     two fields) to use when parsing CoNLL-U files.
+    """
+    return [
+        "lemma",
+        "upostag",
+        "xpostag",
+        "features",
+        "head",
+        "deprel",
+        "deps",
+        "misc",
+    ]
+
+
+def default_conll_u_numeric_cols() -> List[str]:
+    return [
+        "head",
+        "line_num",
+    ]
+
+
+def default_ewt_metadata() -> Dict[str, str]:
+    """
+    :returns: What metadata to log from conllu (especially ewt) files.
+     This is a dict as follows: tag_in_file -> desired name.
+     When the tag in the file is seen in a comment, the following value will be stored
+     and be assumed to apply to all elements in that document.
+    """
+    return {
+        "sent_id": "sentence_id",
+        "newpar id": "paragraph_id",
+        "newdoc id": "doc_id",
+    }
 
 
 # Note, Index in sentence is explicit; starts one further long
@@ -87,7 +104,7 @@ _DEFAULT_EWT_METADATA = {
 
 def _make_empty_meta_values(
     column_names: List[str], iob_columns: List[bool]
-) -> Dict[str, List[str]]:
+) -> Dict[str, List[Optional[Union[str, int]]]]:
     ret = {}
     for i in range(len(column_names)):
         name = column_names[i]
@@ -168,6 +185,10 @@ class _SentenceData:
     @property
     def has_conll_u_metadata(self):
         return self._conllu_metadata_exists
+
+    @property
+    def conll_09_format(self):
+        return self._conll_09_format
 
     def set_conll_u_metadata(self, field: str, val: str):
         if str != "":
@@ -257,7 +278,7 @@ class _SentenceData:
         if len(line_elems) < 2 + len(self._column_names):
             if len(line_elems) >= 2 + self._num_standard_cols:
                 line_elems.extend(
-                    ["_" for i in range(2 + len(self._column_names) - len(line_elems))]
+                    ["_" for _ in range(2 + len(self._column_names) - len(line_elems))]
                 )
             else:
                 raise ValueError(
@@ -278,12 +299,12 @@ class _SentenceData:
             self._column_names.append("predicate")
             addnl_col_names = [f"pred{i}arg" for i in range(additional_lines)]
             self._column_names.extend(addnl_col_names)
-            self._iob_columns.extend([False for i in range(additional_lines + 1)])
+            self._iob_columns.extend([False for _ in range(additional_lines + 1)])
             # print(f"found Conll9 format. Added{additional_lines} columns. cols are now {self._column_names}")
             assert len(self._column_names) + 2 == len(line_elems)
 
         token = line_elems[1]
-        raw_tags = line_elems[2 : len(self._column_names) + 2]
+        raw_tags = line_elems[2:len(self._column_names) + 2]
         raw_tags = [None if tag == "_" else tag for tag in raw_tags]
         self._tokens.append(token)
         self._line_nums.append(line_num)
@@ -295,13 +316,11 @@ def _parse_conll_file(
     input_file: str, column_names: List[str], iob_columns: List[bool]
 ) -> List[List[_SentenceData]]:
     """
-    Parse the CoNLL-2003 file format for training/test data to Python
-    objects.
+    Parse the CoNLL-2003 file format for training/test data to Python objects.
 
-    The format is especially tricky, so everything here is straight
-    non-vectorized Python code. If you want performance, write the
-    contents of your CoNLL files back out into a file format that
-    supports performance.
+    The format is especially tricky, so everything here is straight non-vectorized
+    Python code. If you want performance, write the contents of your CoNLL files back
+    out into a file format that supports performance.
 
     :param input_file: Location of the file to read
     :param column_names: Names for the metadata columns that come after the
@@ -365,17 +384,13 @@ def _parse_conll_u_file(
     predicate_args: bool = True,
     merge_subtokens: bool = False,
     merge_subtoken_separator: str = "|",
-    metadata_fields: Dict[str, str] = _DEFAULT_EWT_METADATA,
-    doc_seperator = _EWT_DOC_SEPERATOR
+    metadata_fields: Dict[str, str] = None,
+    doc_seperator=_EWT_DOC_SEPERATOR
 ) -> List[List[_SentenceData]]:
     """
-
-
-
-    The format is especially tricky, so everything here is straight
-    non-vectorized Python code. If you want performance, write the
-    contents of your CoNLL files back out into a file format that
-    supports performance.
+    The format is especially tricky, so everything here is straight non-vectorized Python
+    code. If you want performance, write the contents of your CoNLL files back out into a
+    file format that supports performance.
 
     :param input_file: Location of the file to read
     :param column_names: Names for the metadata columns that come after the
@@ -386,14 +401,20 @@ def _parse_conll_u_file(
      the returned data structure will contain *two* columns, holding IOB tags and
      entity type tags, respectively. For example, an input column "ent" will turn into
      output columns "ent_iob" and "ent_type".
-    :param predicate_args: whether or not predicate arguments are stored in this file format.
-    :param metadata_fields: the types of metadata fields you want to store from the docuement. in the form of a
-    dictionary: tag_in_text -> "pretty" tag (i.e. what you want to show in the output)
+    :param predicate_args: whether or not predicate arguments are stored in this file
+     format.
+    :param metadata_fields: Optional. The types of metadata fields you want to store
+     from the document. Stored in the form of dictionary: tag_in_text -> "pretty" tag
+     (i.e. what you want to show in the output).
+     If no value is provided, then the return value of :func:`default_ewt_metadata()`
+     will be used.
 
 
     :returns: A list of lists of _SentenceData objects. The top list has one entry per
      document. The next level lists have one entry per sentence.
     """
+    if metadata_fields is None:
+        metadata_fields = default_ewt_metadata()
     with open(input_file, "r") as f:
         lines = f.readlines()
 
@@ -431,7 +452,7 @@ def _parse_conll_u_file(
         elif line[0] == "#":
             line_elems = line.split(" = ")
             if line_elems[0] == doc_seperator:
-                if i > 0 and len(sentences) > 0 :
+                if i > 0 and len(sentences) > 0:
                     # End of document.  Wrap up this document and start a new one.
                     #
                     docs.append(sentences)
@@ -461,7 +482,7 @@ def _parse_conll_u_file(
                 )  # the end (inclusive) of subtoken, by global index
                 comb_elem_list = [[] for i in range(len(line_elems))]
 
-                for subtoken in lines[i + 1 : subtok_end + 1]:
+                for subtoken in lines[i + 1:subtok_end + 1]:
                     subtok_elems = subtoken.split("\t")
                     for field in range(2, len(line_elems)):
                         if subtok_elems[field] != "_":
@@ -598,28 +619,29 @@ def _iob_to_iob2(
     ret = df.copy()
     sentence_begins = df["sentence"].values.begin_token
 
-    for i in range(len(iob_columns)):
-        if iob_columns[i]:
-            name = column_names[i]
+    for col_num in range(len(iob_columns)):
+        if iob_columns[col_num]:
+            name = column_names[col_num]
             iobs = df[f"{name}_iob"].values.copy()  # Modified in place
             entities = df[f"{name}_type"].values
             # Special-case the first one
             if iobs[0] == "I":
                 iobs[0] = "B"
-            for i in range(1, len(iobs)):
-                tag = iobs[i]
-                prev_tag = iobs[i - 1]
+            for iob_num in range(1, len(iobs)):
+                tag = iobs[iob_num]
+                prev_tag = iobs[iob_num - 1]
                 if tag == "I":
                     if (
                         prev_tag == "O"  # Previous token not an entity
                         or (
-                            prev_tag in ("I", "B") and entities[i] != entities[i - 1]
+                            prev_tag in ("I", "B")
+                            and entities[iob_num] != entities[iob_num - 1]
                         )  # Previous token a different type of entity
                         or (
-                            sentence_begins[i] != sentence_begins[i - 1]
+                            sentence_begins[iob_num] != sentence_begins[iob_num - 1]
                         )  # Start of new sentence
                     ):
-                        iobs[i] = "B"
+                        iobs[iob_num] = "B"
             ret[f"{name}_iob"] = iobs
     return ret
 
@@ -670,8 +692,8 @@ def _doc_to_df(
     sentence_ends_list = []  # Type: List[np.ndarray]
 
     # conll_u metadata information.
-    conll_u_ids_exsist = doc is not None and len(doc)!=0 and doc[0].has_conll_u_metadata
-    conll_2009_format  = doc is not None and len(doc)!=0 and doc[0]._conll_09_format
+    conll_u_ids_exsist = doc is not None and len(doc) != 0 and doc[0].has_conll_u_metadata
+    conll_2009_format = doc is not None and len(doc) != 0 and doc[0].conll_09_format
     # this should be the same for all sentences so we check the first
 
     if conll_2009_format:
@@ -740,9 +762,9 @@ def _doc_to_df(
                 meta_lists[k].extend(sentence.token_metadata[k])
             elif conll_u_ids_exsist and k in sentence.conll_u_metadata_feilds:
                 data = sentence.get_conll_u_metadata(k)
-                meta_lists[k].extend([data for i in range(sentence.num_tokens)])
+                meta_lists[k].extend([data for _ in range(sentence.num_tokens)])
             else:
-                meta_lists[k].extend([None for i in range(sentence.num_tokens)])
+                meta_lists[k].extend([None for _ in range(sentence.num_tokens)])
 
         char_position += e[-1] + 1  # "+ 1" to account for newline
         token_position += len(e)
@@ -992,7 +1014,7 @@ def spans_to_iob(
         iob_tags[begin:end] = "I"
 
     # Use a similar process to generate entity type tags
-    ent_types = np.full(len(tokens), None, dtype=object)
+    ent_types = np.full(len(tokens), np.object_(None), dtype=object)
     for ent_type, begin, end in zip(
         span_ent_types, token_spans.begin_token, token_spans.end_token
     ):
@@ -1059,15 +1081,15 @@ def conll_2003_to_dataframes(
 
 def conll_u_to_dataframes(
     input_file: str,
-    column_names: List[str] = _DEFAULT_CONLL_U_FORMAT,
+    column_names: List[str] = None,
     iob_columns: List[bool] = None,
     has_predicate_args: bool = True,
     space_before_punct: bool = False,
     merge_subtokens: bool = False,
     merge_subtoken_separator: str = "|",
-    numeric_cols: List[str] = _DEFAULT_CONLL_U_NUMERIC_COLS,
-    metadata_fields: Dict[str, str] = _DEFAULT_EWT_METADATA,
-    separate_sentences_by_doc = False
+    numeric_cols: List[str] = None,
+    metadata_fields: Dict[str, str] = None,
+    separate_sentences_by_doc: bool = False
 ) -> List[pd.DataFrame]:
     """
     Parses a file from
@@ -1075,25 +1097,41 @@ def conll_u_to_dataframes(
     :param input_file: Location of input file to read.
     :param space_before_punct: If `True`, add whitespace before
      punctuation characters when reconstructing the text of the document.
-    :param column_names: Names for the metadata columns that come after the
+    :param column_names: Optional. Names for the metadata columns that come after the
      token text. These names will be used to generate the names of the dataframe
-     that this function returns. These default to the format defined at
-     https://universaldependencies.org/docs/format.html, but can be modified if needed
+     that this function returns.
+     If no value is provided, these default to the list returned by
+     :func:`default_conll_u_field_names`, which is also the format defined at
+     https://universaldependencies.org/docs/format.html.
     :param iob_columns: Mask indicating which of the metadata columns after the
      token text should be treated as being in IOB format. If a column is in IOB format,
      the returned dataframe will contain *two* columns, holding **IOB2** tags and
      entity type tags, respectively. For example, an input column "ent" will turn into
-     output columns "ent_iob" and "ent_type". By default in CONLL_U or EWT formats this is all false.
-    :param has_predicate_args: Whether or not the file format includes predicate args. True by default, and
-     should support most files in the conllu format, but will assume that any tabs in the last
-     element are additional predicate arguments
-    :param merge_subtokens: dictates how to handle tokens that are smaller than one word. By default, we keep
-     the subtokens as two seperate entities, but if this is set to true, the subtokens will be merged into a
-     single entity, of the same length as the token, and their attributes will be concatenated
-    :param merge_subtoken_separator: If merge subtokens is selected, concatenate the attributes with this
-     separator, by default '|'
-    :param metadata_fields: the types of metadata fields you want to store from the docuement. in the form of a
-     dictionary: tag_in_text -> "pretty" tag (i.e. what you want to show in the output)
+     output columns "ent_iob" and "ent_type". By default in CONLL_U or EWT formats this
+     is all false.
+    :param has_predicate_args: Whether or not the file format includes predicate args.
+     True by default, and should support most files in the conllu format, but will assume
+     that any tabs in the last element are additional predicate arguments
+    :param merge_subtokens: dictates how to handle tokens that are smaller than one word.
+     By default, we keep the subtokens as two seperate entities, but if this is set to
+     ``True``, the subtokens will be merged into a single entity, of the same length as
+     the token, and their attributes will be concatenated
+    :param merge_subtoken_separator: If merge subtokens is selected, concatenate the
+     attributes with this separator, by default '|'
+    :param numeric_cols: Optional: Names of numeric columns drawn from `column_names`,
+      plus the default "built-in" column name `line_num`.
+      Any column whose name is in this list will be considered to hold numeric values.
+      Column names not present in the `column_names` argument will be ignored.
+      If no value is provided, then the return value of
+      :func:`default_conll_u_numeric_cols` will be used.
+    :param metadata_fields: Optional. Types of metadata fields you want to store from the
+     document, in the form of a dictionary: tag_in_text -> "pretty" tag (i.e. what you
+     want to show in the output).
+     If no value is provided, then the return value of :func:`default_ewt_metadata()`
+     will be used.
+    :param separate_sentences_by_doc: Optional. If ``False`` (the default behavior),
+     use the document boundaries defined in the CoNLL-U file. If ``True``, then treat
+     each sentence in the input file as a separate document.
 
     :returns: A list containing, for each document in the input file,
      a separate `pd.DataFrame` of four columns:
@@ -1107,10 +1145,16 @@ def conll_u_to_dataframes(
           the `ent_iob` column; `None` everywhere else.
 
     """
+    # Fill in default values
+    if column_names is None:
+        column_names = default_conll_u_field_names()
     if iob_columns is None:
-        iob_columns = [False for i in range(len(column_names))]
+        iob_columns = [False] * len(column_names)
         # fill with falses if not specified
-    
+    if metadata_fields is None:
+        metadata_fields = default_ewt_metadata()
+    if numeric_cols is None:
+        numeric_cols = default_conll_u_numeric_cols()
     # 
     split_doc_by = "# text" if separate_sentences_by_doc else _EWT_DOC_SEPERATOR
 
@@ -1131,7 +1175,8 @@ def conll_u_to_dataframes(
     ret = [_iob_to_iob2(d, column_names, iob_columns) for d in doc_dfs]
     for d in ret:
         for col in numeric_cols:
-            d[col] = pd.to_numeric(d[col], errors="coerce")
+            if col in d:
+                d[col] = pd.to_numeric(d[col], errors="coerce")
     return ret
 
 
@@ -1265,7 +1310,7 @@ def add_token_classes(
             elems.append(f"{row[iob_col_name]}-{row[entity_type_col_name]}")
     ret = token_features.copy()
     ret["token_class"] = pd.Categorical(elems, dtype=token_class_dtype)
-    ret["token_class_id"] = [label_to_int[l] for l in elems]
+    ret["token_class_id"] = [label_to_int[elem] for elem in elems]
     return ret
 
 
@@ -1354,13 +1399,13 @@ def maybe_download_dataset_data(
         fname is None or not os.path.exists(full_path)
     ):
         # if we have a zip file already, don't re-download it
-        zipPath = target_dir + "/" + document_url.split("/")[-1]
-        if not os.path.exists(zipPath):
+        zip_path = target_dir + "/" + document_url.split("/")[-1]
+        if not os.path.exists(zip_path):
             data = requests.get(document_url)
-            open(zipPath, "wb").write(data.content)
+            open(zip_path, "wb").write(data.content)
 
         # if need be, extract the zipfile documents
-        with ZipFile(zipPath, "r") as zipf:
+        with ZipFile(zip_path, "r") as zipf:
             fnames = zipf.namelist()
             if fname is not None and fname in fnames:
                 zipf.extract(fname, target_dir)
@@ -1375,11 +1420,8 @@ def maybe_download_dataset_data(
 
     # regular logic
     elif not os.path.exists(full_path):
-        try:
-            data = requests.get(document_url)
-            open(full_path, "wb").write(data.content)
-        except:
-            return None
+        data = requests.get(document_url)
+        open(full_path, "wb").write(data.content)
     return full_path
 
 
