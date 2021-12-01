@@ -538,6 +538,8 @@ class TestTensor(unittest.TestCase):
             npt.assert_array_equal(agg_fn(values, axis=0),
                                    array._reduce(agg_name).to_numpy())
 
+        with self.assertRaises(NotImplementedError):
+            array._reduce("not an aggregate name")
 
 class TensorArrayDataFrameTests(unittest.TestCase):
     def test_create(self):
