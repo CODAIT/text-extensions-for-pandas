@@ -613,12 +613,12 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         See docstring in :class:`ExtensionArray` class in ``pandas/core/arrays/base.py``
         for information about this method.
         """
-        if name == "sum":
-            return TensorElement(np.sum(self._tensor, axis=0))
-        elif name == "all":
-            return TensorElement(np.all(self._tensor, axis=0))
-        elif name == "any":
-            return TensorElement(np.any(self._tensor, axis=0))
+        if name in ("sum", "prod", "mean", "std", "var", "min", "max", "argmin",
+                    "argmax", "median", "any", "all"):
+            # Standard Numpy aggregates. Retrieve the eponymous Numpy
+            # function and call it on our tensor along axis 0.
+            numpy_agg_func = getattr(np, name)
+            return TensorElement(numpy_agg_func(self._tensor, axis=0))
         else:
             raise NotImplementedError(f"'{name}' aggregate not implemented.")
 
