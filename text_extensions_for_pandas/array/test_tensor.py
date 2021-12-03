@@ -527,6 +527,19 @@ class TestTensor(unittest.TestCase):
         expected = np.add(data, data)
         verify_ufunc_result(result, expected)
 
+    def test_numpy_aggs(self):
+        # Make sure that every supported aggregate type in _reduce works properly.
+        values = np.array(range(16), dtype=np.float32).reshape(8, 2)
+        array = TensorArray(values)
+
+        for agg_name in ("sum", "prod", "mean", "std", "var", "min", "max", "argmin",
+                         "argmax", "median", "any", "all"):
+            agg_fn = getattr(np, agg_name)
+            npt.assert_array_equal(agg_fn(values, axis=0),
+                                   array._reduce(agg_name).to_numpy())
+
+        with self.assertRaises(NotImplementedError):
+            array._reduce("not an aggregate name")
 
 class TensorArrayDataFrameTests(unittest.TestCase):
     def test_create(self):
