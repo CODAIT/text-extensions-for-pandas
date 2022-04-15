@@ -1,3 +1,6 @@
+# JupyterLab temp files
+.virtual_documents
+
 # MacOS image caches
 .DS_Store
 **/.DS_Store
