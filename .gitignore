@@ -1,3 +1,7 @@
+# MacOS image caches
+.DS_Store
+**/.DS_Store
+
 # vim swap files
 *.swp
 
