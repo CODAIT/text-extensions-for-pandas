@@ -32,12 +32,15 @@ from text_extensions_for_pandas.spanner.consolidate import (
 )
 from text_extensions_for_pandas.spanner.extract import (
     extract_dict,
-    extract_regex_tok
+    extract_regex,
+    extract_regex_tok,
+    extract_split
 )
 from text_extensions_for_pandas.spanner.join import (
     adjacent_join,
     contain_join,
-    overlap_join
+    overlap_join,
+    unpack_semijoin
 )
 from text_extensions_for_pandas.spanner.project import (
     lemmatize
@@ -51,12 +54,15 @@ __all__ = [
 
     # extract.py
     "extract_dict",
+    "extract_regex",
     "extract_regex_tok",
+    "extract_split",
 
     # join.py
     "adjacent_join",
     "contain_join",
     "overlap_join",
+    "unpack_semijoin",
     
     # project.py
     "lemmatize"
