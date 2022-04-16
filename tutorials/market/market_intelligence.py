@@ -107,38 +107,40 @@ def perform_dependency_parsing(doc_text: str, spacy_language_model):
         tp.io.spacy.make_tokens_and_features(doc_text, spacy_language_model)
         [["id", "span", "tag", "dep", "head"]])
 
-def extract_titles_of_persons(persons: pd.DataFrame, parse_features: pd.DataFrame) -> pd.DataFrame:
+
+def extract_titles_of_persons(persons: pd.DataFrame, 
+                              parse_features: pd.DataFrame) -> pd.DataFrame:
     """
     Second phase of processing from the second part of the series.
     
-    :param persons_quoted: DataFrame of persons quoted in the target document, as
+    :param persons: DataFrame of persons quoted in the target document, as
      returned by :func:`identify_persons_quoted_by_name`.
     :param parse_features: Dependency parse of the document, as returned by 
      :func:`perform_dependency_parsing`.
     """
     def traverse_edges_once(start_nodes: pd.DataFrame, edges: pd.DataFrame,
-                    metadata_cols = ["person"]) -> pd.DataFrame:
+                            metadata_cols = ["person"]) -> pd.DataFrame:
         return (
             start_nodes[["person", "id"]]  # Propagate original "person" span
             .merge(edges, left_on="id", right_on="head", 
                    suffixes=["_head", ""])[["person", "id"]]
             .merge(nodes)
         )
-    
+
     if len(persons.index) == 0:
         # Special case: Empty input --> empty output
         return pd.DataFrame({
             "person": pd.Series([], dtype=tp.SpanDtype()),
             "title": pd.Series([], dtype=tp.SpanDtype()),
         })
-    
+
 
     # Retrieve the document text from the person spans.
     doc_text = persons["person"].array.document_text
 
     # Drop the columns we won't need for this analysis.
     tokens = parse_features[["id", "span", "tag", "dep", "head"]]
-    
+
     # Split the parse tree into nodes and edges and filter the edges.
     nodes = tokens[["id", "span", "tag"]].reset_index(drop=True)
     edges = tokens[["id", "head", "dep"]].reset_index(drop=True)
@@ -149,11 +151,11 @@ def extract_titles_of_persons(persons: pd.DataFrame, parse_features: pd.DataFram
                                 "person", "span")
         .merge(nodes)
     )
-    
+
     # Step 1: Follow `appos` edges from the person names
     appos_targets = traverse_edges_once(person_nodes, 
                                         edges[edges["dep"] == "appos"])
-    
+
     # Step 2: Transitive closure to find all tokens in the titles
     selected_nodes = appos_targets.copy()
     previous_num_nodes = 0
@@ -213,13 +215,19 @@ def perform_targeted_dependency_parsing(
         spans_to_cover: Union[tp.SpanArray, pd.Series],
         language_model: spacy.language.Language) -> pd.DataFrame:  
     """
-    Optimized version of `perform_dependency_parsing` that we introduce in the
-    third part of the series.
+    Optimized version of :func:`perform_dependency_parsing()` that uses the
+    semijoin trick to reduce the overhead of dependency parsing by only 
+    parsing the paragraphs where a person is mentioned by name.
 
     Identifies regions of the document to parse, then parses a those regions
     using SpaCy's depdendency parser, then converts the outputs of the parser 
     into a Pandas DataFrame of spans over the original document using Text 
     Extensions for Pandas.
+
+    :param spans_to_cover: Locations of the results of the 
+     :func:`find_persons_quoted_by_name()` function.
+    :param language_model: SpaCy language model containing the parser
+     configuration
     """
     spans_to_cover = tp.SpanArray.make_array(spans_to_cover)
 
@@ -236,29 +244,29 @@ def perform_targeted_dependency_parsing(
             "", language_model
             )[["id", "span", "tag", "dep", "head"]]
 
+    # Break the document into paragraphs and find the paragraphs that contain
+    # a match of the 
     doc_text = spans_to_cover.document_text
     all_paragraphs = find_paragraph_spans(doc_text)
-    covered_paragraphs = tp.spanner.contain_join(pd.Series(all_paragraphs), 
-                                                 pd.Series(spans_to_cover),
-                                                "paragraph", "span")["paragraph"].array
+   
+    covered_paragraphs = (
+        tp.spanner.contain_join(pd.Series(all_paragraphs),
+                                pd.Series(spans_to_cover),
+                                "paragraph", "span")["paragraph"].unique())
 
     offset = 0
     to_stack = []
     for paragraph_span in covered_paragraphs:
         # Tokenize and parse the paragraph
-        paragraph_text = paragraph_span.covered_text
-        paragraph_tokens = tp.io.spacy.make_tokens_and_features(
-            paragraph_text, language_model
+        paragraph_tokens_raw = tp.io.spacy.make_tokens_and_features(
+            paragraph_span.covered_text, language_model
             )[["id", "span", "tag", "dep", "head"]]
 
         # Convert token spans to original document text
-        span_array_before = paragraph_tokens["span"].array
-        paragraph_tokens["span"] = \
-            tp.SpanArray(paragraph_span.target_text,
-                         paragraph_span.begin + span_array_before.begin,
-                         paragraph_span.begin + span_array_before.end)
+        paragraph_tokens = tp.spanner.join.unpack_semijoin(paragraph_span,
+                                                           paragraph_tokens_raw)
 
-        # Adjust token IDs
+        # Adjust token IDs to allow stacking without duplicates
         paragraph_tokens["id"] += offset
         paragraph_tokens["head"] += offset
         paragraph_tokens.index += offset
