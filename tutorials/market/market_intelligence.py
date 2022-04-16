@@ -107,38 +107,40 @@ def perform_dependency_parsing(doc_text: str, spacy_language_model):
         tp.io.spacy.make_tokens_and_features(doc_text, spacy_language_model)
         [["id", "span", "tag", "dep", "head"]])
 
-def extract_titles_of_persons(persons: pd.DataFrame, parse_features: pd.DataFrame) -> pd.DataFrame:
+
+def extract_titles_of_persons(persons: pd.DataFrame, 
+                              parse_features: pd.DataFrame) -> pd.DataFrame:
     """
     Second phase of processing from the second part of the series.
     
-    :param persons_quoted: DataFrame of persons quoted in the target document, as
+    :param persons: DataFrame of persons quoted in the target document, as
      returned by :func:`identify_persons_quoted_by_name`.
     :param parse_features: Dependency parse of the document, as returned by 
      :func:`perform_dependency_parsing`.
     """
     def traverse_edges_once(start_nodes: pd.DataFrame, edges: pd.DataFrame,
-                    metadata_cols = ["person"]) -> pd.DataFrame:
+                            metadata_cols = ["person"]) -> pd.DataFrame:
         return (
             start_nodes[["person", "id"]]  # Propagate original "person" span
             .merge(edges, left_on="id", right_on="head", 
                    suffixes=["_head", ""])[["person", "id"]]
             .merge(nodes)
         )
-    
+
     if len(persons.index) == 0:
         # Special case: Empty input --> empty output
         return pd.DataFrame({
             "person": pd.Series([], dtype=tp.SpanDtype()),
             "title": pd.Series([], dtype=tp.SpanDtype()),
         })
-    
+
 
     # Retrieve the document text from the person spans.
     doc_text = persons["person"].array.document_text
 
     # Drop the columns we won't need for this analysis.
     tokens = parse_features[["id", "span", "tag", "dep", "head"]]
-    
+
     # Split the parse tree into nodes and edges and filter the edges.
     nodes = tokens[["id", "span", "tag"]].reset_index(drop=True)
     edges = tokens[["id", "head", "dep"]].reset_index(drop=True)
@@ -149,11 +151,11 @@ def extract_titles_of_persons(persons: pd.DataFrame, parse_features: pd.DataFram
                                 "person", "span")
         .merge(nodes)
     )
-    
+
     # Step 1: Follow `appos` edges from the person names
     appos_targets = traverse_edges_once(person_nodes, 
                                         edges[edges["dep"] == "appos"])
-    
+
     # Step 2: Transitive closure to find all tokens in the titles
     selected_nodes = appos_targets.copy()
     previous_num_nodes = 0
@@ -179,7 +181,7 @@ def extract_titles_of_persons(persons: pd.DataFrame, parse_features: pd.DataFram
     # As of Pandas 1.2.1, groupby() over extension types downgrades them to object 
     # dtype. Cast back up to the extension type.
     titles["person"] = titles["person"].astype(tp.SpanDtype())
-    
+
     return titles
 
 
@@ -187,7 +189,7 @@ paragraph_break_re = regex.compile(r"\n+")
 
 def find_paragraph_spans(doc_text: str) -> tp.SpanArray:
     """
-    Subroutine of perform_targeted_dependency_parsing that we introduce 
+    Preprocessing for perform_targeted_dependency_parsing that we introduce 
     in the third part of the series. Splits document text into paragraphs
     and returns a SpanArray containing one span per paragraph.
     """
@@ -195,7 +197,7 @@ def find_paragraph_spans(doc_text: str) -> tp.SpanArray:
     break_locs = [(a.start(), a.end()) 
                   for a in regex.finditer(paragraph_break_re, doc_text)]
     boundaries = break_locs + [(len(doc_text), len(doc_text))]
-    
+
     # Split the document on paragraph boundaries
     begins = []
     ends = []
@@ -208,20 +210,27 @@ def find_paragraph_spans(doc_text: str) -> tp.SpanArray:
         begin = b[1]
     return tp.SpanArray(doc_text, begins, ends)
 
+
 def perform_targeted_dependency_parsing(
         spans_to_cover: Union[tp.SpanArray, pd.Series],
         language_model: spacy.language.Language) -> pd.DataFrame:  
     """
-    Optimized version of `perform_dependency_parsing` that we introduce in the
-    third part of the series.
-    
+    Optimized version of :func:`perform_dependency_parsing()` that uses the
+    semijoin trick to reduce the overhead of dependency parsing by only 
+    parsing the paragraphs where a person is mentioned by name.
+
     Identifies regions of the document to parse, then parses a those regions
     using SpaCy's depdendency parser, then converts the outputs of the parser 
     into a Pandas DataFrame of spans over the original document using Text 
     Extensions for Pandas.
+
+    :param spans_to_cover: Locations of the results of the 
+     :func:`find_persons_quoted_by_name()` function.
+    :param language_model: SpaCy language model containing the parser
+     configuration
     """
     spans_to_cover = tp.SpanArray.make_array(spans_to_cover)
-    
+
     # Special case: No spans. Return empty DataFrame with correct schema.
     if len(spans_to_cover) == 0:
         return pd.DataFrame({
@@ -234,35 +243,34 @@ def perform_targeted_dependency_parsing(
         return tp.io.spacy.make_tokens_and_features(
             "", language_model
             )[["id", "span", "tag", "dep", "head"]]
-    
+
+    # Break the document into paragraphs and find the paragraphs that contain
+    # a match of the 
     doc_text = spans_to_cover.document_text
     all_paragraphs = find_paragraph_spans(doc_text)
-    covered_paragraphs = tp.spanner.contain_join(pd.Series(all_paragraphs), 
-                                                 pd.Series(spans_to_cover),
-                                                "paragraph", "span")["paragraph"].array
-    
-    
+   
+    covered_paragraphs = (
+        tp.spanner.contain_join(pd.Series(all_paragraphs),
+                                pd.Series(spans_to_cover),
+                                "paragraph", "span")["paragraph"].unique())
+
     offset = 0
     to_stack = []
     for paragraph_span in covered_paragraphs:
         # Tokenize and parse the paragraph
-        paragraph_text = paragraph_span.covered_text
-        paragraph_tokens = tp.io.spacy.make_tokens_and_features(
-            paragraph_text, language_model
+        paragraph_tokens_raw = tp.io.spacy.make_tokens_and_features(
+            paragraph_span.covered_text, language_model
             )[["id", "span", "tag", "dep", "head"]]
-        
+
         # Convert token spans to original document text
-        span_array_before = paragraph_tokens["span"].array
-        paragraph_tokens["span"] = \
-            tp.SpanArray(paragraph_span.target_text,
-                         paragraph_span.begin + span_array_before.begin,
-                         paragraph_span.begin + span_array_before.end)
-        
-        # Adjust token IDs
+        paragraph_tokens = tp.spanner.join.unpack_semijoin(paragraph_span,
+                                                           paragraph_tokens_raw)
+
+        # Adjust token IDs to allow stacking without duplicates
         paragraph_tokens["id"] += offset
         paragraph_tokens["head"] += offset
         paragraph_tokens.index += offset
-        
+
         to_stack.append(paragraph_tokens)
         offset += len(paragraph_tokens.index)
     return pd.concat(to_stack)
@@ -276,9 +284,9 @@ def call_nlu_with_retry(
     """
     Pass a document through Natural Language Understanding, performing the 
     analyses we need for the current use case.
-    
+
     Also handles retrying with exponential backoff.
-    
+
     :param doc_html: HTML contents of the web page
     :param nlu: Preinitialized instance of the NLU Python API
     :returns: Python object encapsulating the parsed JSON response from the web service.
@@ -295,7 +303,7 @@ def call_nlu_with_retry(
                     semantic_roles=nlu.SemanticRolesOptions())
     else:
         raise ValueError("Must run at least one NLU model.")
-    
+
     num_tries = 0
     MAX_RETRIES = 8
     RATE_LIMIT_ERROR_CODE = 429
@@ -330,7 +338,7 @@ class RateLimitedActor(ABC):
         self._start_time = time.time()
         self._last_request_time = self._start_time - self._sec_per_request
         self._last_request_time_lock = threading.Lock()
-        
+
     def process(self, value: Any) -> Any:
         """"""
         # Basic rate-limiting logic
@@ -345,7 +353,7 @@ class RateLimitedActor(ABC):
             #print(f"Sleeping {time_until_deadline} sec to enforce rate limit")
             time.sleep(time_until_deadline)
         return self.process_internal(value)
-    
+
     @abstractmethod
     def process_internal(self, value: Any) -> Any:
         raise NotImplementedError("Subclasses must implement this method")

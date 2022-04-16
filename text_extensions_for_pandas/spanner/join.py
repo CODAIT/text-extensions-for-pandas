@@ -22,7 +22,7 @@
 import numpy as np
 import pandas as pd
 
-from text_extensions_for_pandas import SpanDtype, TokenSpanDtype
+from text_extensions_for_pandas import (Span, SpanArray, SpanDtype, TokenSpanDtype)
 
 
 def adjacent_join(
@@ -201,3 +201,44 @@ def contain_join(
         overlap_result[second_name].values
     )
     return overlap_result[mask].reset_index(drop=True)
+
+
+def unpack_semijoin(target_region: Span,
+                    model_results: pd.DataFrame) -> pd.DataFrame:
+    """
+    Unpack the results of evaluating an extraction model, such as
+    dependency parsing or named entity recognition, using a semijoin
+    strategy to reduce the amount of text over which the model is
+    applied.
+
+    To use :func:`unpack_semijoin`, first identify regions of the text
+    that you wish to run the model. Then run the model over the text
+    of those regions to produce spans whose begin and end offsets are
+    relative to the text of each distinct target region. Then you can
+    pass the spans and the model results to this function to produce
+    result spans whose begin and end offsets are relative to the original
+    document text.
+
+    :param target_region: Span indicating a section of the original
+     document text over which the model was applied.
+    :param model_results: Results from running your model over
+     ``target_region``, as a :class:`pd.DataFrame`.
+    :returns: A :class:`pd.DataFrame` with the same schema as
+      ``model_results``, but with all spans converted from spans over
+      the target text of ``target_region`` to spans over the original
+      document text.
+    """
+    doc_text = target_region.target_text
+    region_offset = target_region.begin
+
+    # Make a copy of the DataFrame, then modify span columns of
+    # the copy in place.
+    result = model_results.copy()
+    for i in range(len(result.columns)):
+        if isinstance(model_results.dtypes[i], SpanDtype):
+            column_name = model_results.columns[i]
+            raw_spans = result[column_name].array
+            result[column_name] = SpanArray(
+                doc_text, raw_spans.begin + region_offset,
+                raw_spans.end + region_offset)
+    return result

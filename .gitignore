@@ -1,4 +1,8 @@
-# MacOS metadata files
+# JupyterLab temp files
+.virtual_documents
+
+# MacOS image caches
+.DS_Store
 **/.DS_Store
 
 # vim swap files
