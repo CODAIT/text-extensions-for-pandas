@@ -22,7 +22,7 @@
 import numpy as np
 import pandas as pd
 
-from text_extensions_for_pandas import SpanDtype, TokenSpanDtype
+from text_extensions_for_pandas import (Span, SpanArray, SpanDtype, TokenSpanDtype)
 
 
 def adjacent_join(
@@ -203,7 +203,7 @@ def contain_join(
     return overlap_result[mask].reset_index(drop=True)
 
 
-def unpack_semijoin(target_region: tp.Span,
+def unpack_semijoin(target_region: Span,
                     model_results: pd.DataFrame) -> pd.DataFrame:
     """
     Unpack the results of evaluating an extraction model, such as
@@ -235,10 +235,10 @@ def unpack_semijoin(target_region: tp.Span,
     # the copy in place.
     result = model_results.copy()
     for i in range(len(result.columns)):
-        if isinstance(model_results.dtypes[i], tp.SpanDtype):
+        if isinstance(model_results.dtypes[i], SpanDtype):
             column_name = model_results.columns[i]
             raw_spans = result[column_name].array
-            result[column_name] = tp.SpanArray(
+            result[column_name] = SpanArray(
                 doc_text, raw_spans.begin + region_offset,
                 raw_spans.end + region_offset)
     return result
