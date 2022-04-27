@@ -54,7 +54,7 @@ def load_dict(file_name: str, tokenizer: "spacy.tokenizer.Tokenizer" = None):
     used on the target text!**  If None, this method will use SpaCy's default
     English tokenizer.
 
-    :return: a `pd.DataFrame` with the normalized, tokenized dictionary entries.
+    :return: :class:`pd.DataFrame` with the normalized, tokenized dictionary entries.
     """
     with open(file_name, "r") as f:
         lines = [
@@ -82,7 +82,7 @@ def create_dict(
     used on the target text!**  If None, this method will use tokenizer returned by
     :func:`text_extensions_for_pandas.io.spacy.simple_tokenizer()`.
 
-    :return: a `pd.DataFrame` with the normalized, tokenized dictionary entries.
+    :return: :class:`pd.DataFrame` with the normalized, tokenized dictionary entries.
     """
     if tokenizer is None:
         tokenizer = simple_tokenizer()
@@ -117,10 +117,12 @@ def extract_dict(
     """
     Identify all matches of a dictionary on a sequence of tokens.
 
-    :param tokens: `SpanArray` of token information, optionally wrapped in a
-     `pd.Series`.
-    :param dictionary: The dictionary to match, encoded as a `pd.DataFrame` in
-     the format returned by `load_dict()`
+    :param tokens: :class:`SpanArray` of token information, optionally wrapped in a
+     :class:`pd.Series`.  **These tokens must come from the same tokenizer that tokenized
+     the entries of ``dictionary``.**  To tokenize with SpaCy, use
+     :func:`text_extensions_for_pandas.io.spacy.make_tokens()`.
+    :param dictionary: The dictionary to match, encoded as a :class:`pd.DataFrame` in
+     the format returned by :func:`load_dict()`
     :param output_col_name: (optional) name of column of matching spans in the
      returned DataFrame
 
@@ -202,7 +204,7 @@ def extract_regex_tok(
     Identify all (possibly overlapping) matches of a regular expression
     that start and end on token boundaries.
 
-    :param tokens: ``SpanArray`` of token information, optionally wrapped in a
+    :param tokens: :class:`SpanArray` of token information, optionally wrapped in a
      `pd.Series`.
     :param compiled_regex: Regular expression to evaluate.
     :param min_len: Minimum match length in tokens
@@ -241,14 +243,14 @@ def extract_regex(
 ):
     """
     Identify all non-overlapping matches of a regular expression, as returned by
-    ``re.Pattern.finditer()``, and return those locations as an array of spans.
+    :func:`re.Pattern.finditer()`, and return those locations as an array of spans.
 
     :param doc_text: Text of the document; will be the target text of the returned spans.
 
     :param compiled_regex: Regular expression to evaluate, compiled with either the ``re``
       or the ``regex`` package.
 
-    :returns: A ``SpanArray`` containing a span for each match of the regex.
+    :returns: :class:`SpanArray` containing a span for each match of the regex.
     """
     begins = []
     ends = []
@@ -273,7 +275,7 @@ def extract_split(
       * A sequence of spans (split around the indicated locations, but discard the parts
         of the document that are within a split point)
 
-    :returns: An ``SpanArray``  that splits the document in the specified way.
+    :returns: :class:`SpanArray` that splits the document in the specified way.
     """
     if isinstance(split_points, (collections.abc.Sequence, np.ndarray)):
         # Single-integer split points ==> zero-length spans
