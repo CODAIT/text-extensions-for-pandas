@@ -31,10 +31,12 @@ from text_extensions_for_pandas.spanner.consolidate import (
     consolidate
 )
 from text_extensions_for_pandas.spanner.extract import (
+    create_dict,
     extract_dict,
     extract_regex,
     extract_regex_tok,
-    extract_split
+    extract_split,
+    load_dict
 )
 from text_extensions_for_pandas.spanner.join import (
     adjacent_join,
@@ -53,10 +55,12 @@ __all__ = [
     "consolidate",
 
     # extract.py
+    "create_dict",
     "extract_dict",
     "extract_regex",
     "extract_regex_tok",
     "extract_split",
+    "load_dict",
 
     # join.py
     "adjacent_join",
