@@ -87,7 +87,7 @@ class DataFrameWidget:
         self._color_mode = "ROW"
 
         # Initialize selected column
-        if metadata_column:
+        if metadata_column is not None:
             md_length = len(metadata_column)
             # Check that metadata matches the length of the index. If too short or too long, mutate
             if md_length < self._df.shape[0]:
