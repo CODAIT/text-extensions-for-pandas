@@ -4,8 +4,14 @@
 # This list will probably grow as libraries drop support.
 
 nltk
-ray[default]
-feather
+ray[default] >= 2.0
+
+# *** HACK ALERT ***
+# Feather depends on Numpy being exactly 1.20.2, which breaks Pandas.
+# So we don't include a dependency on it and hope for the best.
+#feather
+# *** END HACK ***
+
 
 sphinx
 sphinxcontrib-apidoc

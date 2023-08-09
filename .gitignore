@@ -1,3 +1,6 @@
+# VSCode config
+.vscode
+
 # JupyterLab temp files
 .virtual_documents
 

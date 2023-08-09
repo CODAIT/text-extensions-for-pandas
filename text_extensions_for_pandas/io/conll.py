@@ -890,16 +890,14 @@ def iob_to_spans(
 
     # Add an extra "O" tag to the end of the IOB column to simplify the logic
     # for handling the case where the document ends with an entity.
-    iob_series = (
-        token_features[iob_col_name].append(pd.Series(["O"])).reset_index(drop=True)
-    )
+    iob_array = np.array(token_features[iob_col_name].tolist() + ["O"])
 
     entity_prefixes = pd.DataFrame(
         {
             "ent_type": entity_types,
             "begin": first_tokens,  # Inclusive
             "end": first_tokens + 1,  # Exclusive
-            "next_tag": iob_series.iloc[first_tokens + 1].values,
+            "next_tag": iob_array[first_tokens + 1],
         }
     )
 
@@ -915,9 +913,7 @@ def iob_to_spans(
         complete_entities = entity_prefixes[complete_mask]
         incomplete_entities = entity_prefixes[~complete_mask].copy()
         incomplete_entities["end"] = incomplete_entities["end"] + 1
-        incomplete_entities["next_tag"] = iob_series.iloc[
-            incomplete_entities["end"]
-        ].values
+        incomplete_entities["next_tag"] = iob_array[incomplete_entities["end"]]
         df_list.append(complete_entities)
         entity_prefixes = incomplete_entities
     all_entities = pd.concat(df_list)

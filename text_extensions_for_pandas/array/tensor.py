@@ -21,7 +21,7 @@
 # Pandas extensions to support columns of N-dimensional tensors of equal shape.
 #
 
-from distutils.version import LooseVersion
+from packaging.version import Version
 import numbers
 import os
 from typing import *
@@ -149,7 +149,7 @@ _FORMATTER_ENABLED_KEY = "TEXT_EXTENSIONS_FOR_PANDAS_FORMATTER_ENABLED"
 if os.getenv(_FORMATTER_ENABLED_KEY, "true").lower() == "true":
     ExtensionArrayFormatter._format_strings_orig = \
         ExtensionArrayFormatter._format_strings
-    if LooseVersion("1.1.0") <= LooseVersion(pd.__version__) < LooseVersion("1.3.0"):
+    if Version("1.1.0") <= Version(pd.__version__) < Version("1.3.0"):
         ExtensionArrayFormatter._format_strings = _format_strings_patched
     else:
         ExtensionArrayFormatter._format_strings = _format_strings_patched_v1_0_0
@@ -568,6 +568,13 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         for information about this method.
         """
         key = check_array_indexer(self, key)
+
+        if isinstance(key, tuple) and len(key) == 1 and isinstance(key[0], 
+                                                                   (np.ndarray, slice)):
+            # Special case: Some upstream Pandas code likes to pass 2D slices
+            # down to arrays. Convert to 1D.
+            key = key[0]
+
         if isinstance(value, TensorElement) or np.isscalar(value):
             value = np.asarray(value)
         if isinstance(value, list):
@@ -577,7 +584,7 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
         if value is None or isinstance(value, Sequence) and len(value) == 0:
             nan_fill = np.full_like(self._tensor[key], np.nan)
             self._tensor[key] = nan_fill
-        elif isinstance(key, (int, slice, np.ndarray)):
+        elif isinstance(key, (int, list, tuple, slice, np.ndarray)):
             self._tensor[key] = value
         else:
             raise NotImplementedError(f"__setitem__ with key type '{type(key)}' "
@@ -662,6 +669,21 @@ class TensorArray(pd.api.extensions.ExtensionArray, TensorOpsMixin):
     def __arrow_array__(self, type=None):
         from text_extensions_for_pandas.array.arrow_conversion import ArrowTensorArray
         return ArrowTensorArray.from_numpy(self._tensor)
+    
+    # This operation not currently supported by Pandas' mixins
+    def __abs__(self):
+        result = abs(self._tensor)
+        return TensorArray(result)
+    
+    # This operation not currently supported by Pandas' mixins
+    def __neg__(self):
+        result = np.negative(self._tensor)
+        return TensorArray(result)
+
+    # This operation not currently supported by Pandas' mixins
+    def __pos__(self):
+        result = np.positive(self._tensor)
+        return TensorArray(result)
 
 
 # Add operators from the mixin to the class

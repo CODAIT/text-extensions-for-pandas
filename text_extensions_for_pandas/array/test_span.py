@@ -16,7 +16,7 @@
 import os
 import tempfile
 import unittest
-from distutils.version import LooseVersion
+from packaging.version import Version
 
 # noinspection PyPackageRequirements
 import pytest
@@ -485,7 +485,7 @@ class CharSpanArrayIOTests(ArrayTestBase):
             df_read = pd.read_feather(filename)
             pd.testing.assert_frame_equal(df, df_read)
 
-    @pytest.mark.skipif(LooseVersion(pa.__version__) < LooseVersion("2.0.0"),
+    @pytest.mark.skipif(Version(pa.__version__) < Version("2.0.0"),
                         reason="Nested Parquet data types only supported in Arrow >= 2.0.0")
     def test_parquet(self):
         arr = self._make_spans_of_tokens()
@@ -539,6 +539,14 @@ def data_for_sorting(dtype):
     reordered[2] = spans[0]
     return pd.array(reordered, dtype=dtype)
 
+@pytest.fixture
+def invalid_scalar():
+    return "This is not a SpanArray"
+
+# Supported comparisons between spans
+@pytest.fixture(params=["__eq__", "__ne__"])
+def comparison_op(request):
+    return request.param
 
 # noinspection PyTypeChecker
 @pytest.fixture
@@ -715,7 +723,11 @@ class TestPandasCasting(base.BaseCastingTests):
 
 
 class TestPandasGroupby(base.BaseGroupbyTests):
-    pass
+    @pytest.mark.skip("Test fails for extension types that support the "
+                      "sum() groupby but are of dtype object when "
+                      "converted to Numpy")
+    def test_in_numeric_groupby(self, data_for_grouping):
+        super().test_in_numeric_groupby(data_for_grouping)
 
 
 class TestPandasNumericReduce(base.BaseNumericReduceTests):
