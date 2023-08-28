@@ -392,7 +392,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         self._begins = begins  # type: np.ndarray
         self._ends = ends  # type: np.ndarray
 
-        self._string_table = string_table  # type: Union[StringTable, None]
+        self._string_table = string_table  # type: Optional[StringTable]
         self._text_ids = text_ids
 
         # Cached list of other SpanArrays that are exactly the same as this
@@ -874,7 +874,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         return self._string_table.ids_to_things(self._text_ids)
 
     @memoized_property
-    def document_text(self) -> Union[str, None]:
+    def document_text(self) -> Optional[str]:
         """
         :return: if all spans in this array cover the same document, text of that
          document.

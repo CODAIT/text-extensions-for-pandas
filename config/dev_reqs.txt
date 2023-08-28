@@ -11,6 +11,7 @@ spacy==3.6.0
 ipywidgets
 ibm-watson
 twine
+hypothesis
 
 # Documentation-related requirements have moved to non_36_reqs.txt.
 #sphinx

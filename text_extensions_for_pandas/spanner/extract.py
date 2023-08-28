@@ -50,9 +50,9 @@ def load_dict(file_name: str, tokenizer: "spacy.tokenizer.Tokenizer" = None):
     :param file_name: Path to dictionary file
 
     :param tokenizer: Preconfigured tokenizer object for tokenizing
-    dictionary entries.  **Must be the same configuration as the tokenizer
-    used on the target text!**  If None, this method will use SpaCy's default
-    English tokenizer.
+                      dictionary entries.  **Must be the same configuration as 
+                      the tokenizer used on the target text!**  If None, this
+                      method will use SpaCy's default English tokenizer.
 
     :return: :class:`pd.DataFrame` with the normalized, tokenized dictionary entries.
     """
@@ -77,10 +77,10 @@ def create_dict(
 
     :param entries: Iterable of strings, one string per dictionary entry.
 
-    :param tokenizer: Preconfigured tokenizer object for tokenizing
-    dictionary entries.  **Must always tokenize the same way as the tokenizer
-    used on the target text!**  If None, this method will use tokenizer returned by
-    :func:`text_extensions_for_pandas.io.spacy.simple_tokenizer()`.
+    :param tokenizer: Preconfigured tokenizer object for tokenizing dictionary entries.  
+                      **Must always tokenize the same way as the tokenizer used on the 
+                      target text!**  If None, this method will use tokenizer returned 
+                      by :func:`text_extensions_for_pandas.io.spacy.simple_tokenizer()`.
 
     :return: :class:`pd.DataFrame` with the normalized, tokenized dictionary entries.
     """
@@ -270,10 +270,11 @@ def extract_split(
     :param doc_text: Text of the document; will be the target text of the returned spans.
 
     :param split_points: A series of offsets into ``doc_text``, expressed as either:
-      * A sequence of integers (split at certain locations and return a set of splits that
-        covers every character in the document) as a list or 1-d Numpy array
-      * A sequence of spans (split around the indicated locations, but discard the parts
-        of the document that are within a split point)
+                         a sequence of integers (split at certain locations and return a set of splits that
+                         covers every character in the document) as a list or 1-d Numpy array; or
+                         a sequence of spans (split around the indicated locations, but discard the parts
+                         of the document that are within a split point)
+
 
     :returns: :class:`SpanArray` that splits the document in the specified way.
     """

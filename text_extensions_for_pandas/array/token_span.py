@@ -747,7 +747,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
 
         if not tokens.is_single_document:
             raise ValueError(f"Tokens cover more than one document (tokens are {tokens})")
-        if not spans.is_single_document:
+        if len(spans) > 0 and not spans.is_single_document:
             raise ValueError(f"Spans cover more than one document (spans are {spans})")
 
         # Create and join temporary dataframes

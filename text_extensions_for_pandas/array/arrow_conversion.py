@@ -414,9 +414,23 @@ def arrow_to_tensor_array(extension_array: pa.ExtensionArray) -> TensorArray:
 
     if isinstance(extension_array, pa.ChunkedArray):
         if extension_array.num_chunks > 1:
-            # TODO: look into removing concat and constructing from list w/ shape
-            values = np.concatenate([chunk.to_numpy()
-                                     for chunk in extension_array.iterchunks()])
+            if _PA_VERSION.major >= 6:
+                # Workaround for a bug in recent versions of PyArrow.
+                # TODO: Make the above version check only activate for a fixed range
+                # once this behavior disappears.
+                # Recent versions of PyArrow have a strange bug that causes all 
+                # chunks in a chunked ExtensionArray to be the same when iterating.
+                # These versions of PyArrow also have a bug/feature where the 
+                # to_numpy() method of ChunkedArray returns an array of objects
+                # instead of a 2D array.
+                # Here we work around both issues by calling the to_numpy() method
+                # of the chunked array, then stacking the returned arrays into a
+                # single large array.
+                values = np.stack(extension_array.to_numpy())
+            else:
+                # TODO: look into removing concat and constructing from list w/ shape
+                values = np.concatenate([chunk.to_numpy()
+                                        for chunk in extension_array.iterchunks()])
         else:
             values = extension_array.chunk(0).to_numpy()
     else:

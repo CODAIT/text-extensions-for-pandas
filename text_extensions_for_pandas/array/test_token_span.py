@@ -534,11 +534,12 @@ def data_for_grouping(dtype):
 def invalid_scalar():
     return "This is not a TokenSpanArray"
 
-# Can't import due to dependencies, taken
-# from pandas.conftest import all_compare_operators
-# @pytest.fixture(params=["__eq__", "__ne__", "__lt__", "__gt__", "__le__", "__ge__"])
-# def all_compare_operators(request):
-#     return request.param
+# Fixture that is only needed for Pandas 1.x
+# Can't import due to dependencies
+#from pandas.conftest import all_compare_operators
+@pytest.fixture(params=["__eq__", "__ne__", "__lt__", "__gt__", "__le__", "__ge__"])
+def all_compare_operators(request):
+    return request.param
 
 # Supported comparisons between spans
 @pytest.fixture(params=["__eq__", "__ne__"])
