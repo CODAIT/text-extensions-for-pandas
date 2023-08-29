@@ -186,7 +186,8 @@ def infer_on_df(
         *  `'raw_output'` a TensorArray containing the raw output vectors from the model
     """
     result_df = df.copy()
-    raw_outputs = tp.TensorArray(predictor.predict_proba(result_df[embeddings_col]))
+    embeddings = result_df[embeddings_col].to_numpy()
+    raw_outputs = tp.TensorArray(predictor.predict_proba(embeddings))
     result_df["predicted_id"] = np.argmax(raw_outputs, axis=1)
     result_df["predicted_class"] = result_df["predicted_id"].apply(
         lambda p_id: id_to_class_dict[p_id]
@@ -280,7 +281,8 @@ def infer_and_extract_raw_entites(
     aggby["raw_output"] = agg_func
     df = doc[["embedding"] + keep_cols + sort_cols].copy()
     # first, run inference
-    df.loc[:, "raw_output"] = tp.TensorArray(predictor.predict_proba(df["embedding"]))
+    embeddings = result_df["embedding"].to_numpy()
+    df.loc[:, "raw_output"] = tp.TensorArray(predictor.predict_proba(embeddings))
     # group by original tag
     groupby = df.groupby(sort_cols)
     results_df = groupby.agg(aggby).reset_index().sort_values(sort_cols)

@@ -149,7 +149,7 @@ def add_embeddings(
         attention_mask=torch.tensor(windows["attention_masks"]),
     )
     hidden_states = windows_to_seq(
-        flat_input_ids, bert_result[0].detach().numpy(), overlap, non_overlap
+        flat_input_ids, bert_result[0].detach().cpu().numpy(), overlap, non_overlap
     )
     embeddings = TensorArray(hidden_states)
     ret = df.copy()

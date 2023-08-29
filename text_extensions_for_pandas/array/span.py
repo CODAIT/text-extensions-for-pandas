@@ -392,7 +392,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         self._begins = begins  # type: np.ndarray
         self._ends = ends  # type: np.ndarray
 
-        self._string_table = string_table  # type: Union[StringTable, None]
+        self._string_table = string_table  # type: Optional[StringTable]
         self._text_ids = text_ids
 
         # Cached list of other SpanArrays that are exactly the same as this
@@ -484,6 +484,26 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         key = check_array_indexer(self, key)
         if isinstance(value, ABCSeries) and isinstance(value.dtype, SpanDtype):
             value = value.values
+
+        if isinstance(key, tuple) and len(key) == 1 and isinstance(key[0], 
+                                                                   (np.ndarray, slice)):
+            # Special case: Some upstream Pandas code likes to pass 2D slices
+            # down to arrays. Convert to 1D.
+            key = key[0]
+
+        if not isinstance(value, (np.ndarray, list, tuple,
+                                  Span, SpanArray,
+                                  type(None))):
+            # Special case: Upstream Pandas test code expects ValueError if
+            # the value is of the wrong type; or TypeError if either the 
+            # key is of an invalid type or the types of key and value are
+            # incompatible..
+            raise ValueError(
+                f"Attempted to set element of SpanArray with "
+                f"an object of type {type(value)}; current set of "
+                f"allowed types is {(Span, SpanArray)}"
+            )
+        
         if value is None or (isinstance(value, collections.abc.Sequence)
                              and len(value) == 0):
             self._begins[key] = Span.NULL_OFFSET_VALUE
@@ -493,9 +513,12 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
             self._begins[key] = value.begin
             self._ends[key] = value.end
             self._text_ids[key] = self._string_table.maybe_add_thing(value.target_text)
-        elif ((isinstance(key, slice) or
-               (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype)))
-              and isinstance(value, SpanArray)):
+        elif ((isinstance(key, (slice, int))
+               or (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype)))
+              and isinstance(value, (SpanArray, np.ndarray, list))):
+            # x spans -> x target positions
+            if not isinstance(value, SpanArray):
+                value = SpanArray._from_sequence(value)
             self._begins[key] = value.begin
             self._ends[key] = value.end
             self._text_ids[key] = self._string_table.maybe_add_things(value.target_text)
@@ -506,9 +529,9 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
                 self._ends[k] = v.end
                 self._text_ids[k] = self._string_table.maybe_add_thing(v.target_text)
         else:
-            raise ValueError(
+            raise TypeError(
                 f"Attempted to set element {key} (type {type(key)}) of a SpanArray with "
-                f"an object of type {type(value)}")
+                f"an object of type {type(value)}. This combination is not supported.")
         # We just changed the contents of this array, so invalidate any cached
         # results computed from those contents.
         self.increment_version()
@@ -522,7 +545,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
 
         :return: Returns a boolean mask indicating which rows match `other`.
         """
-        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndex)):
+        if isinstance(other, (ABCDataFrame, ABCSeries, ABCIndex, np.ndarray)):
             # Rely on pandas to unbox and dispatch to us.
             return NotImplemented
         if isinstance(other, Span):
@@ -803,11 +826,14 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         if name == "sum":
             # Sum ==> combine, i.e. return the smallest span that contains all
             #         spans in the series
-            if not self.is_single_document:
+            non_nulls = self[~self.isna()]
+            if 0 == len(non_nulls):
+                return _NULL_SPAN_SINGLETON
+            if not non_nulls.is_single_document:
                 raise ValueError(f"Sum of spans not defined for different target texts.")
-            first_target_text = self.target_text[0]
-            return Span(first_target_text, np.min(self.begin),
-                        np.max(self.end))
+            first_target_text = non_nulls.target_text[0]
+            return Span(first_target_text, np.min(non_nulls.begin),
+                        np.max(non_nulls.end))
         elif name == "first":
             return self[0]
             # return Span(first_target_text, self.begin[0], self.end[0])
@@ -848,7 +874,7 @@ class SpanArray(pd.api.extensions.ExtensionArray, SpanOpMixin):
         return self._string_table.ids_to_things(self._text_ids)
 
     @memoized_property
-    def document_text(self) -> Union[str, None]:
+    def document_text(self) -> Optional[str]:
         """
         :return: if all spans in this array cover the same document, text of that
          document.

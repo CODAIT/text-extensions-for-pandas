@@ -31,9 +31,13 @@ def maybe_download_articles() -> pd.DataFrame:
             lines = [l.strip() for l in f.readlines()]
             article_urls = [l for l in lines if len(l) > 0 and l[0] != "#"]
 
-        article_htmls = [
-            download_article(url) for url in article_urls
-        ]
+        article_htmls = []
+        for url in article_urls:
+            try:
+                article_htmls.append(download_article(url))
+            except urllib.error.HTTPError as e:
+                raise ValueError(f"Error downloading {url}") from e
+
         to_write = pd.DataFrame({"url": article_urls, 
                                  "html": article_htmls})
         to_write.to_feather(file_name)

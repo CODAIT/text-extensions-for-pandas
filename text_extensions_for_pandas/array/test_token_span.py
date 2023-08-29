@@ -14,7 +14,7 @@
 #
 
 import pandas as pd
-from distutils.version import LooseVersion
+from packaging.version import Version
 import os
 import tempfile
 import unittest
@@ -380,7 +380,7 @@ class TokenSpanArrayTest(ArrayTestBase):
         self._assertArrayEquals(arr2, series.array.split_by_document()[1])
 
 
-@pytest.mark.skipif(LooseVersion(pa.__version__) < LooseVersion("2.0.0"),
+@pytest.mark.skipif(Version(pa.__version__) < Version("2.0.0"),
                     reason="Nested dictionaries only supported in Arrow >= 2.0.0")
 class TokenSpanArrayIOTests(ArrayTestBase):
 
@@ -530,11 +530,20 @@ def data_for_grouping(dtype):
     )
     return pd.array([b, b, na, na, a, a, b, c], dtype=dtype)
 
+@pytest.fixture
+def invalid_scalar():
+    return "This is not a TokenSpanArray"
 
-# Can't import due to dependencies, taken
-# from pandas.conftest import all_compare_operators
+# Fixture that is only needed for Pandas 1.x
+# Can't import due to dependencies
+#from pandas.conftest import all_compare_operators
 @pytest.fixture(params=["__eq__", "__ne__", "__lt__", "__gt__", "__le__", "__ge__"])
 def all_compare_operators(request):
+    return request.param
+
+# Supported comparisons between spans
+@pytest.fixture(params=["__eq__", "__ne__"])
+def comparison_op(request):
     return request.param
 
 
@@ -680,7 +689,11 @@ class TestPandasCasting(base.BaseCastingTests):
 
 
 class TestPandasGroupby(base.BaseGroupbyTests):
-    pass
+    @pytest.mark.skip("Test fails for extension types that support the "
+                      "sum() groupby but are of dtype object when "
+                      "converted to Numpy")
+    def test_in_numeric_groupby(self, data_for_grouping):
+        super().test_in_numeric_groupby(data_for_grouping)
 
 
 class TestPandasNumericReduce(base.BaseNumericReduceTests):

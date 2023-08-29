@@ -47,7 +47,7 @@ https://newsroom.ibm.com/2020-05-21-we-trade-Digital-Trade-Finance-Network-stren
 https://newsroom.ibm.com/2020-07-30-IBM-and-Influential-Launch-AI-enabled-Social-Targeting-Solution-To-Help-Brands-Identify-Suitable-Influencers
 https://newsroom.ibm.com/2020-06-03-IBM-services-and-Aegon-sign-contract-of-portfolio-administration-for-800-000-individual-life-insurance-contracts
 https://newsroom.ibm.com/2020-06-03-IBM-and-Persistent-Systems-to-Accelerate-IBM-Cloud-Pak-Deployment-and-Core-IT-Modernization-for-Enterprises
-https://newsroom.ibm.com/2020-06-04-Spains-CaixaBank-Teams-with-IBM-Services-to-Accelerate-Cloud-Transformation-and-Innovation-in-the-Financial-Services-Industry
+#https://newsroom.ibm.com/2020-06-04-Spains-CaixaBank-Teams-with-IBM-Services-to-Accelerate-Cloud-Transformation-and-Innovation-in-the-Financial-Services-Industry
 https://newsroom.ibm.com/2020-06-04-IBM-Services-Collaborates-with-Lotte-Card-to-Adopt-A-Hybrid-Cloud-Strategy-To-Help-Transform-Core-Financial-Accounting-Systems
 https://newsroom.ibm.com/2020-06-04-Kvar-y-Arctic-Using-IBM-Blockchain-to-Trace-Norwegian-Farmed-Salmon-to-North-American-Stores
 https://newsroom.ibm.com/2020-06-04-Anaconda-and-IBM-Watson-Team-to-Simplify-Enterprise-Adoption-of-AI-Open-Source-Technologies
@@ -116,7 +116,7 @@ https://newsroom.ibm.com/2020-09-18-Bloomberg-Television-Intelligence-Squared-US
 https://newsroom.ibm.com/2020-09-21-GEODIS-Uses-IBM-Sterling-Order-Management-to-Help-Retailers-Accelerate-Omnichannel-Customer-Experience-Capabilities-with-New-e-Commerce-Fulfillment
 https://newsroom.ibm.com/2020-09-22-IBM-Brings-Risk-Analytics-to-Security-Decision-Making
 https://newsroom.ibm.com/2020-09-23-IBM-Modernizes-Financial-Transaction-Solution-on-Red-Hat-OpenShift-to-Give-Banks-the-Flexibility-of-Hybrid-Cloud
-https://newsroom.ibm.com/2020-09-28-2020-Call-for-Code-Global-Challenge-Finalists-Selected-for-Innovative-Solutions-to-Take-on-COVID-19-and-Climate-Change
+#https://newsroom.ibm.com/2020-09-28-2020-Call-for-Code-Global-Challenge-Finalists-Selected-for-Innovative-Solutions-to-Take-on-COVID-19-and-Climate-Change
 https://newsroom.ibm.com/2020-09-30-IBM-Study-Majority-of-Global-C-Suite-Executives-are-Rapidly-Accelerating-Digital-Transformation-due-to-COVID-19-Pandemic-but-People-and-Talent-are-Key-to-Future-Progress
 https://newsroom.ibm.com/2020-09-30-BCI-in-Collaboration-with-IBM-Advances-Blockchain-based-Financial-Services-with-Electronic-Letter-of-Guarantee-for-Clients-in-Thailand
 

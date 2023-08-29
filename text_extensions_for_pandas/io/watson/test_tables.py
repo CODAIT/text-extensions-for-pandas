@@ -13,7 +13,7 @@
 #  limitations under the License.
 #
 
-from distutils.version import LooseVersion
+from packaging.version import Version
 import json
 import unittest
 import pandas as pd
@@ -446,7 +446,7 @@ class TestTables(unittest.TestCase):
 15        Total tax rate  \
 """)
 
-    @pytest.mark.skipif(LooseVersion(pd.__version__) >= LooseVersion("1.2.0"),
+    @pytest.mark.skipif(Version(pd.__version__) >= Version("1.2.0"),
                         reason="TODO: Rank col gets converted to float")
     def test_make_table(self):
         double_header_table = make_table(parse_response(self.responses_dict["double_header_table"]))

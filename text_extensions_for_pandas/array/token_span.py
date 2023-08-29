@@ -445,7 +445,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
                 self.tokens[item], self.begin_token[item], self.end_token[item]
             )
 
-    def __setitem__(self, key: Union[int, np.ndarray, list, slice], value: Any) -> None:
+    def __setitem__(self, key: Union[int, np.ndarray, slice], value: Any) -> None:
         """
         See docstring in `ExtensionArray` class in `pandas/core/arrays/base.py`
         for information about this method.
@@ -454,6 +454,25 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
         key = check_array_indexer(self, key)
         if isinstance(value, ABCSeries) and isinstance(value.dtype, SpanDtype):
             value = value.values
+
+        if isinstance(key, tuple) and len(key) == 1 and isinstance(key[0], 
+                                                                   (np.ndarray, slice)):
+            # Special case: Some upstream Pandas code likes to pass 2D slices
+            # down to arrays. Convert to 1D.
+            key = key[0]
+
+        if not isinstance(value, (np.ndarray, list, tuple,
+                                  TokenSpan, TokenSpanArray,
+                                  type(None))):
+            # Special case: Upstream Pandas test code expects ValueError if
+            # the value is of the wrong type; or TypeError if either the 
+            # key is of an invalid type or the types of key and value are
+            # incompatible..
+            raise ValueError(
+                f"Attempted to set element of TokenSpanArray with "
+                f"an object of type {type(value)}; current set of "
+                f"allowed types is {(TokenSpan, TokenSpanArray)}"
+            )
 
         if value is None or isinstance(value, Sequence) and len(value) == 0:
             self._begin_tokens[key] = TokenSpan.NULL_OFFSET_VALUE
@@ -471,10 +490,12 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
                 if mask[i]:
                     self._tokens[i] = value.tokens
 
-        elif ((isinstance(key, slice) or
-              (isinstance(key, np.ndarray) and is_bool_dtype(key.dtype)))
-              and isinstance(value, TokenSpanArray)):
+        elif ((isinstance(key, (slice, int))
+               or (isinstance(key, np.ndarray) and (is_bool_dtype(key.dtype))))
+              and isinstance(value, (TokenSpanArray, np.ndarray, list))):
             # x spans -> x target positions
+            if not isinstance(value, TokenSpanArray):
+                value = TokenSpanArray._from_sequence(value)
             self._tokens[key] = value.tokens
             self._begin_tokens[key] = value.begin_token
             self._end_tokens[key] = value.end_token
@@ -487,10 +508,10 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
                 self._begin_tokens[k] = v.begin_token
                 self._end_tokens[k] = v.end_token
         else:
-            raise ValueError(
+            raise TypeError(
                 f"Attempted to set element of TokenSpanArray with "
-                f"an object of type {type(value)}; current set of "
-                f"allowed types is {(TokenSpan, TokenSpanArray)}"
+                f"a key of type {type(key)} and a value of type {type(value)}. "
+                f"This combination is not currently supported."
             )
 
         self._clear_cached_properties()
@@ -726,7 +747,7 @@ class TokenSpanArray(SpanArray, TokenSpanOpMixin):
 
         if not tokens.is_single_document:
             raise ValueError(f"Tokens cover more than one document (tokens are {tokens})")
-        if not spans.is_single_document:
+        if len(spans) > 0 and not spans.is_single_document:
             raise ValueError(f"Spans cover more than one document (spans are {spans})")
 
         # Create and join temporary dataframes
