@@ -27,7 +27,7 @@ resources_dir = "text_extensions_for_pandas/resources"
 
 setuptools.setup(
     name="text_extensions_for_pandas",
-    version="0.2.0",
+    version="0.2.1",
     author="IBM",
     author_email="frreiss@us.ibm.com",
     description="Natural language processing support for Pandas dataframes.",
@@ -42,7 +42,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering",
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     package_data={"": ["LICENSE.txt", 
                        f"{resources_dir}/*.css",
                        f"{resources_dir}/*.js",
