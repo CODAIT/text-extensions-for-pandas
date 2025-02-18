@@ -703,9 +703,9 @@ class TensorArrayDataFrameTests(unittest.TestCase):
     def test_numeric_display_3D(self):
 
         # Verify using patched method
-        from pandas.io.formats.format import ExtensionArrayFormatter
+        from pandas.io.formats.format import _ExtensionArrayFormatter
         self.assertTrue(
-            ExtensionArrayFormatter._patched_by_text_extensions_for_pandas)
+            _ExtensionArrayFormatter._patched_by_text_extensions_for_pandas)
 
         # Test integer format 3D values, uses IntArrayFormatter
         df = pd.DataFrame({"foo": TensorArray([[[1, 1], [2, 2]],
@@ -737,9 +737,9 @@ class TensorArrayDataFrameTests(unittest.TestCase):
 
         # Verify using patched method
         # Unpatched method doesn't work for Pandas 1.0.x but fixed in later versions
-        from pandas.io.formats.format import ExtensionArrayFormatter
+        from pandas.io.formats.format import _ExtensionArrayFormatter
         self.assertTrue(
-            ExtensionArrayFormatter._patched_by_text_extensions_for_pandas)
+            _ExtensionArrayFormatter._patched_by_text_extensions_for_pandas)
 
         # Uses the GenericArrayFormatter
         df = pd.DataFrame({"foo": TensorArray(np.array([["Hello", "world"]] * 100))})
@@ -767,9 +767,9 @@ class TensorArrayDataFrameTests(unittest.TestCase):
     def test_display_time(self):
 
         # Verify using patched method
-        from pandas.io.formats.format import ExtensionArrayFormatter
+        from pandas.io.formats.format import _ExtensionArrayFormatter
         self.assertTrue(
-            ExtensionArrayFormatter._patched_by_text_extensions_for_pandas)
+            _ExtensionArrayFormatter._patched_by_text_extensions_for_pandas)
 
         # datetime64 2D, Uses Datetime64Formatter
         times = pd.date_range('2018-01-01', periods=5, freq='H').to_numpy()

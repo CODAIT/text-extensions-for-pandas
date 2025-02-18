@@ -38,8 +38,8 @@ except ImportError:
     from pandas.core.dtypes.generic import ABCIndexClass as ABCIndex
 from pandas.core.indexers import check_array_indexer, validate_indices
 
-""" Begin Patching of ExtensionArrayFormatter """
-from pandas.io.formats.format import ExtensionArrayFormatter
+""" Begin Patching of _ExtensionArrayFormatter """
+from pandas.io.formats.format import _ExtensionArrayFormatter
 
 
 def _format_strings_patched(self) -> List[str]:
@@ -147,14 +147,14 @@ def _format_strings_patched_v1_0_0(self) -> List[str]:
 _FORMATTER_ENABLED_KEY = "TEXT_EXTENSIONS_FOR_PANDAS_FORMATTER_ENABLED"
 
 if os.getenv(_FORMATTER_ENABLED_KEY, "true").lower() == "true":
-    ExtensionArrayFormatter._format_strings_orig = \
-        ExtensionArrayFormatter._format_strings
+    _ExtensionArrayFormatter._format_strings_orig = \
+        _ExtensionArrayFormatter._format_strings
     if Version("1.1.0") <= Version(pd.__version__) < Version("1.3.0"):
-        ExtensionArrayFormatter._format_strings = _format_strings_patched
+        _ExtensionArrayFormatter._format_strings = _format_strings_patched
     else:
-        ExtensionArrayFormatter._format_strings = _format_strings_patched_v1_0_0
-    ExtensionArrayFormatter._patched_by_text_extensions_for_pandas = True
-""" End Patching of ExtensionArrayFormatter """
+        _ExtensionArrayFormatter._format_strings = _format_strings_patched_v1_0_0
+    _ExtensionArrayFormatter._patched_by_text_extensions_for_pandas = True
+""" End Patching of _ExtensionArrayFormatter """
 
 
 @pd.api.extensions.register_extension_dtype
