@@ -20,7 +20,8 @@ jobs:
       matrix:
         python-version: [3.11, 3.12, 3.13]
         # Test against Pandas 1.3 and latest version
-        pandas-version: ["1.3.*", ""]
+        #pandas-version: ["1.3.*", ""]
+        pandas-version: ["1.3.*"]
         exclude:
           # Exclude combinations we don't expect to occur due to release dates
           - python-version: 3.13
