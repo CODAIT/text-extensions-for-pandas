@@ -12,7 +12,7 @@
 # Use environment variables if present.
 # (-z predicate means "unset or empty string")
 if [ -z "$PYTHON_VERSION" ]; then
-    PYTHON_VERSION="3.13"
+    PYTHON_VERSION="3.12"
 fi
 ENV_NAME="pd"
 

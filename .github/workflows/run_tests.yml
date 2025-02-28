@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.11, 3.12, 3.13]
+        python-version: [3.11, 3.12]
         # Test against older version(s) of Pandas and latest version
         pandas-version: ["2.2.*", ""]
         #exclude:
