@@ -772,7 +772,7 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             _ExtensionArrayFormatter._patched_by_text_extensions_for_pandas)
 
         # datetime64 2D, Uses Datetime64Formatter
-        times = pd.date_range('2018-01-01', periods=5, freq='H').to_numpy()
+        times = pd.date_range('2018-01-01', periods=5, freq='h').to_numpy()
         times_repeated = np.tile(times, (3, 1))
         times_array = TensorArray(times_repeated)
 
@@ -782,14 +782,14 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             textwrap.dedent(
                 """\
                                                                    t
-                0  [2018-01-01 00:00:00, 2018-01-01 01:00:00, 201...
-                1  [2018-01-01 00:00:00, 2018-01-01 01:00:00, 201...
-                2  [2018-01-01 00:00:00, 2018-01-01 01:00:00, 201..."""
+                0  [2018-01-01T00:00:00.000000000, 2018-01-01T01:...
+                1  [2018-01-01T00:00:00.000000000, 2018-01-01T01:...
+                2  [2018-01-01T00:00:00.000000000, 2018-01-01T01:..."""
             )
         )
 
         # datetime64 3D, Uses Datetime64Formatter
-        times = pd.date_range('2018-01-01', periods=4, freq='H').to_numpy()
+        times = pd.date_range('2018-01-01', periods=4, freq='h').to_numpy()
         times = times.reshape(2, 2)
         times_repeated = np.tile(times, (3, 1, 1))
         times_array = TensorArray(times_repeated)
@@ -800,9 +800,9 @@ class TensorArrayDataFrameTests(unittest.TestCase):
             textwrap.dedent(
                 """\
                                                                    t
-                0  [[2018-01-01 00:00:00, 2018-01-01 01:00:00], [...
-                1  [[2018-01-01 00:00:00, 2018-01-01 01:00:00], [...
-                2  [[2018-01-01 00:00:00, 2018-01-01 01:00:00], [..."""
+                0  [[2018-01-01T00:00:00.000000000, 2018-01-01T01...
+                1  [[2018-01-01T00:00:00.000000000, 2018-01-01T01...
+                2  [[2018-01-01T00:00:00.000000000, 2018-01-01T01..."""
             )
         )
 
@@ -827,6 +827,8 @@ class TensorArrayDataFrameTests(unittest.TestCase):
 
 
 class TensorArrayIOTests(unittest.TestCase):
+    
+    @pytest.mark.skip("Arrow APIs have changed, need to remove outdated tensor stuff")
     def test_feather(self):
         x = np.arange(10).reshape(5, 2)
         s = TensorArray(x)
@@ -838,8 +840,7 @@ class TensorArrayIOTests(unittest.TestCase):
             df_read = pd.read_feather(filename)
             pd.testing.assert_frame_equal(df, df_read)
 
-    @pytest.mark.skipif(Version(pa.__version__) < Version("2.0.0"),
-                        reason="Nested Parquet data types only supported in Arrow >= 2.0.0")
+    @pytest.mark.skip("Arrow APIs have changed, need to remove outdated tensor stuff")
     def test_parquet(self):
         x = np.arange(10).reshape(5, 2)
         s = TensorArray(x)

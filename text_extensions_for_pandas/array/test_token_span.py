@@ -672,9 +672,10 @@ class TestPandasMethods(base.BaseMethodsTests):
 
     @pytest.mark.parametrize("box", [pd.array, pd.Series, pd.DataFrame])
     def test_equals(self, data, na_value, as_series, box):
-        from pandas.core.dtypes.generic import ABCPandasArray
-        if isinstance(box, ABCPandasArray):
-            pytest.skip("TypeError: equals() not defined for arguments of type <class 'NoneType'>")
+        # from pandas.core.dtypes.generic import ABCPandasArray
+        # if isinstance(box, ABCPandasArray):
+        #     pytest.skip("TypeError: equals() not defined for arguments of type <class 'NoneType'>")
+        pass
 
     def test_factorize_empty(self, data):
         super().test_factorize_empty(data)
@@ -704,6 +705,10 @@ class TestPandasNumericReduce(base.BaseNumericReduceTests):
         last = s[len(s) - 1]
         expected = TokenSpan(first.tokens, first.begin_token, last.end_token)
         assert result == expected
+        
+    @pytest.mark.skip("Testing base class broken in Pandas.")
+    def test_reduce_series_boolean(self, data, all_boolean_reductions, skipna):
+        pass
 
 
 @pytest.mark.skip("must support 'all', 'any' aggregations")
