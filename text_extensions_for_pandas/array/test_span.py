@@ -741,9 +741,9 @@ class TestPandasGroupby(base.BaseGroupbyTests):
 #         assert result == expected
 
 
-@pytest.mark.skip("must support 'all', 'any' aggregations")
-class TestPandasBooleanReduce(base.BaseBooleanReduceTests):
-    pass
+# @pytest.mark.skip("must support 'all', 'any' aggregations")
+# class TestPandasBooleanReduce(base.BaseBooleanReduceTests):
+#     pass
 
 
 class TestPandasPrinting(base.BasePrintingTests):

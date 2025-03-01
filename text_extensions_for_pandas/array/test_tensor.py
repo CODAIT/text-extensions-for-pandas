@@ -645,7 +645,7 @@ class TensorArrayDataFrameTests(unittest.TestCase):
 
     def test_sort(self):
         arr = TensorArray(np.arange(6).reshape(3, 2))
-        date_range = pd.date_range('2018-01-01', periods=3, freq='H')
+        date_range = pd.date_range('2018-01-01', periods=3, freq='h')
         df = pd.DataFrame({"time": date_range, "tensor": arr})
         df = df.sort_values(by="time", ascending=False)
         self.assertEqual(df["tensor"].array.numpy_dtype, arr.numpy_dtype)
@@ -1154,14 +1154,14 @@ class TestPandasGroupby(base.BaseGroupbyTests):
     pass
 
 
-@pytest.mark.skip("resolve errors")
-class TestPandasNumericReduce(base.BaseNumericReduceTests):
-    pass
+# @pytest.mark.skip("resolve errors")
+# class TestPandasNumericReduce(base.BaseNumericReduceTests):
+#     pass
 
 
-@pytest.mark.skip("resolve errors")
-class TestPandasBooleanReduce(base.BaseBooleanReduceTests):
-    pass
+# @pytest.mark.skip("resolve errors")
+# class TestPandasBooleanReduce(base.BaseBooleanReduceTests):
+#     pass
 
 
 class TestPandasPrinting(base.BasePrintingTests):

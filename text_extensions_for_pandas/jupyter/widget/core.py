@@ -29,23 +29,16 @@ import text_extensions_for_pandas.resources
 from text_extensions_for_pandas.jupyter.widget.stubs import (
     ipw, display, clear_output, HTML)
 
-# TODO: This try/except block is for Python 3.6 support, and should be
-# reduced to just importing importlib.resources when 3.6 support is dropped.
-try:
-    import importlib.resources as pkg_resources
-except ImportError:
-    import importlib_resources as pkg_resources
+import importlib.resources
 
-_WIDGET_SCRIPT: str = pkg_resources.read_text(
-    text_extensions_for_pandas.resources, "dataframe_widget.js"
-)
-_WIDGET_STYLE: str = pkg_resources.read_text(
-    text_extensions_for_pandas.resources, "dataframe_widget.css"
-)
-_WIDGET_TABLE_CONVERT_SCRIPT: str = pkg_resources.read_text(
-    text_extensions_for_pandas.resources, "dataframe_widget_table_converter.js"
-)
 
+resource_root = importlib.resources.files(text_extensions_for_pandas.resources) 
+with (resource_root / "dataframe_widget.js").open("r") as f:
+    _WIDGET_SCRIPT: str  = f.read()
+with (resource_root / "dataframe_widget.css").open("r") as f:
+    _WIDGET_STYLE: str  = f.read()
+with (resource_root / "dataframe_widget_table_converter.js").open("r") as f:
+    _WIDGET_TABLE_CONVERT_SCRIPT: str  = f.read()
 
 class DataFrameWidget:
     def __init__(
