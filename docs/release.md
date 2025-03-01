@@ -5,8 +5,8 @@ Steps to release a new version:
 
 1. Ensure all regression tests are passing on all supported versions of Python
    and Pandas. The current versions are:
-   * Python: 3.7, 3.8, 3.9
-   * Pandas: 1.3.x, 2.0.x
+   * Python: 3.11, 3.12
+   * Pandas: 2.3.x
    
    It is not necessary to test all combinations; just make sure that you test
    each Python version and each Pandas version at least once.
