@@ -605,7 +605,7 @@ def make_table_from_exploded_df(exploded_df: pd.DataFrame, row_heading_cols, col
     :return: the reconstructed table. should be a 1:1 translation of original table, but both machine and human readable
     """
     for heading_col in (row_heading_cols + column_heading_cols):
-        exploded_df[heading_col].fillna("", inplace=True)
+        exploded_df[heading_col] = exploded_df[heading_col].fillna("")
     table = exploded_df.pivot_table(index=row_heading_cols, columns=column_heading_cols, values=value_col,
                                     aggfunc=(lambda a: concat_with.join(a)))
 
