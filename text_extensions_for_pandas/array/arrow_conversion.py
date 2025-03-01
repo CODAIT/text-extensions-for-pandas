@@ -24,6 +24,7 @@
 import numpy as np
 import pyarrow as pa
 
+import json
 import packaging
 
 from text_extensions_for_pandas.array.span import SpanArray
@@ -299,8 +300,8 @@ def arrow_to_token_span(extension_array: pa.StructArray) -> TokenSpanArray:
 
     return TokenSpanArray(tokens, token_begins, token_ends)
 
-
-class ArrowTensorType(pa.PyExtensionType):
+    
+class ArrowTensorType(pa.ExtensionType):
     """
     pyarrow ExtensionType definition for TensorDtype
 
@@ -310,10 +311,11 @@ class ArrowTensorType(pa.PyExtensionType):
     """
     def __init__(self, element_shape, pyarrow_dtype):
         self._element_shape = element_shape
-        pa.PyExtensionType.__init__(self, pa.list_(pyarrow_dtype))
+        pa.ExtensionType.__init__(self, pa.list_(pyarrow_dtype),
+                                  "TextExtensionsTensor")
 
-    def __reduce__(self):
-        return ArrowTensorType, (self._element_shape, self.storage_type.value_type)
+    # def __reduce__(self):
+    #     return ArrowTensorType, (self._element_shape, self.storage_type.value_type)
 
     @property
     def shape(self):
@@ -321,7 +323,17 @@ class ArrowTensorType(pa.PyExtensionType):
 
     def __arrow_ext_class__(self):
         return ArrowTensorArray
+    
+    def __arrow_ext_serialize__(self) -> bytes:
+        # Need to store the shape, since each element is a flat list
+        return json.dumps(self.shape).encode("utf-8")
 
+    @classmethod
+    def __arrow_ext_deserialize__(cls, storage_type, serialized):
+        # return an instance of this subclass
+        element_shape = json.loads(serialized.decode("utf-8"))
+        pyarrow_dtype = storage_type.value_type
+        return ArrowSpanType(element_shape, pyarrow_dtype)
 
 class ArrowTensorArray(pa.ExtensionArray):
     """
