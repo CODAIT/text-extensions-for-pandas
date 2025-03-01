@@ -24,6 +24,7 @@
 import numpy as np
 import pyarrow as pa
 
+import json
 import packaging
 
 from text_extensions_for_pandas.array.span import SpanArray
@@ -41,7 +42,8 @@ def _check_pa_version(class_name: str, min_major_version: int = _MIN_PYARROW_MAJ
                                    "PyArrow versions < {min_major_version}.0.0")
 
 
-class ArrowSpanType(pa.PyExtensionType):
+
+class ArrowSpanType(pa.ExtensionType):
     """
     PyArrow extension type definition for conversions to/from Span columns
     """
@@ -66,16 +68,19 @@ class ArrowSpanType(pa.PyExtensionType):
             pa.field(self.ENDS_NAME, index_dtype),
             pa.field(self.TARGET_TEXT_DICT_NAME, target_text_dict_dtype)
         ]
-
-        pa.PyExtensionType.__init__(self, pa.struct(fields))
-
-    def __reduce__(self):
-        index_dtype = self.storage_type[self.BEGINS_NAME].type
-        target_text_dict_dtype = self.storage_type[self.TARGET_TEXT_DICT_NAME].type
-        return ArrowSpanType, (index_dtype, target_text_dict_dtype)
+        pa.ExtensionType.__init__(self, pa.struct(fields), "TextExtensionsSpan")
 
 
-class ArrowTokenSpanType(pa.PyExtensionType):
+    def __arrow_ext_serialize__(self) -> bytes:
+        # No parameters are necessary
+        return b""
+    
+    @classmethod
+    def __arrow_ext_deserialize__(cls, storage_type, serialized):
+        # return an instance of this subclass
+        return ArrowSpanType(storage_type[0].type, storage_type[2].type)
+
+class ArrowTokenSpanType(pa.ExtensionType):
     """
     PyArrow extension type definition for conversions to/from TokenSpan columns
     """
@@ -101,12 +106,16 @@ class ArrowTokenSpanType(pa.PyExtensionType):
             pa.field(self.TOKENS_NAME, token_dict_dtype),
         ]
 
-        pa.PyExtensionType.__init__(self, pa.struct(fields))
-
-    def __reduce__(self):
-        index_dtype = self.storage_type[self.BEGINS_NAME].type
-        token_dict_dtype = self.storage_type[self.TOKENS_NAME].type
-        return ArrowTokenSpanType, (index_dtype, token_dict_dtype)
+        pa.ExtensionType.__init__(self, pa.struct(fields), "TextExtensionsTokenSpan")
+    
+    def __arrow_ext_serialize__(self) -> bytes:
+        # No parameters are necessary
+        return b""
+    
+    @classmethod
+    def __arrow_ext_deserialize__(cls, storage_type, serialized):
+        # return an instance of this subclass
+        return ArrowSpanType(storage_type[0].type, storage_type[2].type)
 
 
 def span_to_arrow(char_span: SpanArray) -> pa.ExtensionArray:
@@ -236,7 +245,7 @@ def token_span_to_arrow(token_span: TokenSpanArray) -> pa.ExtensionArray:
     return pa.ExtensionArray.from_storage(typ, storage)
 
 
-def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
+def arrow_to_token_span(extension_array: pa.StructArray) -> TokenSpanArray:
     """
     Convert a pyarrow.ExtensionArray with type ArrowTokenSpanType to
     a TokenSpanArray.
@@ -249,15 +258,17 @@ def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
         if extension_array.num_chunks > 1:
             raise ValueError("Only pyarrow.Array with a single chunk is supported")
         extension_array = extension_array.chunk(0)
+    if not isinstance(extension_array, pa.StructArray):
+        raise TypeError(f"Expected StructArray but received {type(extension_array)}")
 
-    assert pa.types.is_struct(extension_array.storage.type)
+    #assert pa.types.is_struct(extension_array.storage.type)
 
     # Get the begins/ends pyarrow arrays
-    token_begins_array = extension_array.storage.field(ArrowTokenSpanType.BEGINS_NAME)
-    token_ends_array = extension_array.storage.field(ArrowTokenSpanType.ENDS_NAME)
+    token_begins_array = extension_array.field(ArrowTokenSpanType.BEGINS_NAME)
+    token_ends_array = extension_array.field(ArrowTokenSpanType.ENDS_NAME)
 
     # Get the tokens as a dictionary array where indices map to a list of ArrowSpanArrays
-    tokens_dict_array = extension_array.storage.field(ArrowTokenSpanType.TOKENS_NAME)
+    tokens_dict_array = extension_array.field(ArrowTokenSpanType.TOKENS_NAME)
     tokens_indices = tokens_dict_array.indices
     arrow_tokens_arrays_array = tokens_dict_array.dictionary
 
@@ -289,8 +300,8 @@ def arrow_to_token_span(extension_array: pa.ExtensionArray) -> TokenSpanArray:
 
     return TokenSpanArray(tokens, token_begins, token_ends)
 
-
-class ArrowTensorType(pa.PyExtensionType):
+    
+class ArrowTensorType(pa.ExtensionType):
     """
     pyarrow ExtensionType definition for TensorDtype
 
@@ -300,10 +311,11 @@ class ArrowTensorType(pa.PyExtensionType):
     """
     def __init__(self, element_shape, pyarrow_dtype):
         self._element_shape = element_shape
-        pa.PyExtensionType.__init__(self, pa.list_(pyarrow_dtype))
+        pa.ExtensionType.__init__(self, pa.list_(pyarrow_dtype),
+                                  "TextExtensionsTensor")
 
-    def __reduce__(self):
-        return ArrowTensorType, (self._element_shape, self.storage_type.value_type)
+    # def __reduce__(self):
+    #     return ArrowTensorType, (self._element_shape, self.storage_type.value_type)
 
     @property
     def shape(self):
@@ -311,7 +323,17 @@ class ArrowTensorType(pa.PyExtensionType):
 
     def __arrow_ext_class__(self):
         return ArrowTensorArray
+    
+    def __arrow_ext_serialize__(self) -> bytes:
+        # Need to store the shape, since each element is a flat list
+        return json.dumps(self.shape).encode("utf-8")
 
+    @classmethod
+    def __arrow_ext_deserialize__(cls, storage_type, serialized):
+        # return an instance of this subclass
+        element_shape = json.loads(serialized.decode("utf-8"))
+        pyarrow_dtype = storage_type.value_type
+        return ArrowSpanType(element_shape, pyarrow_dtype)
 
 class ArrowTensorArray(pa.ExtensionArray):
     """
