@@ -78,8 +78,17 @@ Steps to release a new version:
    pip install dist/text_extensions_for_pandas*.whl
    ```
    
-1. Navigate to the `notebooks` directory, activate your new environment, start up 
-   JupyterLab, and verify that the notebooks under `notebooks` still run.
+1. Activate your new environment and set up for running notebooks.
+   ```
+   conda activate ./testenv
+   pip install -r config/dev_reqs.txt
+   pip install -r config/jupyter_reqs.txt
+   pip install -r config/big_reqs.txt
+   pip install -r config/non_36_reqs.txt
+   jupyter lab
+   ```
+  
+1. Verify that the notebooks under `notebooks` still run.
 
 1. (optional): Do a test upload to TestPyPI by running:
    ```
