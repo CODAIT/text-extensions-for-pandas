@@ -73,7 +73,7 @@ Steps to release a new version:
 
    ```
    conda deactivate
-   conda create --prefix testenv python=3.8 pip jupyterlab
+   conda create --prefix testenv python=3.12 pip jupyterlab
    conda activate ./testenv
    pip install dist/text_extensions_for_pandas*.whl
    ```
