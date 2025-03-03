@@ -69,7 +69,8 @@ def train_reduced_model(
             (
                 "mlogreg",
                 sklearn.linear_model.LogisticRegression(
-                    multi_class="multinomial", max_iter=max_iter
+                    #multi_class="multinomial", 
+                    max_iter=max_iter
                 ),
             ),
         ]

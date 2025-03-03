@@ -244,7 +244,7 @@ def token_features_to_tree(
             "dir": "left",
         }
     )
-    arcs_df["dir"].mask(edges_df["from"] > edges_df["to"], "right", inplace=True)
+    arcs_df["dir"] = arcs_df["dir"].mask(edges_df["from"] > edges_df["to"], "right")
 
     # Don't render self-links
     arcs_df = arcs_df[arcs_df["start"] != arcs_df["end"]]

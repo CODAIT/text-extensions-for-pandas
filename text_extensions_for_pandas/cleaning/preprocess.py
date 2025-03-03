@@ -229,7 +229,7 @@ def preprocess_documents(
         )
         # relabel
         if not return_docs_as_dict:
-            corpus_df[iob_col].fillna(default_label_type, inplace=True)
+            corpus_df[iob_col] = corpus_df[iob_col].fillna(default_label_type)
             corpus_df = tp.io.conll.add_token_classes(
                 corpus_df,
                 classes_dtype,
@@ -239,8 +239,10 @@ def preprocess_documents(
         else:
             for fold in bert_docs_by_fold.keys():
                 for docnum in range(len(bert_docs_by_fold[fold])):
-                    bert_docs_by_fold[fold][docnum][iob_col].fillna(
-                        default_label_type, inplace=True
+                    bert_docs_by_fold[fold][docnum][iob_col] = (
+                        bert_docs_by_fold[fold][docnum][iob_col].fillna(
+                            default_label_type
+                        )
                     )
                     bert_docs_by_fold[fold][docnum] = tp.io.conll.add_token_classes(
                         bert_docs_by_fold[fold][docnum],
@@ -269,8 +271,10 @@ def preprocess_documents(
         else:
             for fold in bert_docs_by_fold.keys():
                 for docnum in range(len(bert_docs_by_fold[fold])):
-                    bert_docs_by_fold[fold][docnum][label_col].fillna(
-                        default_label_type, inplace=True
+                    bert_docs_by_fold[fold][docnum][label_col] = (
+                        bert_docs_by_fold[fold][docnum][label_col].fillna(
+                            default_label_type
+                        )
                     )
                     bert_docs_by_fold[fold][docnum][
                         label_col + "_id"

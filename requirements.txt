@@ -1,5 +1,5 @@
-numpy>=1.20.3  # For compatibility with recent versions of Pandas
-pandas>=1.0.3
+numpy>=1.23.5  # For compatibility with recent versions of Pandas
+pandas>=2.2.3
 pyarrow>=1.0.0
 regex
 # TODO: The following dependency is to support compatibility with Python 3.6, and should be removed when that version's support is dropped

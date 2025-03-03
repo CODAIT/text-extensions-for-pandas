@@ -76,4 +76,4 @@ def to_int_array(arr: Any) -> np.ndarray:
     if isinstance(arr, np.ndarray) and np.issubdtype(arr.dtype, np.integer):
         return arr  # Avoid making a copy even if the input is an unusual integer dtype
     else:
-        return np.array(arr, dtype=np.int32, copy=False)
+        return np.asarray(arr, dtype=np.int32)

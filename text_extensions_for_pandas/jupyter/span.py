@@ -26,12 +26,7 @@ from typing import *
 from enum import Enum
 import text_extensions_for_pandas.resources
 
-# TODO: This try/except block is for Python 3.6 support, and should be
-# reduced to just importing importlib.resources when 3.6 support is dropped.
-try:
-    import importlib.resources as pkg_resources
-except ImportError:
-    import importlib_resources as pkg_resources
+import importlib.resources
 
 
 # Limits the max number of displayed documents. Matches Pandas' default display.max_seq_items.
@@ -67,8 +62,12 @@ def pretty_print_html(column: Union["SpanArray", "TokenSpanArray"],
 
 
     # Gets the main script and stylesheet from the 'resources' sub-package
-    style_text: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.css")
-    script_text: str = pkg_resources.read_text(text_extensions_for_pandas.resources, "span_array.js")
+    resource_root = importlib.resources.files(text_extensions_for_pandas.resources) 
+    with (resource_root / "span_array.css").open("r") as f:
+        style_text: str = f.read()
+    
+    with (resource_root / "span_array.js").open("r") as f:
+        script_text: str = f.read()
 
     # Declare initial variables common to all render calls
     instance_init_script_list: List[str] = []

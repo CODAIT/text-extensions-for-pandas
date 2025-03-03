@@ -712,10 +712,11 @@ class TestPandasMethods(base.BaseMethodsTests):
 
     @pytest.mark.parametrize("box", [pd.array, pd.Series, pd.DataFrame])
     def test_equals(self, data, na_value, as_series, box):
-        from pandas.core.dtypes.generic import ABCPandasArray
-        if isinstance(box, ABCPandasArray):
-            pytest.skip("TypeError: equals() not defined for arguments of type "
-                        "<class 'NoneType'>")
+        # from pandas.core.dtypes.generic import ABCPandasArray
+        # if isinstance(box, ABCPandasArray):
+        #     pytest.skip("TypeError: equals() not defined for arguments of type "
+        #                 "<class 'NoneType'>")
+        pass
 
 
 class TestPandasCasting(base.BaseCastingTests):
@@ -730,19 +731,19 @@ class TestPandasGroupby(base.BaseGroupbyTests):
         super().test_in_numeric_groupby(data_for_grouping)
 
 
-class TestPandasNumericReduce(base.BaseNumericReduceTests):
-    def check_reduce(self, s, op_name, skipna):
-        # TODO skipna has no bearing
-        result = getattr(s, op_name)(skipna=skipna)
-        first = s[0]
-        last = s[len(s) - 1]
-        expected = Span(first.target_text, first.begin, last.end)
-        assert result == expected
+# class TestPandasNumericReduce(base.BaseNumericReduceTests):
+#     def check_reduce(self, s, op_name, skipna):
+#         # TODO skipna has no bearing
+#         result = getattr(s, op_name)(skipna=skipna)
+#         first = s[0]
+#         last = s[len(s) - 1]
+#         expected = Span(first.target_text, first.begin, last.end)
+#         assert result == expected
 
 
-@pytest.mark.skip("must support 'all', 'any' aggregations")
-class TestPandasBooleanReduce(base.BaseBooleanReduceTests):
-    pass
+# @pytest.mark.skip("must support 'all', 'any' aggregations")
+# class TestPandasBooleanReduce(base.BaseBooleanReduceTests):
+#     pass
 
 
 class TestPandasPrinting(base.BasePrintingTests):

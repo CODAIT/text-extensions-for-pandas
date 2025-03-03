@@ -38,8 +38,7 @@ class TestTokenize(unittest.TestCase):
     def setUpClass(cls) -> None:
         # Instantiate expensive-to-load models once
         model_name = "bert-base-uncased"
-        cls._tokenizer = BertTokenizerFast.from_pretrained(model_name,
-                                                           add_special_tokens=True)
+        cls._tokenizer = BertTokenizerFast.from_pretrained(model_name)
         cls._bert = BertModel.from_pretrained(model_name)
 
     def setUp(self):

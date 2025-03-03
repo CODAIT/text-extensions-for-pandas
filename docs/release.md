@@ -5,15 +5,15 @@ Steps to release a new version:
 
 1. Ensure all regression tests are passing on all supported versions of Python
    and Pandas. The current versions are:
-   * Python: 3.7, 3.8, 3.9
-   * Pandas: 1.3.x, 2.0.x
+   * Python: 3.11, 3.12
+   * Pandas: 2.3.x
    
    It is not necessary to test all combinations; just make sure that you test
    each Python version and each Pandas version at least once.
    
-   To install the latest Pandas on the 1.0.x branch, use the command:
+   To install the latest Pandas on the 2.3.x branch, use the command:
    ```
-   pip install --upgrade --force "pandas>=1.0,<1.1"
+   pip install --upgrade --force "pandas>=2.3,<2.4"
    ```
    
 1. Ensure Watson NLU service API tests are enabled and passing by setting 
@@ -23,15 +23,14 @@ Steps to release a new version:
    only the packages in `requirements.txt` by running the following commands 
    from the root of your local copy of the repository:
    ```
-   conda create -y --prefix ./testenv python=3.8 pip
+   conda create -y --prefix ./testenv python=3.12 pip
    conda activate ./testenv
-   pip install -r requirements.txt
    pip install --editable .
    python -c "import text_extensions_for_pandas as tp"
    ```
    The last command should succeed with no exceptions.
    
-   You can safely deactivate and remove the Anaconda environment`./testenv` 
+   You can safely deactivate and remove the Anaconda environment `./testenv` 
    once this step is done.
 
 1. Activate your Text Extensions for Pandas build environment (usually called 
@@ -46,7 +45,8 @@ Steps to release a new version:
    produce substantially the same output as before. Note that some of these
    notebooks need to run overnight.
 
-1. Ensure that the API docs generate without errors or warnings.
+1. Ensure that the API docs generate without errors or warnings. Use the script
+   `generate_docs.sh` to generate them.
 
 1. Increment the version number in `setup.py`.
 
