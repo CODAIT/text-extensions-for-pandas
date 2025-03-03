@@ -85,6 +85,8 @@ Steps to release a new version:
    pip install -r config/jupyter_reqs.txt
    pip install -r config/big_reqs.txt
    pip install -r config/non_36_reqs.txt
+   python -m spacy download en_core_web_sm
+   python -m spacy download en_core_web_trf
    jupyter lab
    ```
   
